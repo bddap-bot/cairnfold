@@ -1346,38 +1346,52 @@ static func field(property: String) -> Dictionary:
 	if property.begins_with(COAT_ST) and property.length() == COAT_ST.length() + 1:
 		var component := "xyzw".find(property.right(1))
 		if component >= 0:
-			return {"field": "clearcoatST", "slot": component}
+			return {"field": COAT_LOOK, "slot": component}
 	if property in LAYER_ALPHAS:
-		return {"field": "decal", "slot": LAYER_ALPHAS.find(property)}
+		return {"field": DECAL_LOOKS.BlendAlpha, "slot": LAYER_ALPHAS.find(property)}
 	var decal := _DECAL_FIELD.search(property)
 	if decal != null:
-		return {"field": {"BlendAlpha": "decal", "AlphaIntensity": "decalIntensity", "HueShift": "decalHue"}[decal.get_string(1)], "slot": decal.get_string(2).to_int()}
+		return {"field": DECAL_LOOKS[decal.get_string(1)], "slot": decal.get_string(2).to_int()}
 	var matcap := _MATCAP_FIELD.search(property)
 	if matcap != null:
-		return {"field": "matcap" + matcap.get_string(2), "slot": maxi(matcap.get_string(1).to_int() - 1, 0)}
+		return {"field": MATCAP_LOOKS[matcap.get_string(2)], "slot": maxi(matcap.get_string(1).to_int() - 1, 0)}
 	var blend := _MATCAP_BLEND_FIELD.search(property)
 	if blend != null:
-		return {"field": "matcapIntensity", "slot": int(blend.get_string(1) != "")}
+		return {"field": MATCAP_LOOKS.Intensity, "slot": int(blend.get_string(1) != "")}
 	var glow := _EMISSION_FIELD.search(property)
 	if glow != null:
-		return {"field": "emissionHue" if glow.get_string(1) == "HueShift" else "emission", "slot": 0}
+		return {"field": EMISSION_LOOKS[glow.get_string(1)], "slot": 0}
 	var post := _POST_FIELD.search(property)
 	if post != null:
-		return {"field": {"PPLightingAddition": "lightAdd", "PPBrightness": "brightness"}[post.get_string(1)], "slot": 0}
+		return {"field": POST_LOOKS[post.get_string(1)], "slot": 0}
 	var theme := _THEME_FIELD.search(property)
 	if theme != null:
-		return {"field": "theme" + {"HueSpeed": "Speed"}.get(theme.get_string(1), theme.get_string(1)), "slot": theme.get_string(2).to_int()}
+		return {"field": THEME_LOOKS[theme.get_string(1)], "slot": theme.get_string(2).to_int()}
 	return {}
 
 
+static func fields() -> Array:
+	var out := {COAT_LOOK: true}
+	for table: Dictionary in [DECAL_LOOKS, MATCAP_LOOKS, EMISSION_LOOKS, POST_LOOKS, THEME_LOOKS]:
+		for look: String in table.values():
+			out[look] = true
+	return out.keys()
+
+
 const COAT_ST := "_ClearCoatMaps_ST."
+const COAT_LOOK := "clearcoatST"
+const DECAL_LOOKS := {"BlendAlpha": "decal", "AlphaIntensity": "decalIntensity", "HueShift": "decalHue"}
+const MATCAP_LOOKS := {"HueShift": "matcapHueShift", "Intensity": "matcapIntensity", "Replace": "matcapReplace", "Multiply": "matcapMultiply", "Add": "matcapAdd", "Mixed": "matcapMixed"}
+const EMISSION_LOOKS := {"Strength": "emission", "HueShift": "emissionHue", "Blend": "emission", "2ndBlend": "emission"}
+const POST_LOOKS := {"PPLightingAddition": "lightAdd", "PPBrightness": "brightness"}
+const THEME_LOOKS := {"HueSpeed": "themeSpeed", "Hue": "themeHue", "Saturation": "themeSaturation", "Value": "themeValue"}
 static var LAYER_ALPHAS: Array = Liltoon.LAYERS.map(func(n: String) -> String: return "_Color%s.a" % n)
-static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(BlendAlpha|AlphaIntensity|HueShift)([1-3]?)(_|$)")
-static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(HueShift|Intensity|Replace|Multiply|Add|Mixed)(_|$)")
+static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(%s)([1-3]?)(_|$)" % "|".join(DECAL_LOOKS.keys()))
+static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(%s)(_|$)" % "|".join(MATCAP_LOOKS.keys()))
 static var _MATCAP_BLEND_FIELD := RegEx.create_from_string("^_MatCap(2nd)?Blend$")
-static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(Strength|HueShift|Blend|2ndBlend)(_|$)")
-static var _POST_FIELD := RegEx.create_from_string("^_(PPLightingAddition|PPBrightness)(_|$)")
-static var _THEME_FIELD := RegEx.create_from_string("^_GlobalTheme(HueSpeed|Hue|Saturation|Value)([0-3])(_|$)")
+static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(%s)(_|$)" % "|".join(EMISSION_LOOKS.keys()))
+static var _POST_FIELD := RegEx.create_from_string("^_(%s)(_|$)" % "|".join(POST_LOOKS.keys()))
+static var _THEME_FIELD := RegEx.create_from_string("^_GlobalTheme(%s)([0-3])(_|$)" % "|".join(THEME_LOOKS.keys()))
 
 
 ## By shader: a material switched off Poiyomi keeps Poiyomi's saved values.

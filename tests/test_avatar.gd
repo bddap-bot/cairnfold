@@ -26,6 +26,7 @@ func _run() -> void:
 			_fingers_curl_into_the_palm(scene, path)
 			_headless_leaves_the_eyes_clear(scene, path)
 			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(avatar_file(path)), path))
+	_an_extension_at_another_version_is_refused()
 	_a_colour_averages_the_triangles_base_colours()
 	_a_file_the_headset_does_not_draw_stands_in_a_built_in()
 	_both_versions_stand_alike()
@@ -1394,3 +1395,18 @@ func _read_skins_bind_only_weighed_bones() -> void:
 	var kept: Skin = out[1]
 	var bones: PackedInt32Array = (out[0] as ImporterMesh).get_surface_arrays(0)[Mesh.ARRAY_BONES]
 	check(kept.get_bind_count() == 2 and kept.get_bind_bone(bones[0]) == 2 and kept.get_bind_bone(bones[8]) == 3, "compacting keeps the weighed bones, each vertex still bound to its own")
+
+
+func _an_extension_at_another_version_is_refused() -> void:
+	var bytes := FileAccess.get_file_as_bytes(Avatar.BUILT_IN[0])
+	var size := bytes.decode_u32(12)
+	var bin := bytes.slice(28 + size, 28 + size + bytes.decode_u32(20 + size))
+	check(Avatar.read(Vrm.glb(Vrm.json_chunk(bytes), bin)) != null, "a written file reads at the versions it was written at")
+	for name: String in Vrm.VERSIONS:
+		for extras: Variant in [{"version": Vrm.VERSIONS[name] + 1}, {}, null]:
+			var json: Dictionary = Vrm.json_chunk(bytes)
+			var ext: Dictionary = json.extensions.get_or_add(name, {})
+			ext.erase("extras")
+			if extras != null:
+				ext.extras = extras
+			check(Vrm.stale_extension(json) == name and Avatar.read(Vrm.glb(json, bin)) == null, "a file whose %s carries %s is refused" % [name, extras])

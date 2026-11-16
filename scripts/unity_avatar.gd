@@ -801,6 +801,13 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	data.particles = range(particles.when.size()).filter(func(i: int) -> bool: return not (particles.when[i] as Array).is_empty()).map(func(i: int) -> Dictionary: return {"system": i, "when": particles.when[i]})
 	data.shown = meshes.filter(func(m: Dictionary) -> bool: return not (m.when as Array).is_empty()).map(func(m: Dictionary) -> Dictionary: return {"node": m.node, "when": m.when})
 	report["menu"] = "%d controls over %d layers, %d targets" % [_controls(data.menu), (data.layers as Array).size(), targets.size()]
+	var undriven := {}
+	for t: Dictionary in targets:
+		for region: Dictionary in t.effect.get("look", []) if t.effect is Dictionary else []:
+			if region.field in ExpressionPlayer.UNDRIVEN_LOOKS:
+				undriven[region.field] = undriven.get(region.field, 0) + 1
+	if not undriven.is_empty():
+		report["looks bound that Cairnfold does not drive"] = undriven
 	if not dropped.is_empty():
 		report["menu: not translated"] = dropped
 	return data

@@ -50,6 +50,9 @@ const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emi
 const RESTING_FIELDS := ["emission", "matcapIntensity"]
 const POST_CHANNELS := {"lightAdd": 0, "brightness": 1}
 const POST_RESTS: Array[float] = [0.0, 1.0]
+const THEME_FIELDS := ["themeHue", "themeSaturation", "themeValue", "themeSpeed"]
+static var DRIVEN_LOOKS: Array = LOOK_FIELDS + THEME_FIELDS + POST_CHANNELS.keys()
+const UNDRIVEN_LOOKS := ["matcapHueShift", "matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed", "emissionHue"]
 
 ## All avatars; metrics.gd reads and resets it.
 static var process_us := 0
@@ -137,7 +140,7 @@ func _init(model: Node3D) -> void:
 				var kind: String = effect.keys()[0]
 				for region: Dictionary in effect[kind]:
 					var mesh: MeshInstance3D = nodes.get(str(region.node))
-					if mesh != null and kind == "look" and str(region.get("field", "")).begins_with("theme"):
+					if mesh != null and kind == "look" and region.get("field") in THEME_FIELDS:
 						var glows: Dictionary = _glows.get_or_add(mesh, {"entries": {}, "dirty": true, "turning": false})
 						var entry := _glow(glows.entries, region, data.get("looks", {}))
 						if not entry.is_empty():
@@ -165,7 +168,7 @@ func _init(model: Node3D) -> void:
 								glows.dirty = true)
 						continue
 					var field := str(region.get("field", ""))
-					if mesh == null or (kind == "look" and not field.begins_with("decal") and field not in RESTING_FIELDS and not (field == "clearcoatST" and _marked(mesh, "clearcoat"))):
+					if mesh == null or (kind == "look" and (field not in LOOK_FIELDS or field == "clearcoatST" and not _marked(mesh, "clearcoat"))):
 						continue
 					var mats := _material(mesh)
 					var decals: Dictionary = model.get_meta("expression_decal_sets", {}).get(str(region.node), {})

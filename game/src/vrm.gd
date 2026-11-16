@@ -16,6 +16,8 @@ const BONE := "bone"
 const EXPRESSIONS := "VRCHAT_expressions"
 const PARTICLES := "UNITY_particles"
 const CONSTRAINTS := "UNITY_constraints"
+const SPRINGS := "VRMC_springBone"
+const VERSIONS := {EXPRESSIONS: 1, PARTICLES: 1, CONSTRAINTS: 1, SPRINGS: 1}
 const EXPRESSION := "expression"
 const RANGES := ["rangeMapHorizontalInner", "rangeMapHorizontalOuter", "rangeMapVerticalDown", "rangeMapVerticalUp"]
 const LOOKS := ["lookLeft", "lookRight", "lookUp", "lookDown"]
@@ -26,7 +28,7 @@ const PNG := [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
 
 
 func _get_supported_extensions() -> PackedStringArray:
-	return PackedStringArray(["VRMC_vrm", "VRM", "VRMC_springBone", EXPRESSIONS, PARTICLES])
+	return PackedStringArray(["VRMC_vrm", "VRM", SPRINGS, EXPRESSIONS, PARTICLES])
 
 
 ## Files come from other players, so every field is checked for its type before use.
@@ -423,6 +425,20 @@ static func look_binds(state: GLTFState) -> Dictionary:
 	return out
 
 
+static func stale_extension(json: Variant) -> String:
+	for name: String in VERSIONS:
+		var ext: Variant = _field(_field(json, "extensions"), name)
+		var version: Variant = _field(_field(ext, "extras"), "version")
+		if ext is Dictionary and not (version is float and version == VERSIONS[name]) and (name != SPRINGS or _spring_extras(ext)):
+			return name
+	return ""
+
+
+static func _spring_extras(ext: Dictionary) -> bool:
+	var springs: Variant = ext.get("springs")
+	return springs is Array and springs.any(func(s: Variant) -> bool: return _field(s, "extras") != null or (_field(s, "joints") is Array and s.joints.any(func(j: Variant) -> bool: return _field(j, "extras") != null)))
+
+
 static func _number(x: Variant, low: float, high: float, otherwise: float) -> float:
 	return clampf(x, low, high) if x is float and is_finite(x) else otherwise
 
@@ -459,7 +475,7 @@ func _export_preflight(state: GLTFState, root: Node) -> Error:
 	state.set_additional_data(&"weights", {})
 	state.add_used_extension("VRMC_vrm", false)
 	if not springs.is_empty():
-		state.add_used_extension("VRMC_springBone", false)
+		state.add_used_extension(SPRINGS, false)
 		if (springs.colliders as Array).any(func(c: Dictionary) -> bool: return c.has("extensions")):
 			state.add_used_extension("VRMC_springBone_extended_collider", false)
 	if not constraints.is_empty():
@@ -584,7 +600,7 @@ func _export_post(state: GLTFState) -> Error:
 		for collider: Dictionary in springs.colliders:
 			if collider.has("node"):
 				collider.node = indices[collider.node]
-		exts["VRMC_springBone"] = springs
+		exts[SPRINGS] = springs
 	var constraints: Array = state.get_additional_data(&"constraints")
 	if not constraints.is_empty():
 		var encoded := constraints.duplicate(true)
@@ -607,6 +623,9 @@ func _export_post(state: GLTFState) -> Error:
 	var expressions: Dictionary = state.get_additional_data(&"expressions")
 	if not expressions.is_empty():
 		exts[EXPRESSIONS] = _indexed(expressions, state, indices)
+	for name: String in VERSIONS:
+		if exts.has(name):
+			exts[name]["extras"] = {"version": VERSIONS[name]}
 	return OK
 
 
@@ -714,6 +733,10 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 	state.set_additional_data(&"vrm_layers", null)
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_EMBED_AS_UNCOMPRESSED
 	state.create_animations = false
+	var stale := stale_extension(json_chunk(bytes) if bytes.size() >= 28 else null)
+	if stale != "":
+		print("vrm: refused: its %s is not at version %d, the one this reads" % [stale, VERSIONS[stale]])
+		return null
 	var parsed := doc.append_from_buffer(bytes, "", state)
 	if parsed != OK or state.get_additional_data(&"vrm_refused"):
 		if parsed != OK:
