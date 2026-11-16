@@ -346,7 +346,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   harness in Unity against this runtime: each recorded frame places the root, poses the avatar from
   the recorded head and hands as a player's would, then moves each humanoid bone the recording names to where
   it was before Unity's dynamics ran, so the body stands in Unity's pose; it steps the springs 1/60 s, and writes the spring tips,
-  the menu controls and the renders the recording made. Run it from the repository root under a
+  the menu controls and the renders the recording made. It seeds the random numbers and lifts the frame deadline, as the
+  game's own replays do, so two replays of one build draw alike. Run it from the repository root under a
   display, `godot4 --path game --xr-mode off --fixed-fps 60 --script ../scripts/avatar_reference.gd -- REF AVATAR.vrm OUT`
   (lavapipe's Vulkan ICD in `VK_ICD_FILENAMES` renders without a GPU), and score it with the
   harness's `compare.py REF OUT`.

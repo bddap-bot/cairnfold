@@ -33,6 +33,8 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	seed(0)
+	Budget.frame_deadline = false
 	var args := OS.get_cmdline_user_args()
 	if args.size() != 3:
 		printerr("usage: avatar_reference.gd -- REF AVATAR.vrm OUT")
