@@ -14,11 +14,10 @@ func _run() -> void:
 	root.mesh_lod_threshold = 0.0
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
-	await process_frame
+	main.rig.stature.add(Rig.EYE, 3600.0)
 	main.world.submit({"op": "sky", "time": 0.35})
-	await create_timer(1.0).timeout
+	await until(func() -> bool: return main.look._sky_time == 0.35, "the sky is painted for the hour")
 	main.look.bounce.finish()
-	await create_timer(1.0).timeout
 	main.look.set_process(false)
 	await play([{"op": "layer", "name": "all", "mode": "off"}, {"op": "layer", "name": "terrain"}, {"op": "layer", "name": "sun"}])
 	var terrain: Terrain = main.world.terrain
