@@ -20,7 +20,6 @@ uniform mediump vec3 cliff_light : source_color = vec3(0.80, 0.74, 0.63);
 uniform mediump vec3 cliff_dark : source_color = vec3(0.34, 0.32, 0.30);
 // Terrain.ROCK.
 uniform mediump vec2 rock_steep;
-// FloraCover, per vertex: rgb half the factor a clump makes of the meadow's colour, a its presence.
 global uniform sampler2D flora_grass : filter_nearest, repeat_disable;
 const float FACTOR_RANGE = 2.0;
 uniform bool far_grass = true;
