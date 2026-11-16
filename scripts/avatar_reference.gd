@@ -15,7 +15,7 @@ var _out := ""
 var _root := Node3D.new()
 var _sun := DirectionalLight3D.new()
 var _avatar: Avatar
-var _skeleton: Skeleton3D
+var _skeleton := Skeleton3D.new()
 var _eyes_from_head := Transform3D.IDENTITY
 var _grips: Array[Basis] = [Basis.IDENTITY, Basis.IDENTITY]
 var _tips := {}
@@ -157,6 +157,7 @@ func _stage(camera: Dictionary) -> SubViewport:
 	world.environment = env
 	view.add_child(world)
 	view.add_child(_root)
+	_root.add_child(_skeleton)
 	var eye := Camera3D.new()
 	eye.fov = camera.fov_vertical
 	eye.cull_mask = Quality.VIEW_MASK
@@ -202,6 +203,7 @@ func _wear(scene: PackedScene) -> void:
 	_avatar.transform = TURN
 	_root.add_child(_avatar)
 	_avatar.stand()
+	_skeleton.free()
 	_skeleton = _avatar.find_child("Skeleton3D", true, false)
 	var local := _avatar.global_transform.affine_inverse()
 	var eyes := Transform3D(Basis.IDENTITY, Vector3(0, _avatar.eye_height, 0))
@@ -213,8 +215,6 @@ func _wear(scene: PackedScene) -> void:
 
 ## -1 for none. Names compare without case or punctuation, since the importer sanitises them.
 func _bone(unity_name: String) -> int:
-	if _skeleton == null:
-		return -1
 	var want := _plain(unity_name)
 	for b in _skeleton.get_bone_count():
 		if _plain(_skeleton.get_bone_name(b)) == want:

@@ -123,7 +123,40 @@ func _run() -> void:
 	var no_maps: Vector2 = shots["no fallback maps"]
 	check(no_maps.distance_to(no_map) < 0.005, "as does one on an avatar with no fallback maps: %s" % no_maps)
 	view.queue_free()
+	_reference_replay()
 	finish()
+
+
+func _reference_replay() -> void:
+	var ref := OS.get_cache_dir().path_join("cairnfold-reference-%d" % OS.get_process_id())
+	var out := ref.path_join("out")
+	var chain := "0|Armature/hips/spine/head/tassel0/tassel1/tassel2#0"
+	DirAccess.make_dir_recursive_absolute(ref)
+	var track := "frame\troot\thead\tleft\tright\n"
+	for frame in 4:
+		track += "%d\t0,0,0,0,0,0,1\t0,1.6,0,0,0,0,1\t-0.3,1.2,0.2,0,0,0,1\t0.3,1.2,0.2,0,0,0,1\n" % frame
+	var files := {
+		"track.tsv": track,
+		"steps.tsv": "a\t0\t0\t-\tmotion\nb\t1\t2\t-\tsettle\n",
+		"renders.tsv": "front.png\t2\n",
+		"chains.tsv": "chain\n%s\n" % chain,
+		"drivers.tsv": "path\troles\nArmature/hips\thumanoid:Hips\n",
+		"poses.tsv": "0\troot\tArmature/hips\t0,0.95,0,0,0,0,1\n",
+		"camera.json": JSON.stringify({"width": 32, "height": 32, "background": [0.2, 0.2, 0.2], "ambient": [0.5, 0.5, 0.5], "fov_vertical": 40,
+			"position": [0, 1.2, 3], "rotation_euler": [0, 180, 0], "light_intensity": 1, "light_euler": [50, 30, 0]}),
+	}
+	for name: String in files:
+		FileAccess.open(ref.path_join(name), FileAccess.WRITE).store_string(files[name])
+	var said := []
+	var code := OS.execute("timeout", ["300", OS.get_executable_path(), "--path", ProjectSettings.globalize_path("res://"), "--xr-mode", "off", "--fixed-fps", "60",
+		"--script", ProjectSettings.globalize_path("res://../scripts/avatar_reference.gd"), "--", ProjectSettings.globalize_path(ref),
+		ProjectSettings.globalize_path("res://avatars/pebble.vrm"), ProjectSettings.globalize_path(out)], said, true)
+	var meta: Variant = JSON.parse_string(FileAccess.get_file_as_string(out.path_join("meta.json")))
+	var tips := FileAccess.get_file_as_string(out.path_join("tips.tsv")).split("\n", false)
+	check(code == 0 and not said[0].contains("SCRIPT ERROR") and meta is Dictionary and meta.matched_tips == [chain] and meta.unmatched_tips.is_empty()
+		and meta.notes.has("humanoid bones placed as recorded: 1") and tips.size() == 3 and FileAccess.file_exists(out.path_join("front.png")),
+		"scripts/avatar_reference.gd replays a recording on a built-in avatar, its tassel's tip followed each frame of the window: exit %d, %s, %s\n%s" % [code, meta, tips, said[0].right(4000)])
+	OS.execute("rm", ["-rf", ProjectSettings.globalize_path(ref)])
 
 
 func _ball(model: String) -> Node3D:
