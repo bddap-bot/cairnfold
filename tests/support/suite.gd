@@ -51,6 +51,33 @@ func boot_main(args := {}) -> void:
 	root.add_child(main)
 
 
+func drawn() -> Image:
+	await create_timer(0.5).timeout
+	await RenderingServer.frame_post_draw
+	return root.get_texture().get_image()
+
+
+static func pixels_apart(a: Image, b: Image, by := 0.0) -> int:
+	var n := 0
+	for y in a.get_height():
+		for x in a.get_width():
+			var d := a.get_pixel(x, y) - b.get_pixel(x, y)
+			if maxf(maxf(absf(d.r), absf(d.g)), absf(d.b)) > by:
+				n += 1
+	return n
+
+
+func light_settled(time: float) -> void:
+	main.world.submit({"op": "sky", "time": time})
+	main.look.set_process(true)
+	await create_timer(1.0).timeout
+	main.look.bounce.finish()
+	main.fitting_tool.lamps.finish()
+	main.look.interior.finish()
+	await create_timer(3.0).timeout
+	main.look.set_process(false)
+
+
 func frames(n: int) -> void:
 	for i in n:
 		await process_frame

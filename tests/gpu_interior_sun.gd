@@ -22,13 +22,7 @@ func _run() -> void:
 	root.add_child(main)
 	await process_frame
 	await play([{"op": "place", "x": 0, "z": 12}, {"op": "house", "at": [0, 0], "size": [7, 5], "seed": 1, "seconds": 0.1}])
-	main.world.submit({"op": "sky", "time": 0.5})
-	await create_timer(1.0).timeout
-	main.look.bounce.finish()
-	main.fitting_tool.lamps.finish()
-	main.look.interior.finish()
-	await create_timer(3.0).timeout
-	main.look.set_process(false)
+	await light_settled(0.5)
 	RenderingServer.global_shader_parameter_set("lamp_light", Vector3.ZERO)
 	RenderingServer.global_shader_parameter_set("bounce_light", Vector3.ZERO)
 	main.look.env.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED
