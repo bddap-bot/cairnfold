@@ -1,4 +1,5 @@
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -35,6 +36,14 @@ class Generated(unittest.TestCase):
             godot("scripts/mocap.gd", out)
             self.assertSameFiles(out, ROOT / "game/animations", ["wave.tres", "poses.json"])
 
+    def test_shaders_lists_the_materials_listed(self):
+        def materials(path):
+            return [line for line in path.read_text().splitlines() if not line.startswith("shader_parameter/")]
+        with tempfile.TemporaryDirectory() as tree:
+            for part in ("game", "scripts", "tests"):
+                shutil.copytree(ROOT / part, Path(tree) / part, symlinks=True, ignore=shutil.ignore_patterns("__pycache__"))
+            run("scripts/shaders.sh", cwd=tree)
+            self.assertEqual(materials(Path(tree) / "game/shaders.tres"), materials(ROOT / "game/shaders.tres"))
 
 
 if __name__ == "__main__":
