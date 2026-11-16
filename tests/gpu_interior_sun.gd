@@ -7,8 +7,7 @@ extends "res://../tests/support/suite.gd"
 
 func _mean() -> float:
 	await create_timer(1.0).timeout
-	await RenderingServer.frame_post_draw
-	var img := root.get_texture().get_image()
+	var img := await drawn()
 	var sum := 0.0
 	for y in img.get_height():
 		for x in img.get_width():

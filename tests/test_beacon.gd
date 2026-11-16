@@ -182,11 +182,12 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 		await process_frame
 	check(host.worn_key != "" and Session.read_beacon(host.beacon()).wears == host.worn_key, "a host wearing its own file names it in the beacon")
 	var where := "127.0.0.1:%d" % host.port
-	for n in 600:
+	var heard := func() -> bool:
 		if viewer.nearby.has(where) and viewer.nearby[where].wears == host.worn_key:
-			break
+			return true
 		host._announce()
-		await process_frame
+		return false
+	await until(heard, "the viewer hears the host's beacon name its file")
 	var unreachable := "%s:%d" % [NOBODY, Session.PORT + 9]
 	viewer.nearby[unreachable] = viewer.nearby[where].merged({"address": NOBODY, "port": Session.PORT + 9, "wears": "cd".repeat(32), "name": "", "seen": INF}, true)
 	await frames(2)

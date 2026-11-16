@@ -75,9 +75,7 @@ func _run() -> void:
 
 ## Once a change has reached a drawn frame.
 func _shot(view: SubViewport) -> float:
-	for i in 3:
-		await RenderingServer.frame_post_draw
-	var image := view.get_texture().get_image()
+	var image := await drawn(view)
 	var sum := 0.0
 	var n := 0
 	for y in range(SIZE * 3 / 8, SIZE * 5 / 8):

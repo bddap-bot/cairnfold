@@ -64,8 +64,7 @@ func _shot(view: SubViewport, player: ExpressionPlayer, hat: int, parameter: Str
 	player.state.advance(0)
 	player.apply()
 	await process_frame
-	await RenderingServer.frame_post_draw
-	var image := view.get_texture().get_image()
+	var image := await drawn(view)
 	if out != "":
 		image.save_png(out.path_join("%s.png" % (parameter + also if parameter != "" else "rest" if hat else "bare")))
 	var sum := Color(0, 0, 0, 0)

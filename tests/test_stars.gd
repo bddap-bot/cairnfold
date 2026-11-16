@@ -13,7 +13,7 @@ func _run() -> void:
 			check(dawn == 0.0, "no stars above the daytime horizon")
 		previous = dawn
 	main.look.set_time(0.0)
-	await create_timer(Look.SKY_EVERY * 2).timeout
+	await until(func() -> bool: return main.look._sky_time == 0.0, "the sky is painted at midnight")
 	var driver := Driver.new(main, [])
 	main.add_child(driver)
 	driver._layer({"name": "stars", "mode": "off"})

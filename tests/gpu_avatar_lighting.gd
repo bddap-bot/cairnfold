@@ -80,8 +80,7 @@ func _run() -> void:
 	var reds := []
 	for frame in 6:
 		await process_frame
-		await RenderingServer.frame_post_draw
-		reds.append(_mean(view.get_texture().get_image(), SIZE * 5 / 8))
+		reds.append(_mean(await drawn(view), SIZE * 5 / 8))
 	turning.queue_free()
 	print(shots)
 	var flat_dim: Vector2 = shots["flat (0.5, 0.0)"]

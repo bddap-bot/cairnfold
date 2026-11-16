@@ -58,11 +58,7 @@ func _run() -> void:
 	await until(func() -> bool: return host.world.seq > 0, "the host plants a tree the guest's garden lacks")
 	var home := guest.world.snapshot()
 	guest.session.join("127.0.0.1", host.session.port)
-	for frame in 600:
-		await process_frame
-		if host.session.players() == 2 and guest.session.avatars.has(1):
-			break
-	check(host.session.players() == 2 and guest.session.avatars.has(1), "co-op peer joins before focus loss")
+	await until(func() -> bool: return host.session.players() == 2 and guest.session.avatars.has(1), "co-op peer joins before focus loss")
 	await until(func() -> bool: return guest.world.seq == host.world.seq, "the guest is given the host's garden")
 	await _a_guest_s_throw_lands_for_the_host(host, guest)
 	var peer := guest.multiplayer.multiplayer_peer

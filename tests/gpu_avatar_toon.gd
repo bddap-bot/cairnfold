@@ -101,8 +101,7 @@ func _run() -> void:
 			player.state.outputs.assign(moves[look][1])
 			player.apply()
 			await process_frame
-			await RenderingServer.frame_post_draw
-			shots[moves[look][0]] = view.get_texture().get_image()
+			shots[moves[look][0]] = await drawn(view)
 		ball.queue_free()
 	for look: String in shots:
 		if not OS.get_cmdline_user_args().is_empty():

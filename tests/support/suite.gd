@@ -59,10 +59,11 @@ func boot_main(args := {}) -> void:
 	root.add_child(main)
 
 
-func drawn() -> Image:
+func drawn(view: Viewport = null) -> Image:
+	var v := view if view != null else root
 	await RenderingServer.frame_post_draw
-	await until(func() -> bool: return Quality.nothing_skipped(root.get_viewport_rid()), "a frame draws the view with nothing skipped")
-	return root.get_texture().get_image()
+	await until(func() -> bool: return Quality.nothing_skipped(v.get_viewport_rid()), "a frame draws the view with nothing skipped")
+	return v.get_texture().get_image()
 
 
 static func pixels_apart(a: Image, b: Image, by := 0.0) -> int:

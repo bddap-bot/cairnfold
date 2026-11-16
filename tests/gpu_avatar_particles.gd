@@ -79,8 +79,7 @@ func _run() -> void:
 ## `x` right and `y` up, in pixels from the middle of the view, a frame on.
 func _shot(view: SubViewport, out: String, x: int, y: int) -> Color:
 	await process_frame
-	await RenderingServer.frame_post_draw
-	var image := view.get_texture().get_image()
+	var image := await drawn(view)
 	if out != "":
 		image.save_png(out.path_join("particles-%d.png" % Time.get_ticks_usec()))
 	var sum := Color(0, 0, 0, 0)
