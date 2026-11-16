@@ -37,6 +37,7 @@ class Shaders(unittest.TestCase):
             ('conure.gdshader', 'BILL', [enum_members('conure.gd', 'Patch').index('BILL')]),
             ('conure.gdshader', 'PATCHES', [len(enum_members('conure.gd', 'Patch'))]),
             ('water.gdshaderinc', 'DROWNS', script_const('water.gd', 'DROWNS')),
+            ('bounce.gdshaderinc', 'READ_OUT', script_const('bounce.gd', 'OVER_ROOF')),
             ('interior.gdshaderinc', 'OPENING', script_const('interior.gd', 'OPENING')),
             ('interior.gdshaderinc', 'NO_ROOM', script_const('interior.gd', 'NO_ROOM')),
             ('ground.gdshaderinc', 'TILLED', script_const('ground.gd', 'TILLED')),

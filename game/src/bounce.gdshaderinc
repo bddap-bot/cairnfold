@@ -12,8 +12,10 @@ vec3 volume_coord(vec3 p, float ground) {
 }
 
 // Half a metre out, so a wall reads the air before it.
+const float READ_OUT = 0.5;
+
 vec3 read_over(vec3 p, vec3 n) {
-	return p + n * 0.5;
+	return p + n * READ_OUT;
 }
 
 vec3 bounce_over(vec3 p, vec3 n, float ground) {
