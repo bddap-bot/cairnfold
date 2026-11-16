@@ -1082,7 +1082,6 @@ func _menu_lifts_and_dims_the_lighting() -> void:
 	root.free()
 
 
-
 func _each_converted_look_is_driven_or_named_still() -> void:
 	var declared: Array = ExpressionPlayer.DRIVEN_LOOKS + ExpressionPlayer.UNDRIVEN_LOOKS
 	var bound := Materials.fields()
