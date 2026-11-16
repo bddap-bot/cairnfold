@@ -34,7 +34,6 @@ const DIELECTRIC := 0.220916301
 const FALLBACK_SIDE := 256
 const FALLBACK_LEVELS := 7
 const FALLBACK_RANGE := 128.0
-const FALLBACK_GREY := 0.214
 ## The material index changes only at the edges of cells many texels wide.
 const INDEX_SIDE := 2048
 ## What a Quest 2's game and seven heavy avatars need besides textures: it leaves each the 8.4 million texels seven ran
@@ -773,7 +772,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 			table.set_pixel(k + 1, row + 4, Color(float(inverts[0]), float(inverts[1]), float(inverts[2]), float(inverts[3])))
 			var strength: Variant = coat.fresnelStrength
 			table.set_pixel(k + 1, row + 5, Color(coat.gsaa[0], coat.gsaa[1], -1.0 if strength == null else DIELECTRIC + lerpf(DIELECTRIC, 1.0, strength) * 0.5, coat.exposureOcclusion))
-			table.set_pixel(k + 1, row + 6, Color(coat.fallback if coat.fallback < fallbacks else -1, float(coat.litFallback), float(coat.forceFallback)))
+			table.set_pixel(k + 1, row + 6, Color(coat.fallback if coat.fallback >= 0 and coat.fallback < fallbacks else fallbacks, float(coat.litFallback), float(coat.forceFallback)))
 		var light: Dictionary = materials[k].lighting
 		var head := Color(0, 0, 0, 0)
 		if light.model == "flat":

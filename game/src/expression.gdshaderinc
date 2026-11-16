@@ -201,14 +201,7 @@ float pow5(float x) {
 }
 
 #ifdef COAT_FALLBACK
-const float FALLBACK_GREY = 0.214;
-
-// `d` in the avatar's model space with X mirrored (Unity's axes), read as Unity's panoramic skybox reads lat-long;
-// layer < 0 is Unity's default grey cube.
 vec3 coat_fallback(float layer, vec3 d, float lod) {
-	if (layer < 0.0) {
-		return vec3(FALLBACK_GREY);
-	}
 	float u = abs(d.y) > 0.99999 ? 0.0 : 0.5 - atan(d.z, -d.x) / TAU;
 	float v = clamp(acos(clamp(d.y, -1.0, 1.0)) / PI, 0.5 / 128.0, 1.0 - 0.5 / 128.0);
 	float k = clamp(lod, 0.0, 6.0);

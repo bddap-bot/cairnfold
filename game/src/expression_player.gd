@@ -43,6 +43,7 @@ var _marks := {}
 const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", "untinted_count"], "tone": ["hue_mask"], "look": []}
 ## Clear texels round each decal on its page, so the first mips of one never read its neighbour.
 const DECAL_PAD := 8
+const UNITY_GREY := 0.214
 ## In the shader's field order.
 const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emission", "matcapIntensity"]
 ## Set only while the target is off its rest; at rest each covered material keeps its own.
@@ -396,9 +397,8 @@ static func prepare(model: Node3D) -> void:
 		model.set_meta("expression_matcaps", _layers(looks.matcaps))
 	if looks.get("matcapMasks") is Image:
 		model.set_meta("expression_matcap_masks", ImageTexture.create_from_image(looks.matcapMasks))
-	var fallbacks: Array = looks.get("clearcoatFallbacks", [])
-	if not fallbacks.is_empty():
-		model.set_meta("expression_coat_fallbacks", coat_fallbacks(fallbacks))
+	var fallbacks: Array = looks.get("clearcoatFallbacks", []) if looks.get("clearcoatFallbacks") is Array else []
+	model.set_meta("expression_coat_fallbacks", coat_fallbacks(fallbacks))
 	var decals: Array = looks.get("decals", [])
 	Vrm.drop_layers(data)
 	var by_node := {}
@@ -504,11 +504,11 @@ static func _pages(drawn: Dictionary) -> Dictionary:
 ## Linear, so the shader's filtering blends light and not its encoding. A stack that is no such image becomes Unity's
 ## default grey, keeping the rest at their layers.
 static func coat_fallbacks(stacks: Array) -> Texture2DArray:
-	var size := Vector2i(Avatar.FALLBACK_SIDE, Avatar.FALLBACK_SIDE / 2 * Avatar.FALLBACK_LEVELS)
+	var size := Vector2i(Avatar.FALLBACK_SIDE, Avatar.FALLBACK_SIDE / 2 * Avatar.FALLBACK_LEVELS) if not stacks.is_empty() else Vector2i.ONE
 	var layers: Array[Image] = []
-	for stack: Variant in stacks:
+	for stack: Variant in stacks + [null]:
 		var layer := Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBH)
-		layer.fill(Color(Avatar.FALLBACK_GREY, Avatar.FALLBACK_GREY, Avatar.FALLBACK_GREY))
+		layer.fill(Color(UNITY_GREY, UNITY_GREY, UNITY_GREY))
 		if stack is Image and (stack as Image).get_size() == size:
 			var encoded := (stack as Image).duplicate() as Image
 			encoded.convert(Image.FORMAT_RGBA8)
