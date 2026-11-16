@@ -14,11 +14,12 @@ const LOOK_REACH := 30.0
 
 
 func _init() -> void:
+	var folder: String = (Array(OS.get_cmdline_user_args()) + ["res://avatars"])[0]
 	for a in [_pebble(), _acorn(), _hood()]:
 		_tassel(a)
 		var body := _skinned(a)
 		a.free()
-		Vrm.write(body, "res://avatars/%s.vrm" % body.name)
+		Vrm.write(body, folder.path_join(body.name + ".vrm"))
 		print("avatars: ", body.name)
 		body.free()
 	quit()
@@ -134,7 +135,7 @@ func _placed(arrays: Array, at: Transform3D, bind: int) -> Array:
 		weights.append_array([1.0, 0.0, 0.0, 0.0])
 	out[Mesh.ARRAY_VERTEX] = vertex
 	out[Mesh.ARRAY_NORMAL] = normal
-	out[Mesh.ARRAY_INDEX] = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(vertex.size()))
+	out[Mesh.ARRAY_INDEX] = arrays[Mesh.ARRAY_INDEX]
 	out[Mesh.ARRAY_BONES] = bones
 	out[Mesh.ARRAY_WEIGHTS] = weights
 	return out

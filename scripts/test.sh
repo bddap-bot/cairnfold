@@ -12,9 +12,9 @@ export XDG_DATA_HOME TMPDIR
 # A test holds about 300 MB, the GPU checks 1.6 GB. The cap is data, not address space: a GPU check's ~40 glibc
 # malloc arenas reserve 1.7-2.0 GB it never touches.
 ulimit -d $((4 * 1024 * 1024))
+scripts/check.sh
 python3 -m unittest discover -s tests -p 'test_*.py' >"$runs/python.log" 2>&1 &
 python=$!
-scripts/check.sh
 status=0
 if grep -nE "^\s+quit\(" tests/*.gd; then echo "tests exit through Main.quit, which waits for playing sounds"; status=1; fi
 # Largest first, so the longest start early. The hour's timeout only catches hangs: test_house_leaks alone took 29
