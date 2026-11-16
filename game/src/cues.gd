@@ -25,7 +25,7 @@ enum Act {
 	REFUSED, CAPPED,
 }
 
-## Per action: `sound`, clips `sound`0.ogg on in game/audio/fx (`SOUNDS` of them), "" for none; `db` at UNIT metres;
+## Per action: `sound`, clips in `SOUNDS`, "" for none; `db` at UNIT metres;
 ## `tune` the pitch, spread by `spread` each way; a `tension` of 1 takes the pitch `bend` further and `swell` dB louder;
 ## each doubling of `heft` adds `weigh` dB, and pitch falls as heft to the `deepen`; `feel` [amplitude, seconds, pulses,
 ## seconds apart] or [], raised by up to `tighten` of itself at full tension; `every` the least seconds between plays.
@@ -97,10 +97,40 @@ const TABLE := {
 	Act.CAPPED: {"sound": "grunt", "db": -8.0, "spread": 0.05, "feel": [0.4, 0.05, 2, 0.15]},
 }
 const SOUNDS := {
-	"stone": 5, "settle": 3, "arch": 2, "crumble": 2, "dip": 3, "fill": 2, "plop": 3, "nibble": 4,
-	"bow": 3, "lift": 2, "scrape": 4, "wood": 3, "rustle": 4, "gravel": 4, "soil": 3, "sweep": 1, "tock": 3,
-	"pick": 3, "tear": 2, "shutter": 2, "scatter": 3, "undo": 1, "redo": 1, "swish": 1, "cloth": 1, "hello": 1,
-	"bye": 1, "flutter": 3, "grunt": 2, "thud": 3, "whoosh": 3, "page": 3, "roll": 1, "cut": 1,
+	"stone": [preload("res://audio/fx/stone0.ogg"), preload("res://audio/fx/stone1.ogg"), preload("res://audio/fx/stone2.ogg"), preload("res://audio/fx/stone3.ogg"), preload("res://audio/fx/stone4.ogg")],
+	"settle": [preload("res://audio/fx/settle0.ogg"), preload("res://audio/fx/settle1.ogg"), preload("res://audio/fx/settle2.ogg")],
+	"arch": [preload("res://audio/fx/arch0.ogg"), preload("res://audio/fx/arch1.ogg")],
+	"crumble": [preload("res://audio/fx/crumble0.ogg"), preload("res://audio/fx/crumble1.ogg")],
+	"dip": [preload("res://audio/fx/dip0.ogg"), preload("res://audio/fx/dip1.ogg"), preload("res://audio/fx/dip2.ogg")],
+	"fill": [preload("res://audio/fx/fill0.ogg"), preload("res://audio/fx/fill1.ogg")],
+	"plop": [preload("res://audio/fx/plop0.ogg"), preload("res://audio/fx/plop1.ogg"), preload("res://audio/fx/plop2.ogg")],
+	"nibble": [preload("res://audio/fx/nibble0.ogg"), preload("res://audio/fx/nibble1.ogg"), preload("res://audio/fx/nibble2.ogg"), preload("res://audio/fx/nibble3.ogg")],
+	"bow": [preload("res://audio/fx/bow0.ogg"), preload("res://audio/fx/bow1.ogg"), preload("res://audio/fx/bow2.ogg")],
+	"lift": [preload("res://audio/fx/lift0.ogg"), preload("res://audio/fx/lift1.ogg")],
+	"scrape": [preload("res://audio/fx/scrape0.ogg"), preload("res://audio/fx/scrape1.ogg"), preload("res://audio/fx/scrape2.ogg"), preload("res://audio/fx/scrape3.ogg")],
+	"wood": [preload("res://audio/fx/wood0.ogg"), preload("res://audio/fx/wood1.ogg"), preload("res://audio/fx/wood2.ogg")],
+	"rustle": [preload("res://audio/fx/rustle0.ogg"), preload("res://audio/fx/rustle1.ogg"), preload("res://audio/fx/rustle2.ogg"), preload("res://audio/fx/rustle3.ogg")],
+	"gravel": [preload("res://audio/fx/gravel0.ogg"), preload("res://audio/fx/gravel1.ogg"), preload("res://audio/fx/gravel2.ogg"), preload("res://audio/fx/gravel3.ogg")],
+	"soil": [preload("res://audio/fx/soil0.ogg"), preload("res://audio/fx/soil1.ogg"), preload("res://audio/fx/soil2.ogg")],
+	"sweep": [preload("res://audio/fx/sweep0.ogg")],
+	"tock": [preload("res://audio/fx/tock0.ogg"), preload("res://audio/fx/tock1.ogg"), preload("res://audio/fx/tock2.ogg")],
+	"pick": [preload("res://audio/fx/pick0.ogg"), preload("res://audio/fx/pick1.ogg"), preload("res://audio/fx/pick2.ogg")],
+	"tear": [preload("res://audio/fx/tear0.ogg"), preload("res://audio/fx/tear1.ogg")],
+	"shutter": [preload("res://audio/fx/shutter0.ogg"), preload("res://audio/fx/shutter1.ogg")],
+	"scatter": [preload("res://audio/fx/scatter0.ogg"), preload("res://audio/fx/scatter1.ogg"), preload("res://audio/fx/scatter2.ogg")],
+	"undo": [preload("res://audio/fx/undo0.ogg")],
+	"redo": [preload("res://audio/fx/redo0.ogg")],
+	"swish": [preload("res://audio/fx/swish0.ogg")],
+	"cloth": [preload("res://audio/fx/cloth0.ogg")],
+	"hello": [preload("res://audio/fx/hello0.ogg")],
+	"bye": [preload("res://audio/fx/bye0.ogg")],
+	"flutter": [preload("res://audio/fx/flutter0.ogg"), preload("res://audio/fx/flutter1.ogg"), preload("res://audio/fx/flutter2.ogg")],
+	"grunt": [preload("res://audio/fx/grunt0.ogg"), preload("res://audio/fx/grunt1.ogg")],
+	"thud": [preload("res://audio/fx/thud0.ogg"), preload("res://audio/fx/thud1.ogg"), preload("res://audio/fx/thud2.ogg")],
+	"whoosh": [preload("res://audio/fx/whoosh0.ogg"), preload("res://audio/fx/whoosh1.ogg"), preload("res://audio/fx/whoosh2.ogg")],
+	"page": [preload("res://audio/fx/page0.ogg"), preload("res://audio/fx/page1.ogg"), preload("res://audio/fx/page2.ogg")],
+	"roll": [preload("res://audio/fx/roll0.ogg")],
+	"cut": [preload("res://audio/fx/cut0.ogg")],
 }
 ## The voices sounds share: a sound past these takes the voice that started longest ago.
 const VOICES := 12
@@ -110,6 +140,12 @@ const UNIT := 3.0
 ## soft, paper, dark, or off; a per-build choice with no runtime menu.
 const CHARCOAL_PROFILE := "soft"
 const CHARCOAL_GRAINS := 8
+const CHARCOAL := {
+	"soft": [preload("res://audio/charcoal/soft0.ogg"), preload("res://audio/charcoal/soft1.ogg"), preload("res://audio/charcoal/soft2.ogg"), preload("res://audio/charcoal/soft3.ogg"), preload("res://audio/charcoal/soft4.ogg"), preload("res://audio/charcoal/soft5.ogg"), preload("res://audio/charcoal/soft6.ogg"), preload("res://audio/charcoal/soft7.ogg")],
+	"paper": [preload("res://audio/charcoal/paper0.ogg"), preload("res://audio/charcoal/paper1.ogg"), preload("res://audio/charcoal/paper2.ogg"), preload("res://audio/charcoal/paper3.ogg"), preload("res://audio/charcoal/paper4.ogg"), preload("res://audio/charcoal/paper5.ogg"), preload("res://audio/charcoal/paper6.ogg"), preload("res://audio/charcoal/paper7.ogg")],
+	"dark": [preload("res://audio/charcoal/dark0.ogg"), preload("res://audio/charcoal/dark1.ogg"), preload("res://audio/charcoal/dark2.ogg"), preload("res://audio/charcoal/dark3.ogg"), preload("res://audio/charcoal/dark4.ogg"), preload("res://audio/charcoal/dark5.ogg"), preload("res://audio/charcoal/dark6.ogg"), preload("res://audio/charcoal/dark7.ogg")],
+	"off": [],
+}
 const CHARCOAL_INTERVAL := 0.1
 
 ## Independent of paint samples and brush load. Distances in metres.
@@ -151,8 +187,7 @@ static var asked := {}
 static var pulsed := {}
 
 var _canvas := {}
-var _charcoal: Array[AudioStream] = []
-var _clips := {}
+var _charcoal: Array = CHARCOAL[CHARCOAL_PROFILE]
 var _voices: Array[AudioStreamPlayer3D] = []
 var _next_voice := 0
 var _last := {}
@@ -165,13 +200,6 @@ var _due: Array[Array] = []
 
 func _init() -> void:
 	name = "Cues"
-	if CHARCOAL_PROFILE != "off":
-		for i in CHARCOAL_GRAINS:
-			_charcoal.append(load("res://audio/charcoal/%s%d.ogg" % [CHARCOAL_PROFILE, i]))
-	for kind in SOUNDS:
-		_clips[kind] = []
-		for i in SOUNDS[kind]:
-			_clips[kind].append(load("res://audio/fx/%s%d.ogg" % [kind, i]))
 	for i in VOICES:
 		var v := AudioStreamPlayer3D.new()
 		v.unit_size = UNIT
@@ -224,7 +252,7 @@ static func play_in(act: Act, at: Vector3, hands: Array, tension := 0.0, heft :=
 
 ## Call every contact frame, still and unloaded brushes too.
 static func canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touching: bool, pressure: float, speed: float, distance: float, hard: bool) -> void:
-	if _live == null or not is_instance_valid(hand):
+	if _live == null:
 		return
 	_live._canvas_contact(hand, at, stick, touching, pressure, speed, distance, hard)
 
@@ -294,9 +322,9 @@ func _sound(cue: Dictionary, at: Vector3, tension: float, heft: float) -> void:
 		return
 	var v := _voices[_next_voice]
 	_next_voice = (_next_voice + 1) % _voices.size()
-	var options: Array = _clips[cue.sound]
+	var options: Array = SOUNDS[cue.sound]
 	v.stream = options[_rng.randi() % options.size()]
-	var spread: float = cue.get("spread", 0.0)
+	var spread: float = cue.spread
 	v.pitch_scale = cue.get("tune", 1.0) * (1.0 + cue.get("bend", 0.0) * tension) * pow(heft, -cue.get("deepen", 0.0)) * _rng.randf_range(1.0 - spread, 1.0 + spread)
 	v.volume_db = minf(cue.db + cue.get("swell", 0.0) * tension + cue.get("weigh", 0.0) * log(heft) / log(2.0) + _rng.randf_range(-1.5, 1.0), LOUDEST_DB)
 	v.global_position = at

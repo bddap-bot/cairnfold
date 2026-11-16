@@ -23,9 +23,7 @@ func _every_action_has_an_entry() -> void:
 		check(feel.is_empty() or (feel.size() == 4 and feel[0] > 0.0 and feel[0] <= 1.0 and feel[1] > 0.0), "%s's pulse is [amplitude, seconds, pulses, gap]: %s" % [name, feel])
 	check(Cues.TABLE.size() == Cues.Act.size(), "no entry is for an action that is gone")
 	for kind: String in Cues.SOUNDS:
-		for i in Cues.SOUNDS[kind]:
-			check(load("res://audio/fx/%s%d.ogg" % [kind, i]) != null, "sound %s%d loads" % [kind, i])
-		check(not FileAccess.file_exists("res://audio/fx/%s%d.ogg" % [kind, Cues.SOUNDS[kind]]), "%s has no clip past its count" % kind)
+		check(not FileAccess.file_exists("res://audio/fx/%s%d.ogg" % [kind, Cues.SOUNDS[kind].size()]), "%s has no clip past its count" % kind)
 		check(Cues.TABLE.values().any(func(c: Dictionary) -> bool: return c.get("sound", "") == kind), "%s is played by some action" % kind)
 
 

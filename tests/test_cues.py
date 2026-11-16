@@ -51,8 +51,8 @@ class ActionSounds(unittest.TestCase):
               f">3 kHz {ceiling['above 3000']:.4%}  >4 kHz {ceiling['above 4000']:.4%}\n" + '\n'.join(rows))
 
     def test_every_sound_family_has_its_clips(self) -> None:
-        counts = {k: int(v) for k, v in re.findall(r'"(\w+)": (\d+)', re.search(r'const SOUNDS := \{(.*?)\}', CUES, re.S).group(1))}
-        self.assertEqual({k: len(v) for k, v in _families().items()}, counts)
+        preloaded = sorted(re.findall(r'preload\("res://audio/fx/(\w+\.ogg)"\)', CUES))
+        self.assertEqual(sorted(c.name for clips in _families().values() for c in clips), preloaded)
 
     def test_every_recorded_sound_is_public_domain(self) -> None:
         for s in json.loads((FX / 'sources.json').read_text()):
