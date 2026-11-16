@@ -75,7 +75,7 @@ func _init(i: int) -> void:
 	for side in Lessons.hands(page):
 		var pad := Pad.new(side == "right")
 		pad.scale = Vector3.ONE * GHOST
-		pad.hold(Lessons.tool(page.tools.get(side, "none")))
+		pad.hold(Lessons.tool(page.tools[side]))
 		stage.add_child(pad)
 		pads[side] = pad
 	_beam = Beam.new(Color(1, 1, 1, 0.85))
@@ -119,7 +119,7 @@ func _frame() -> void:
 	var along := (target - mid).normalized()
 	var acting: String = page.press[0].hand if not page.press.is_empty() else "right"
 	var outward := along.cross(Vector3.UP).normalized() * (1.0 if acting == "right" else -1.0)
-	var lift := Vector3(0, 0.6, 0) if page.view.get("look", "top") == "top" else Vector3(0, -0.25, 0) + outward * 0.55
+	var lift := Vector3(0, 0.6, 0) if page.view.look == "top" else Vector3(0, -0.25, 0) + outward * 0.55
 	var eye: Vector3 = mid + (-along + lift).normalized() * page.view.back
 	for h in hands:
 		for c in [Vector3(-1, -1, -1), Vector3(1, 1, 1), Vector3(-1, 1, 1), Vector3(1, -1, -1), Vector3(1, -1, 1), Vector3(-1, 1, -1)]:
