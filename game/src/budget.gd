@@ -239,7 +239,7 @@ static func lay_frames(units: Dictionary) -> int:
 
 static func wall(d: Dictionary) -> Dictionary:
 	var length := Commands.length(d.points)
-	var clutter := ClutterLayout.count(d.get("clutter", [])) * PIECE_M2
+	var clutter := ClutterLayout.count(d.clutter) * PIECE_M2
 	if d.closed and d.points.size() > 2:
 		length += Vector2(d.points[0].x - d.points[-1].x, d.points[0].z - d.points[-1].z).length()
 	var face := "fence_m2" if d.fence else "wall_m2" if d.finish == WallLayout.Finish.BARE else "plaster_m2"
@@ -418,7 +418,7 @@ static func path(d: Dictionary) -> Dictionary:
 				# At most three stringer timbers a tread, every flight being two treads long.
 				timbers += 3
 		out = {"wall_m2": stones * PIECE_M2, "timber": timbers}
-	out.wall_m2 += ClutterLayout.count(d.get("clutter", [])) * PIECE_M2
+	out.wall_m2 += ClutterLayout.count(d.clutter) * PIECE_M2
 	if layout.kind == Ground.Kind.STONE:
 		out.merge(_stone_of(range(layout.row_ends.size()).map(layout.disc)))
 	return out

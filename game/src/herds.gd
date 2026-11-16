@@ -83,7 +83,7 @@ func arrive(fence: Wall) -> void:
 
 
 func _speed(_a: Node3D, state: State) -> float:
-	return SPEED.get(state, SPEED[State.WALK])
+	return SPEED[state]
 
 
 func _appetite(_a: Node3D) -> Wildlife.Appetite:

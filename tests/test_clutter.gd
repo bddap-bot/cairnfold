@@ -58,7 +58,7 @@ func _gathered() -> void:
 	check(Array(along).all(func(v: Vector4) -> bool: return v.x >= 0.0 and v.x <= 30.0), "all along its length")
 	check(ClutterLayout.of_wall(wall.merged({"fence": true}, true)).is_empty(), "a fence gathers nothing")
 	check(ClutterLayout.of_wall(wall.merged({"ruins": PackedVector2Array([Vector2(3, 5)])}, true)).is_empty(), "nor a ruin")
-	var path := {"points": PackedVector3Array([Vector3(0, 0, 0), Vector3(20, 0, 0)]), "half_widths": PackedFloat32Array([1.0, 1.0]), "seed": 3, "surface": PathLayout.Surface.DIRT}
+	var path := {"points": PackedVector3Array([Vector3(0, 0, 0), Vector3(20, 0, 0)]), "half_widths": PackedFloat32Array([1.0, 1.0]), "seed": 3, "surface": PathLayout.Surface.DIRT, "clutter": PackedVector4Array()}
 	var beside := ClutterLayout.of_path(path)
 	check(beside.size() >= 2, "a 20 m path gathers things beside it: %d" % beside.size())
 	check(Array(beside).all(func(v: Vector4) -> bool: return absf(v.y) > 1.0 and v.x <= 20.0 - ClutterLayout.PATH_CLEAR), "past its edge and clear of its end")

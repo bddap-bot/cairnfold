@@ -971,7 +971,7 @@ static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> vo
 		var parts := []
 		for stone in stones:
 			var at: Transform3D = stone.xform
-			at.basis *= Stones.FLIPS[stone.get("variant", 0)]
+			at.basis *= Stones.FLIPS[stone.variant]
 			var colour: Color = WallLayout.GLASS if stone.kind == "glass" else stone.color
 			colour *= Color(stone.ao, stone.ao, stone.ao)
 			parts.append([Stones.far_mesh(), at, colour])

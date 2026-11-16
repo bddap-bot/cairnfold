@@ -169,7 +169,7 @@ func _refuge(_b: Band, p: Vector3) -> bool:
 
 
 func _speed(a: Node3D, state: State) -> float:
-	return SPEED[a.kind].get(state, SPEED[a.kind][State.WALK]) * a.size
+	return SPEED[a.kind][state] * a.size
 
 
 func _appetite(a: Node3D) -> Wildlife.Appetite:
