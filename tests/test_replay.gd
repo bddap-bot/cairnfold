@@ -225,7 +225,7 @@ func _every_event_heard_is_delivered() -> void:
 				for name in named.search_all(call.get_string(1)):
 					if name.get_string(1) not in delivered:
 						lost.append("%s %s" % [file, name.get_string(1)])
-	check(lost.is_empty() and delivered.size() > 20, "every event the game hears is one a replay delivers: %s" % [lost])
+	check(lost.is_empty() and delivered.size() > 20, "every event the game passes to hear() is one a replay delivers: %s" % [lost])
 
 
 func _copy(chunk: String, name: String, change: Callable) -> String:

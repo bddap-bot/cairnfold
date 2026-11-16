@@ -1004,7 +1004,7 @@ func _pools() -> Array[Pool]:
 	return [grass, flowers, trunks, foliage, bushes, moss]
 
 
-func keep() -> void:
+func keep(scattered := 0) -> void:
 	var meadow: Array[Plant] = []
 	for p: Pool in _pools():
 		meadow.append_array(p.plants.slice(0, p.size()))
@@ -1014,10 +1014,11 @@ func keep() -> void:
 	meadow_trees = _meadow_where(func(p: Plant) -> bool: return p.pool == trunks)
 	meadow_bushes = _meadow_where(func(p: Plant) -> bool: return p.pool == bushes)
 	meadow_scenery = _meadow_where(func(p: Plant) -> bool: return p.pool != grass)
-	var plants := PackedInt32Array()
+	var pools := PackedByteArray()
 	for p: Plant in groups[0]:
-		plants.append_array([_pools().find(p.pool), roundi(p.anchor.x * 1000.0), roundi(p.anchor.y * 1000.0), roundi(p.anchor.z * 1000.0)])
-	meadow_digest = Session.sha256(plants.to_byte_array()).left(16)
+		pools.append(_pools().find(p.pool))
+	pools.append_array(var_to_bytes(scattered))
+	meadow_digest = Session.sha256(pools).left(16)
 
 
 func _meadow_where(take: Callable) -> PackedInt32Array:

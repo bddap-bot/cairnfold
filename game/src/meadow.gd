@@ -165,7 +165,7 @@ func _plants() -> void:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(14.0, 40.0)
 		flora.add_bush(flora.terrain.ground(cos(ang) * r, sin(ang) * r), rng)
-	flora.keep()
+	flora.keep(rng.state)
 
 
 func _scatter(rng: RandomNumberGenerator, radius: float) -> Vector3:

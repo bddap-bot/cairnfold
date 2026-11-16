@@ -250,7 +250,7 @@ func _ready() -> void:
 	if garden != "":
 		world.load_from(garden)
 	if replayer != null and world.snapshot() != replayer.record.garden and not world.restore_whole(replayer.record.garden):
-		push_error("replay: %s began in a garden of format %s, this build reads format %s" % [args.replay, replayer.record.garden.get("format"), world.format()])
+		push_error("replay: %s began in a garden this build cannot read whole, of format %s where this build reads %s" % [args.replay, replayer.record.garden.get("format"), world.format()])
 		Main.quit(get_tree(), 1)
 		return
 	if args.has("photo"):
