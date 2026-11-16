@@ -56,10 +56,10 @@ cost = {}
 
 def extras(phase, unit, only=None):
     """Yields (ms over the base or ON's phase less what is fitted of units other than `unit`, units) per view."""
-    have = units.get(phase, {})
+    have = units[phase]
     under = ON.get(phase)
     if under is not None:
-        have = {k: have.get(k, 0.0) - units.get(under, {}).get(k, 0.0) for k in {*have, *units.get(under, {})}}
+        have = {k: have.get(k, 0.0) - units[under].get(k, 0.0) for k in {*have, *units[under]}}
     for v in views:
         name, ref = f"{phase}/{v}", f"{under}/{v}" if under else f"base/{v}"
         if only is not None and v not in only:

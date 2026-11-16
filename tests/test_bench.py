@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -259,6 +260,42 @@ class BenchmarkRendering(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             phase = json.loads((out / "record.json").read_text())["phases"]["figures"]
             self.assertEqual(phase["mem_mb"], {"textures": 102.0, "buffers": 49.0, "video": 300.0})
+
+
+class Costs(unittest.TestCase):
+    def test_each_unit_costs_what_a_bench_measured_it_to(self):
+        cost = {"grass": 0.5, "flower": 0.8, "tree": 30, "bush": 10, "wall_m2": 4, "wall_m2_near": 6, "plaster_m2": 2, "plaster_m2_near": 3,
+                "fence_m2": 1.5, "fence_m2_near": 2.5, "pond_m2": 7, "roof_m2": 5, "roof_m2_near": 8, "thatch_m2": 3, "thatch_m2_near": 4,
+                "fitting": 20, "easel": 50, "boulder": 40}
+        walls = {"wall_m2": 100, "wall_m2_near": 100}
+        village = {"roof_m2": 300, "roof_m2_near": 300}
+        built = {"base": {}, "grass": {"grass": 1000}, "sweep/grass-dense": {"grass": 4000}, "flowers": {"flower": 500},
+                 "sweep/flowers-dense": {"flower": 2000}, "trees": {"tree": 10}, "bushes": {"bush": 20}, "walls-r10": walls,
+                 "walls-r15": {"wall_m2": 150, "wall_m2_near": 150}, "walls-r20": {"wall_m2": 200, "wall_m2_near": 200},
+                 "plaster": {"plaster_m2": 60, "plaster_m2_near": 60}, "fences": {"fence_m2": 40, "fence_m2_near": 40}, "ponds": {"pond_m2": 50},
+                 "village": village, "hamlet": {"roof_m2": 150, "roof_m2_near": 150}, "thatch": {**village, "thatch_m2": 80, "thatch_m2_near": 80},
+                 "lanterns": {**walls, "fitting": 12}, "meadow": {}, "hills": {}, "stone": {}, "easels": {"easel": 4}, "boulders": {"boulder": 6},
+                 "lake": {}, "flowers-wild": {}, "trees-wild": {}, "fences-wild": {}, "ponds-wild": {}}
+        over = {"meadow": 0.3, "lake": 0.7, "flowers-wild": 0.2, "trees-wild": 0.2, "fences-wild": 0.2, "ponds-wild": 0.2}
+        line = re.search(r'print\("(budget: [^"]*)"', (SCRIPTS.parent / "game/src/driver.gd").read_text()).group(1)
+        phases = {}
+        for phase, units in built.items():
+            for view, base in (("aerial", 6.0), ("ground", 7.0)):
+                seen = sum(n * cost[k] for k, n in units.items() if view == "ground" or not k.endswith("_near"))
+                phases[f"{phase}/{view}"] = {"gpu_ms": base + over.get(phase, 0.0) + seen / 1000.0}
+        phases["base/aerial"]["timewarp_ms"] = 0.5
+        with tempfile.TemporaryDirectory() as out:
+            (Path(out) / "godot.log").write_text("".join(line % (p, json.dumps(u, separators=(",", ":")), 0.0, 0.0, "{}") + "\n" for p, u in built.items()))
+            (Path(out) / "record.json").write_text(json.dumps({"phases": phases}))
+            (Path(out) / "metrics.json").write_text(json.dumps({"info": {"refresh_hz": 72.0, "budget": {"gpu_ms": 13.0}},
+                                                                "seconds": [{"label": name, "frames": 72} for name in phases]}))
+            run = subprocess.run([sys.executable, str(SCRIPTS / "costs.py"), out], capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        printed, base = run.stdout.splitlines()
+        fitted = {k: float(v) for k, v in re.findall(r'"(\w+)": ([\d.]+)', printed)}
+        self.assertEqual(fitted, {**{k: float(v) for k, v in cost.items()}, "water": 400.0})
+        self.assertIn('"timber": TIMBER_US', printed)
+        self.assertTrue(base.startswith("base 8.60 ms, 0.50 of it the compositor's timewarp, against the 13.00 ms line"), base)
 
 
 class Trend(unittest.TestCase):
