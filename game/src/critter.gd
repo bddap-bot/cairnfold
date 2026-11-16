@@ -30,6 +30,7 @@ static func share(kind: String, build: Callable, shader: String) -> void:
 	if not _shared.has(shader):
 		var m := ShaderMaterial.new()
 		m.shader = load(shader)
+		assert(m.shader != null, shader)
 		_shared[shader] = m
 
 

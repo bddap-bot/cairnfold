@@ -20,6 +20,7 @@ func _init(terrain: Terrain, mesh: Mesh, cap: int, shader: String, colours := fa
 	buffer.resize(cap * stride)
 	var material := ShaderMaterial.new()
 	material.shader = load(shader)
+	assert(material.shader != null, shader)
 	material_override = material
 	cast_shadow = SHADOW_CASTING_SETTING_OFF
 
