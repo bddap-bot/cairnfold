@@ -135,7 +135,6 @@ func _in_the_garden() -> void:
 		{"op": "wall", "points": [[-12, 2], [12, 2]], "seconds": 0.3},
 		{"op": "top", "index": 1, "style": "cap"},
 		{"op": "pave", "points": [[-10, 8], [10, 8]], "radius": 0.8, "seconds": 0.5},
-		{"op": "wait", "seconds": 1},
 	])
 	_lay()
 	var house: Wall = main.tool.walls[0]
@@ -229,7 +228,7 @@ func _in_the_garden() -> void:
 	check(not saved.is_empty() and saved[0].walls[0].clutter == keep, "the garden keeps them")
 	house = main.tool.find(id)
 
-	await play([{"op": "pave", "points": [[0, -16], [0, -10]], "radius": 0.6, "seconds": 0.5}, {"op": "wait", "seconds": 0.5}])
+	await play([{"op": "pave", "points": [[0, -16], [0, -10]], "radius": 0.6, "seconds": 0.5}])
 	_lay()
 	var door: Array = house.layout.apertures.filter(func(o: Dictionary) -> bool: return o.door)
 	check(not door.is_empty(), "a path into the house opens a door")

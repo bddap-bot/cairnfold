@@ -75,7 +75,6 @@ func _paint_some() -> void:
 		{"op": "set_down", "hand": "left"},
 		{"op": "take", "what": "stick"},
 		{"op": "brush", "points": [[0.2, 0.8, 0.3], [0.8, 0.85, 0.9]], "seconds": 0.3},
-		{"op": "wait", "seconds": 0.1},
 	])
 
 
@@ -190,7 +189,7 @@ func _a_fresh_sheet_clears_and_undo_brings_the_painting_back() -> void:
 func _a_sheet_grips_before_it_pulls() -> void:
 	var before: Array = _easel().strokes.duplicate()
 	check(not before.is_empty(), "the canvas has a painting to tear")
-	await play([{"op": "wait", "seconds": 0.05}, {"op": "sheet", "pull": 0.45, "seconds": 0}])
+	await play([{"op": "sheet", "pull": 0.45, "seconds": 0}])
 	check(_easel().strokes.is_empty(), "a sheet pulled off in one frame tears away")
 	await play([{"op": "press", "button": "dpad_down"}])
 	check(_easel().strokes == before, "undo puts the painting back")
@@ -765,7 +764,7 @@ func _the_trigger_sets_one_up_or_says_why_not() -> void:
 			{"op": "press", "button": hand + "_trigger", "device": device},
 		])
 		await flushed()
-	await play([{"op": "place", "x": 0, "z": 6}, {"op": "wait", "seconds": 0.05}])
+	await play([{"op": "place", "x": 0, "z": 6}])
 	for t in [["right", "quest", [-6, 0, 0]], ["left", "quest", [6, 0, 0]], ["right", "frame", [0, 0, -2]], ["left", "frame", [-3, 0, -6]]]:
 		var before: int = world.state.easels.size()
 		await press.call(t[0], t[1], t[2])
@@ -778,7 +777,7 @@ func _the_trigger_sets_one_up_or_says_why_not() -> void:
 	await press.call("right", "quest", [0, 30, -10])
 	check(why.size() == 1 and why[0].contains("no ground"), "nor at the sky: %s" % [why])
 	var first: Vector3 = world.state.easels.values()[0].at
-	await play([{"op": "place", "x": first.x, "z": first.z + 1.0}, {"op": "wait", "seconds": 0.05}])
+	await play([{"op": "place", "x": first.x, "z": first.z + 1.0}])
 	await press.call("right", "quest", [first.x, 0, first.z - 8])
 	check(world.state.easels.size() == Easels.MAX - 1 and why.size() == 1 and why[0].contains("of an easel"), "nor from a hand at an easel: %s" % [why])
 

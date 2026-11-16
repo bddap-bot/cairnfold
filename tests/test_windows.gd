@@ -308,7 +308,6 @@ func _in_the_glade() -> void:
 		{"op": "house", "at": [0.0, 0.0], "size": [6.0, 4.0], "seconds": 0.2},
 		{"op": "house", "at": [10.0, 0.0], "size": [6.0, 4.0], "seconds": 0.2},
 		{"op": "roof", "index": 1, "pitch": 0},
-		{"op": "wait", "seconds": 0.5},
 	])
 	var house := tool.walls[0]
 	var flat := tool.walls[1]
