@@ -29,8 +29,7 @@ static func share(kind: String, build: Callable, shader: String) -> void:
 		_shared[kind] = build.call()
 	if not _shared.has(shader):
 		var m := ShaderMaterial.new()
-		m.shader = load(shader)
-		assert(m.shader != null, shader)
+		m.shader = Main.need(shader)
 		_shared[shader] = m
 
 

@@ -518,6 +518,13 @@ static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
 
 
 ## Data-only tests can finish before the autoloads have entered the tree.
+static func need(path: String) -> Resource:
+	var found := load(path)
+	if found == null:
+		OS.crash("%s is missing from this build" % path)
+	return found
+
+
 static func quit(tree: SceneTree, code := 0) -> void:
 	print("main: quitting")
 	Wall.quitting = true

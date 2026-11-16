@@ -51,8 +51,7 @@ func _init(eyes: Node3D, seed: int) -> void:
 	for kind in CALLS:
 		_clips[kind] = []
 		for i in CALLS[kind].clips:
-			_clips[kind].append(load("res://audio/animals/%s%d.ogg" % [kind, i]))
-		assert(_clips[kind].all(func(c: AudioStream) -> bool: return c != null), kind)
+			_clips[kind].append(Main.need("res://audio/animals/%s%d.ogg" % [kind, i]))
 		_since[kind] = INF
 		_last[kind] = -1
 	for i in VOICES:

@@ -139,7 +139,6 @@ const UNIT := 3.0
 
 ## soft, paper, dark, or off; a per-build choice with no runtime menu.
 const CHARCOAL_PROFILE := "soft"
-const CHARCOAL_GRAINS := 8
 const CHARCOAL := {
 	"soft": [preload("res://audio/charcoal/soft0.ogg"), preload("res://audio/charcoal/soft1.ogg"), preload("res://audio/charcoal/soft2.ogg"), preload("res://audio/charcoal/soft3.ogg"), preload("res://audio/charcoal/soft4.ogg"), preload("res://audio/charcoal/soft5.ogg"), preload("res://audio/charcoal/soft6.ogg"), preload("res://audio/charcoal/soft7.ogg")],
 	"paper": [preload("res://audio/charcoal/paper0.ogg"), preload("res://audio/charcoal/paper1.ogg"), preload("res://audio/charcoal/paper2.ogg"), preload("res://audio/charcoal/paper3.ogg"), preload("res://audio/charcoal/paper4.ogg"), preload("res://audio/charcoal/paper5.ogg"), preload("res://audio/charcoal/paper6.ogg"), preload("res://audio/charcoal/paper7.ogg")],
@@ -289,7 +288,7 @@ func _canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touching: b
 		return
 	c.grain_at = _clock
 	# Never repeat the previous excerpt; the two voices overlap their soft envelopes.
-	c.grain = (c.grain + 1 + _rng.randi_range(0, CHARCOAL_GRAINS - 2)) % CHARCOAL_GRAINS
+	c.grain = (c.grain + 1 + _rng.randi_range(0, _charcoal.size() - 2)) % _charcoal.size()
 	var voice: AudioStreamPlayer3D = c.voices[c.next]
 	c.next = 1 - c.next
 	voice.stream = _charcoal[c.grain]

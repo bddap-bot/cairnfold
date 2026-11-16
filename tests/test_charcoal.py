@@ -1,8 +1,8 @@
 import json
+import re
 from pathlib import Path
 import unittest
 from test_cues import _bands
-from sources import script_const
 
 ROOT = Path(__file__).parents[1]
 
@@ -14,10 +14,11 @@ class CharcoalRecording(unittest.TestCase):
         self.assertIn('CC0', source['licence'])
         self.assertTrue(source['page'].startswith('https://'))
         self.assertTrue(source['author'])
-        [grains] = script_const('cues.gd', 'CHARCOAL_GRAINS')
+        preloaded = re.findall(r'preload\("res://audio/charcoal/(\w+\.ogg)"\)', (ROOT / 'game/src/cues.gd').read_text())
+        self.assertEqual(sorted(preloaded), sorted(c.name for c in folder.glob('*.ogg')))
         for profile in ('soft', 'paper', 'dark'):
             clips = sorted(folder.glob(f'{profile}*.ogg'))
-            self.assertEqual(len(clips), grains)
+            self.assertTrue(clips, profile)
             for clip in clips:
                 bands = _bands(clip)
                 self.assertLess(bands['above 2000'], 0.005, clip.name)
