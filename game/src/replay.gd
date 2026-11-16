@@ -137,8 +137,6 @@ static func read(path: String, avatars := "") -> Dictionary:
 				"replay":
 					out.seeds = e.seeds
 					out.garden = bytes_to_var(inflated(e.save, e.save_bytes))
-					if out.garden.get("format") != World.FORMAT:
-						return {"error": "%s began in a garden of format %s, this build reads format %d" % [path, out.garden.get("format"), World.FORMAT]}
 				"input":
 					inputs.append(e)
 				"net":

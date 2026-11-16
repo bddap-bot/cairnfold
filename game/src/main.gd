@@ -249,8 +249,10 @@ func _ready() -> void:
 	var garden: String = args.get("garden", player_path("garden.save") if played and not args.has("photo") else "")
 	if garden != "":
 		world.load_from(garden)
-	if replayer != null and world.snapshot() != replayer.record.garden:
-		world.restore_whole(replayer.record.garden)
+	if replayer != null and world.snapshot() != replayer.record.garden and not world.restore_whole(replayer.record.garden):
+		push_error("replay: %s began in a garden of format %s, this build reads format %s" % [args.replay, replayer.record.garden.get("format"), world.format()])
+		Main.quit(get_tree(), 1)
+		return
 	if args.has("photo"):
 		open_photo(args.photo)
 	if replayer == null and (get_tree().current_scene == self or args.has(PlayLog.SWITCH)):

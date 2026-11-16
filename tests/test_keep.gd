@@ -22,6 +22,7 @@ func _run() -> void:
 	_a_format_keeps_what_its_numbers_mean()
 	_a_file_that_cannot_be_moved_aside_is_never_written_over()
 	await _a_garden_read_in_part_is_moved_aside()
+	_a_garden_saved_with_this_meadow_loads()
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
@@ -169,7 +170,7 @@ func _a_garden_of_another_format_is_moved_aside() -> void:
 	check(world.state.groups.keys() == [0], "a garden saved in another format grows nothing")
 	check(FileAccess.get_file_as_bytes(path + ".bad") == bytes and not FileAccess.file_exists(path), "and is moved aside whole")
 	world.save_path = ""
-	var unordered := var_to_bytes({"format": World.FORMAT, "cmds": [tree]})
+	var unordered := var_to_bytes({"format": world.format(), "cmds": [tree]})
 	FileAccess.open(path, FileAccess.WRITE).store_buffer(unordered)
 	world.load_from(path)
 	check(world.state.groups.keys() == [0] and FileAccess.get_file_as_bytes(path + ".bad") == unordered and not FileAccess.file_exists(path), "a garden with no sequence number grows nothing and is moved aside")
@@ -226,7 +227,7 @@ func _a_garden_read_in_part_is_moved_aside() -> void:
 	var path := dir.path_join("part.save")
 	var tree := {"op": "plant", "kind": "tree", "seed": 1, "at": main.world.terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}
 	var odd := {"op": "wall", "ids": PackedInt32Array([8]), "walls": [{"points": "not points"}], "seq": 0, "by": 1}
-	var bytes := var_to_bytes({"format": World.FORMAT, "seq": 9, "cmds": [tree, odd]})
+	var bytes := var_to_bytes({"format": world.format(), "seq": 9, "cmds": [tree, odd]})
 	FileAccess.open(path, FileAccess.WRITE).store_buffer(bytes)
 	world.load_from(path)
 	await flushed()
@@ -234,3 +235,10 @@ func _a_garden_read_in_part_is_moved_aside() -> void:
 	check(FileAccess.get_file_as_bytes(path + ".bad") == bytes, "and the file as it was is moved aside before the garden is saved again")
 	check(FileAccess.file_exists(path), "the part that loaded is saved in its place")
 	world.save_path = ""
+
+
+func _a_garden_saved_with_this_meadow_loads() -> void:
+	var kept: Dictionary = str_to_var(FileAccess.get_file_as_string("res://../tests/support/meadow.garden"))
+	check(world.restore_whole(kept), "tests/support/meadow.garden, format %s, loads whole in this build's format %s" % [kept.format, world.format()])
+	check(world.state.groups[0].hidden.keys() == [3, 40], "and hides the meadow's plants it names")
+	world.restore({"seq": 0, "cmds": []})

@@ -83,6 +83,7 @@ var limit := 1.0
 var _fills := {}
 ## Summed once: summing on every wipe and swap held a Quest's frame for hundreds of milliseconds.
 var _meadow_units := {}
+var _meadow_digest := ""
 var _pending := {}
 ## {cmd, by, run}, oldest first: all wait behind one whose water is worked off-thread, keeping every machine's order.
 var _queue: Array[Dictionary] = []
@@ -350,16 +351,20 @@ func load_from(path: String) -> void:
 			_show_sky(Daylight.sun_at(Daylight.DUSK, false))
 		return
 	var why := "held a garden this game cannot read whole"
-	if snap is Dictionary and snap.get("format") != FORMAT:
-		why = "was saved in format %s and this game reads format %d" % [snap.get("format"), FORMAT]
+	if snap is Dictionary and str(snap.get("format")) != format():
+		why = "was saved in format %s and this game reads format %s" % [snap.get("format"), format()]
 	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(path) + ".bad")
 	push_error("world: %s %s; moving it to .bad: %s" % [path, why, error_string(err)])
 	if err != OK:
 		save_path = ""
 
 
+func format() -> String:
+	return "%d %s" % [FORMAT, _meadow_digest]
+
+
 func restore_whole(snap: Variant) -> bool:
-	var whole: bool = snap is Dictionary and snap.get("format") == FORMAT and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
+	var whole: bool = snap is Dictionary and str(snap.get("format")) == format() and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
 	return whole and restore(snap) == snap.cmds.size()
 
 
@@ -454,6 +459,7 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 
 
 func _grow_meadow() -> void:
+	_meadow_digest = flora.meadow_digest
 	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees, "bushes": flora.meadow_bushes, "species": {}, "scale": {}, "moss": {}, "places": {}, "turns": {}}
 	if _meadow_units.is_empty():
 		for p: Flora.Plant in flora.groups[0]:
@@ -1256,7 +1262,7 @@ func snapshot() -> Dictionary:
 	for c in cmds:
 		c.seq = seq
 		c.by = 1
-	return {"format": FORMAT, "seq": seq, "cmds": cmds}
+	return {"format": format(), "seq": seq, "cmds": cmds}
 
 
 func restore(snap: Dictionary) -> int:

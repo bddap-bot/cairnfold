@@ -1,0 +1,21 @@
+{
+"cmds": [{
+&"by": 1,
+"on": false,
+"op": "show",
+"plants": {
+0: PackedInt32Array(3, 40)
+},
+&"seq": 0
+}, {
+&"at": Vector3(2, 0.1363608, 2),
+&"by": 1,
+&"id": 5,
+&"kind": "tree",
+&"op": "plant",
+&"seed": 1,
+&"seq": 0
+}],
+"format": "11 19e6ebde90dc2f40",
+"seq": 0
+}
