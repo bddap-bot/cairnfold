@@ -11,6 +11,7 @@ func _initialize() -> void:
 	await _a_landing_keeps_every_frame_of_its_window()
 	await _head_motion_is_moving()
 	_a_stall_names_what_ran_in_it()
+	_a_recorded_stall_reads_back()
 	_each_frame_splits_the_main_thread()
 	await _the_engine_splits_its_frames()
 	_a_pause_is_no_frame()
@@ -197,6 +198,35 @@ func _a_stall_names_what_ran_in_it() -> void:
 	m._finish_row()
 	check(not m._seconds[-1].has("stalls"), "a second without one lists none")
 	m.free()
+
+
+func _a_recorded_stall_reads_back() -> void:
+	var folder := OS.get_cache_dir().path_join("cairnfold-test-recorded-stall-%d" % OS.get_process_id())
+	var log := PlayLog.new(folder)
+	var m := Metrics.new(folder.path_join("metrics.json"))
+	m.play_log = log
+	m.info = {"refresh_hz": 72.0, "label": "-"}
+	var frame := _frames(m)
+	frame.call(13.9)
+	Metrics.note("world: applying wipe", 420.0)
+	m._acc = 1.0
+	frame.call(430.0)
+	frame.call(13.9)
+	m.close()
+	var scripts := ProjectSettings.globalize_path("res://../scripts")
+	var at := ProjectSettings.globalize_path(folder)
+	var out := []
+	var code := OS.execute("python3", [scripts.path_join("sessions.py"), at], out, true)
+	check(code == 0 and out[0].contains(" ms  still  ") and out[0].contains(", pipelines ") and out[0].contains(": world: applying wipe 420 ms"),
+		"scripts/sessions.py lists the stall the session recorded: %s" % [out])
+	out = []
+	code = OS.execute("bash", ["-c", "cd '%s' && stat -c '%%s %%n' * | python3 '%s' ." % [at, scripts.path_join("deletable.py")]], out, true)
+	check(code == 0 and out[0].split("\n", false) == PackedStringArray(["%s-0000.jsonl" % log.session_id]),
+		"scripts/deletable.py takes the ended session's chunk and nothing else: %s" % [out])
+	m.free()
+	for name in DirAccess.get_files_at(folder):
+		DirAccess.remove_absolute(folder.path_join(name))
+	DirAccess.remove_absolute(folder)
 
 
 func _a_pause_is_no_frame() -> void:

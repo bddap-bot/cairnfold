@@ -34,7 +34,7 @@ def read(folder, decoded=False):
             s = sessions.setdefault(record.get("session"), {"rows": [], "inputs": [], "nets": [], "replay_bytes": 0,
                                                             "net_bytes": 0,
                                                             "where": chunk.parent.relative_to(folder.parent).as_posix()})
-            event = record.get("event")
+            event = record["event"]
             if event == "start":
                 s.setdefault("start", record)
                 if "take" in record:
@@ -207,8 +207,6 @@ def fmt(v):
 
 
 def phases_text(main):
-    if not main:
-        return "-"
     return " ".join(f"{k} {v:.0f}" for k, v in main.items() if v >= 1.0) or "all under 1 ms"
 
 
@@ -271,9 +269,9 @@ def text(s):
         worst = sorted(sorted(s["stalls"], key=lambda x: -x["ms"])[:STALLS_SHOWN], key=lambda x: x["t"] or 0)
         lines.append(f"  stalls: {len(s['stalls'])}, the worst {len(worst)}:")
         for x in worst:
-            noted = "; ".join(n["what"] + (f" {n['ms']:.0f} ms" if "ms" in n else "") for n in x.get("notes", [])) or "nothing noted"
-            lines.append(f"    {fmt(x['t']):>8} s {x['ms']:7.0f} ms  {','.join(x.get('tags', []))}  {phases_text(x.get('main_ms'))} | "
-                         f"{phases_text(x.get('main_after_ms'))}, pipelines {'+'.join(str(c) for c in x.get('compiled', []))}: {noted}")
+            noted = "; ".join(n["what"] + (f" {n['ms']:.0f} ms" if "ms" in n else "") for n in x["notes"]) or "nothing noted"
+            lines.append(f"    {fmt(x['t']):>8} s {x['ms']:7.0f} ms  {','.join(x['tags'])}  {phases_text(x['main_ms'])} | "
+                         f"{phases_text(x['main_after_ms'])}, pipelines {'+'.join(str(c) for c in x['compiled'])}: {noted}")
     return "\n".join(lines)
 
 

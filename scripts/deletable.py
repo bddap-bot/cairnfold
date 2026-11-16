@@ -14,7 +14,7 @@ def ended(chunk):
         f.seek(max(0, f.seek(0, 2) - 4096))
         lines = f.read().splitlines()
     try:
-        return bool(lines) and json.loads(lines[-1]).get("event") == "end"
+        return bool(lines) and json.loads(lines[-1])["event"] == "end"
     except ValueError:
         return False
 
