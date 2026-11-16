@@ -1052,6 +1052,9 @@ func _menu_lifts_and_dims_the_lighting() -> void:
 		mi.mesh = meshes[n].get_mesh()
 		root.add_child(mi)
 		shown.append(mi)
+	var hull := ShaderMaterial.new()
+	hull.shader = Avatar.OUTLINE
+	shown[0].get_active_material(0).set_meta("hull", hull)
 	root.set_meta("expressions", {"parameters": [], "targets": targets, "clips": [], "layers": [], "shown": [], "menu": [], "looks": looks})
 	ExpressionPlayer.prepare(root)
 	var player := ExpressionPlayer.new(root)
@@ -1069,6 +1072,9 @@ func _menu_lifts_and_dims_the_lighting() -> void:
 	player.apply()
 	check(lift.call(shown[0], 1).is_equal_approx(Color(2.0, 1.25, 0.0, 0.0)), "the menu adds light and dims as its clips set: %s" % [lift.call(shown[0], 1)])
 	check(lift.call(shown[0], 2).is_equal_approx(Color(0.0, 0.0, 0.0, 0.0)), "a material no clip names keeps no added light and full brightness: %s" % [lift.call(shown[0], 2)])
+	var lifted := shown[0].get_surface_override_material(0) as ShaderMaterial
+	var drawn: ShaderMaterial = lifted.get_meta("hull") if lifted and lifted.has_meta("hull") else null
+	check(drawn != null and drawn.get_shader_parameter("lit_by_menu") == true and drawn.get_shader_parameter("lighting") == lifted.get_shader_parameter("lighting") and drawn.get_shader_parameter("light_index") == lifted.get_shader_parameter("light_index"), "its outline reads the same lighting the menu writes")
 	player.free()
 	root.free()
 

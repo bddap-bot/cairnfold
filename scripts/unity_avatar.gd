@@ -898,6 +898,11 @@ static func _target(c: Dictionary, objs: Dictionary, paths: Dictionary, meshes: 
 						binding.merge(materials.decal(key, look.slot))
 					if ExpressionPlayer.POST_CHANNELS.has(look.field):
 						binding.rest = saved
+						materials.post_regions[key] = true
+						for m: Dictionary in meshes:
+							if renderer in m.renderers and m.has("swapped"):
+								for swapped: String in m.swapped:
+									materials.post_regions[swapped] = true
 				elif property in [Materials.Liltoon.HUE, Materials.Liltoon.SATURATION]:
 					if not Materials.Liltoon.compiled(material, "colour adjustment"):
 						continue

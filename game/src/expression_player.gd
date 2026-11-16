@@ -206,7 +206,9 @@ func _init(model: Node3D) -> void:
 		glows.texture = ImageTexture.create_from_image(glows.table)
 		for mat: ShaderMaterial in mats:
 			if mat.get_shader_parameter("lighting") == lighting:
-				mat.set_shader_parameter("lighting", glows.texture)
+				_set_lighting(mat, "lighting", glows.texture)
+				if mat.has_meta("hull") and not glows.get("posts", {}).is_empty():
+					(mat.get_meta("hull") as ShaderMaterial).set_shader_parameter("lit_by_menu", true)
 	_shown_by.resize(state.outputs.size())
 	_shown_at.resize(state.outputs.size())
 	_shown_at.fill(NAN)
@@ -424,6 +426,12 @@ static func prepare(model: Node3D) -> void:
 	model.set_meta("expression_decal_sets", sets)
 
 
+static func _set_lighting(mat: ShaderMaterial, parameter: StringName, value: Texture2D) -> void:
+	mat.set_shader_parameter(parameter, value)
+	if mat.has_meta("hull"):
+		(mat.get_meta("hull") as ShaderMaterial).set_shader_parameter(parameter, value)
+
+
 ## Also binds every mesh already drawn animated, since a material swapped in may carry the looks. Returns the shared
 ## looks table (Avatar._lit_looks), or null for none.
 func _light_looks(model: Node3D) -> Variant:
@@ -448,8 +456,8 @@ func _light_looks(model: Node3D) -> Variant:
 		_material(mesh)
 	for mats: Array[ShaderMaterial] in _materials.values():
 		for mat in mats:
-			mat.set_shader_parameter("light_index", textures[0])
-			mat.set_shader_parameter("lighting", textures[1])
+			_set_lighting(mat, "light_index", textures[0])
+			_set_lighting(mat, "lighting", textures[1])
 			mat.set_shader_parameter("glow", glow)
 			mat.set_shader_parameter("coat_maps", coat_maps)
 			mat.set_shader_parameter("matcaps", matcaps)

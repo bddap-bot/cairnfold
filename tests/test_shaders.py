@@ -29,6 +29,7 @@ class Shaders(unittest.TestCase):
             ('expression.gdshaderinc', 'MATCAP_ROWS', script_const('avatar.gd', 'MATCAP_ROWS')),
             ('expression.gdshaderinc', 'HEAD_ROWS', script_const('avatar.gd', 'HEAD_ROWS')),
             ('expression.gdshaderinc', 'POST_ROW', script_const('avatar.gd', 'POST_ROW')),
+            ('avatar_outline.gdshaderinc', 'POST_ROW', script_const('avatar.gd', 'POST_ROW')),
             ('expression.gdshaderinc', 'MATCAPS', script_const('avatar.gd', 'MATCAPS')),
             ('expression.gdshaderinc', 'dielectric', script_const('avatar.gd', 'DIELECTRIC')),
             ('conure.gdshader', 'L', script_const('conure.gd', 'ALONG')),

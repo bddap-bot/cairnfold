@@ -3597,4 +3597,15 @@ func _poiyomi_lighting_moves_only_where_its_shader_reads_it() -> void:
 	check(materials.draws("tagged", add, "_PPLightingAddition") and materials.draws("tagged", brightness, "_PPBrightness"), "a locked material that keeps both properties animated is moved by both")
 	check(not materials.draws("untagged", add, "_PPLightingAddition") and not materials.draws("untagged", brightness, "_PPBrightness"), "a locked material that inlined them is moved by neither, as in Unity")
 	check(materials.draws("unprocessed", add, "_PPLightingAddition") and not materials.draws("unprocessed", brightness, "_PPBrightness"), "without post-processing an unlocked material takes the lighting addition but not the brightness its shader compiles out")
-
+	var unmoved: int = (materials.looks().get("materials", []) as Array).size()
+	var objs := {
+		1: {"type": "GameObject", "data": {"m_Component": [{"component": {"fileID": "2"}}, {"component": {"fileID": "3"}}]}},
+		2: {"type": "Transform", "data": {"m_GameObject": {"fileID": "1"}}},
+		3: {"type": "SkinnedMeshRenderer", "data": {"m_Materials": [{"guid": "tagged"}]}},
+	}
+	var sk := Skeleton3D.new()
+	var bound := UnityAvatar._target({"path": "Strap", "attribute": "material._PPBrightness", "class": "137"}, objs, {"Strap": 2}, [{"node": "Strap", "when": [], "renderers": [3], "weights": {}, "mesh": ArrayMesh.new()}], {}, sk, [], materials)
+	sk.free()
+	check(bound == 0, "the clip's brightness binds to the material")
+	var moved: Array = materials.looks().get("materials", [])
+	check(moved.size() == unmoved + 1 and moved.any(func(e: Dictionary) -> bool: return ExpressionPlayer.same_rect(e.get("rect", []), materials.rect(materials.materials.tagged))), "a material with nothing else to draw keeps a looks entry, its own lighting column, once a clip moves its lighting: %d then %d" % [unmoved, moved.size()])

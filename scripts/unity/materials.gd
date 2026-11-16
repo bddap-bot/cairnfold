@@ -56,6 +56,7 @@ var hue_masks := {}
 var color_regions := {}
 ## Materials whose emission a clip drives: one dark at rest glows only if listed.
 var glow_regions := {}
+var post_regions := {}
 ## Materials whose first emission's strength a clip animates: it draws alone, at the clip's strength.
 var strength_driven := {}
 ## Caches of `_poiyomi_glows` and `_glow_and_peak` ([map, peak strength]); `looks` drops the map.
@@ -1422,7 +1423,7 @@ func looks() -> Dictionary:
 			glows = {}
 		var light := lighting(key)
 		var coat := clearcoat(key)
-		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light == {"model": "lit"} and coat.is_empty():
+		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light == {"model": "lit"} and coat.is_empty() and not post_regions.has(key):
 			continue
 		if entries.size() == 255:
 			push_error("unity_avatar: over 255 materials with looks; the rest draw lit by angle without decals, matcaps or emission")
