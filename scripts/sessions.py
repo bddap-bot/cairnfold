@@ -31,16 +31,16 @@ def read(folder, decoded=False):
                 record = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            s = sessions.setdefault(record.get("session"), {"rows": [], "inputs": [], "nets": [], "replay_bytes": 0,
-                                                            "net_bytes": 0,
-                                                            "where": chunk.parent.relative_to(folder.parent).as_posix()})
+            s = sessions.setdefault(record["session"], {"rows": [], "inputs": [], "nets": [], "replay_bytes": 0,
+                                                     "net_bytes": 0,
+                                                     "where": chunk.parent.relative_to(folder.parent).as_posix()})
             event = record.get("event")
             if event == "start":
                 s.setdefault("start", record)
                 if "take" in record:
                     s["take"] = record["take"] | {"path": chunk.parent / record["take"]["file"]}
             elif event == "end":
-                s["ended"] = record.get("ended")
+                s["ended"] = record["ended"]
             elif event == "frame":
                 s["rows"].append(record)
             elif event == "input":
@@ -56,9 +56,9 @@ def read(folder, decoded=False):
                 s["take_frame"] = record["frame"]
     out = []
     for sid, s in sessions.items():
-        if sid is None or "start" not in s:
+        if "start" not in s:
             continue
-        rows = sorted(s["rows"], key=lambda r: r.get("unix") or 0)
+        rows = sorted(s["rows"], key=lambda r: r["unix"])
         out.append(summarise(sid, s["start"], s.get("ended"), s["where"], rows)
                    | {"replay": replay(s), "net": net(s), "take": take(s, folder)}
                    | ({"frames": recorded(s)} if decoded else {}))
@@ -85,8 +85,8 @@ def frames(event, layout):
 
 
 def recorded(s):
-    layout = s["start"].get("input")
-    return [f for e in sorted(s["inputs"], key=lambda e: e["first"]) for f in frames(e, layout)] if layout else []
+    layout = s["start"]["input"]
+    return [f for e in sorted(s["inputs"], key=lambda e: e["first"]) for f in frames(e, layout)]
 
 
 def take(s, folder):
@@ -99,8 +99,7 @@ def take(s, folder):
 
 
 def replay(s):
-    layout = s["start"].get("input")
-    if not s["inputs"] or not layout:
+    if not s["inputs"]:
         return None
     inputs = sorted(s["inputs"], key=lambda e: e["first"])
     held = sum(e["frames"] for e in inputs)
@@ -132,12 +131,12 @@ def net(s):
 def merge(rows):
     merged = {}
     for row in rows:
-        for tag, t in (row.get("activity") or {}).items():
+        for tag, t in row["activity"].items():
             m = merged.setdefault(tag, {"frames": 0, "late": 0, "max": 0.0, "hist": {}, "cpu_ms": 0.0, "gpu_ms": 0.0, "gpu_frames": 0})
             for k in ["frames", "late", "cpu_ms", "gpu_ms", "gpu_frames"]:
-                m[k] += t.get(k, 0)
-            m["max"] = max(m["max"], t.get("max", 0.0))
-            for b, n in t.get("hist", {}).items():
+                m[k] += t[k]
+            m["max"] = max(m["max"], t["max"])
+            for b, n in t["hist"].items():
                 m["hist"][int(b)] = m["hist"].get(int(b), 0) + n
     return merged
 
@@ -189,7 +188,7 @@ def summarise(sid, start, ended, where, rows):
         "ended": ended,
         "seconds": len(rows),
         "refresh_hz": rows[-1].get("refresh_hz") if rows else None,
-        "players": max((row.get("context", {}).get("players", 1) for row in rows), default=1),
+        "players": max((row["context"]["players"] for row in rows), default=1),
         "activity": activity,
         "main_ms": main_thread(rows),
         "steps": {str(k): v for k, v in sorted(steps.items())},

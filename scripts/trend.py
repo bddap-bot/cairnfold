@@ -107,7 +107,7 @@ def pair(control, candidate):
         else:
             verdict = ""
         steps = f"{old.get('step', '-')}/{new.get('step', '-')}"
-        print(f"  {phase:24} {steps:>7} {shown(old.get('gpu_ms'))} {shown(new.get('gpu_ms'))} {shown(old.get('p50'))} {shown(new.get('p50'))}"
+        print(f"  {phase:24} {steps:>7} {shown(old.get('gpu_ms'))} {shown(new.get('gpu_ms'))} {shown(old['p50'])} {shown(new['p50'])}"
               f" {worst(old)} | {worst(new)} {verdict}".rstrip())
     return risen, refused
 

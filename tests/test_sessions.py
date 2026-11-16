@@ -33,7 +33,7 @@ def printed(*args):
 class Sessions(unittest.TestCase):
     def write(self, folder, session, rows, part=0, end=True):
         start = {"schema": 1, "session": session, "started": 1000.0 + part, "revision": "abc1234def", "device": "Quest 2", "event": "start", "part": part + 1}
-        lines = [start] + [dict(r, event="frame", session=session) for r in rows]
+        lines = [start] + [{"activity": {}, "context": {"players": 1}} | r | {"event": "frame", "session": session} for r in rows]
         if end:
             lines.append({"event": "end", "session": session, "ended": 2000.0})
         (folder / f"{session}-{part:04d}.jsonl").write_text("".join(json.dumps(l) + "\n" for l in lines))
@@ -84,7 +84,7 @@ class Sessions(unittest.TestCase):
             folder = Path(d)
             start = {"schema": 2, "session": "s1", "started": 1000.0, "revision": "abc", "device": "Quest 2", "event": "start", "part": 1, "input": layout}
             lines = [start, {"event": "replay", "session": "s1", "seeds": {"rng": "1"}, "save": "", "save_bytes": 0},
-                     event(0, 72), {"event": "frame", "session": "s1", "unix": 1.0}, event(144, 72), {"event": "end", "session": "s1", "ended": 1002.0}]
+                     event(0, 72), {"event": "frame", "session": "s1", "unix": 1.0, "activity": {}, "context": {"players": 1}}, event(144, 72), {"event": "end", "session": "s1", "ended": 1002.0}]
             (folder / "s1-0000.jsonl").write_text("".join(json.dumps(l) + "\n" for l in lines))
             [s] = json.loads(printed(d, "--json"))
             r = s["replay"]
@@ -128,7 +128,7 @@ class Sessions(unittest.TestCase):
             self.write(folder, "s2", [{"unix": 1.0, "activity": {"still": tally([50.0] * 10)}}])
             metrics = Path(d) / "metrics.json"
             metrics.write_text(json.dumps({"info": {"replayed": "s1"}, "seconds": [
-                {"unix": 5.0, "activity": {"moving": tally([15.9] * 8, late=2, gpu=10.0), "wheel": tally([13.9] * 3)}}]}))
+                {"unix": 5.0, "context": {"players": 1}, "activity": {"moving": tally([15.9] * 8, late=2, gpu=10.0), "wheel": tally([13.9] * 3)}}]}))
             both = json.loads(printed(folder, "--replayed", metrics, "--json"))
             self.assertEqual(both["recorded"]["session"], "s1")
             self.assertEqual(both["recorded"]["activity"]["moving"]["frames"], 10)
