@@ -25,7 +25,7 @@ var _lap := AudioStreamPlayer3D.new()
 static func prepare() -> void:
 	if _shader != null:
 		return
-	_shader = load("res://src/water.gdshader")
+	_shader = preload("res://src/water.gdshader")
 	_shader.get_rid()
 	var n := FastNoiseLite.new()
 	n.seed = 31
@@ -34,7 +34,7 @@ static func prepare() -> void:
 	_waves = Meshes.noise_texture(n, 256)
 	_waves.as_normal_map = true
 	_waves.bump_strength = 6.0
-	_lapping = load("res://audio/lap.ogg")
+	_lapping = preload("res://audio/lap.ogg")
 	_lapping.loop = true
 
 

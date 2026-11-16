@@ -5,9 +5,9 @@ extends Node3D
 
 enum Kind { DEER, FOX }
 
-const SCENES := {Kind.DEER: "res://animals/deer.glb", Kind.FOX: "res://animals/fox.glb"}
+const SCENES := {Kind.DEER: preload("res://animals/deer.glb"), Kind.FOX: preload("res://animals/fox.glb")}
 const GROUPS := {Kind.DEER: &"deer", Kind.FOX: &"fox"}
-const SHADER := "res://src/beast.gdshader"
+const SHADER := preload("res://src/beast.gdshader")
 const IDLE_CLIPS := ["Idle", "Idle_2"]
 const EAT_CLIP := "Eating"
 const CLIPS := {
@@ -51,14 +51,14 @@ static func prepare() -> void:
 
 static func _share(k: Kind) -> Dictionary:
 	if not _shared.has(k):
-		var scene: PackedScene = load(SCENES[k])
+		var scene: PackedScene = SCENES[k]
 		var probe := scene.instantiate()
 		var mi: MeshInstance3D = probe.find_children("*", "MeshInstance3D")[0]
 		var player: AnimationPlayer = probe.find_children("*", "AnimationPlayer")[0]
 		for clip in IDLE_CLIPS + [EAT_CLIP] + CLIPS[k].values():
 			player.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 		var mat := ShaderMaterial.new()
-		mat.shader = load(SHADER)
+		mat.shader = SHADER
 		_shared[k] = {"scene": scene, "mesh": _merged(mi.mesh), "material": mat}
 		probe.free()
 	return _shared[k]

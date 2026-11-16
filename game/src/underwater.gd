@@ -25,7 +25,7 @@ func _init(ponds: Water, light: Look, player: Rig) -> void:
 	look = light
 	rig = player
 	mesh = _kit()
-	_mat.shader = load("res://src/underwater.gdshader")
+	_mat.shader = preload("res://src/underwater.gdshader")
 	_mat.render_priority = 2
 	_mat.set_shader_parameter("reach", REACH)
 	material_override = _mat

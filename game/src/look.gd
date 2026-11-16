@@ -58,7 +58,7 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	look.bounce.terrain = ground
 	parent.add_child(look)
 	var sky_mat := ShaderMaterial.new()
-	sky_mat.shader = load("res://src/sky.gdshader")
+	sky_mat.shader = preload("res://src/sky.gdshader")
 	var clouds := FastNoiseLite.new()
 	clouds.seed = 21
 	clouds.noise_type = FastNoiseLite.TYPE_PERLIN
@@ -135,7 +135,7 @@ static func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
 	var disc_mi := MeshInstance3D.new()
 	disc_mi.mesh = quad
 	var mat := ShaderMaterial.new()
-	mat.shader = load("res://src/disc.gdshader")
+	mat.shader = preload("res://src/disc.gdshader")
 	mat.set_shader_parameter("moon", moon)
 	mat.set_shader_parameter("radius", size.radius / size.span)
 	disc_mi.material_override = mat

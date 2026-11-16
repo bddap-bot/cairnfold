@@ -6,9 +6,9 @@ const PAINTED: Array[Part] = [Part.STONE, Part.MORTAR, Part.TILE, Part.COAT, Par
 
 static var _kinds: Array[Masonry.Kind] = []
 ## Made at load: a shader made on first use stalled the Quest 2's frame 0.25 to 1.5 s at the session's first house.
-static var _plaster := _material("res://src/plaster.gdshader", WallLayout.PLASTER)
-static var _thatch := _material("res://src/thatch.gdshader")
-static var _lime := _material("res://src/torching.gdshader", WallLayout.PLASTER)
+static var _plaster := _material(preload("res://src/plaster.gdshader"), WallLayout.PLASTER)
+static var _thatch := _material(preload("res://src/thatch.gdshader"))
+static var _lime := _material(preload("res://src/torching.gdshader"), WallLayout.PLASTER)
 static var _roof_wood := Stones.stone(preload("res://src/roof_timber.gdshader"))
 
 var layout := WallLayout.new()
@@ -90,7 +90,7 @@ var _perch_out := {}
 static func kinds() -> Array[Masonry.Kind]:
 	if _kinds.is_empty():
 		var box := BoxMesh.new()
-		var leaf := _material("res://src/ivy.gdshader")
+		var leaf := _material(preload("res://src/ivy.gdshader"))
 		Quality.full_detail(leaf)
 		var off := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var shadow := Masonry.Kind.new(Meshes.plain_box(), null, false, false, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
@@ -104,14 +104,14 @@ static func kinds() -> Array[Masonry.Kind]:
 		_kinds[Part.TILE] = Masonry.Kind.new(Meshes.rounded_box(0.22, 2, 41), Stones.small_material(), true, true, off, true)
 		_kinds[Part.TILE].far = Stones.far_mesh()
 		_kinds[Part.TILE].far_baked = Stones.baked_material()
-		var roof_shadow := _material("res://src/roof_shadow.gdshader")
+		var roof_shadow := _material(preload("res://src/roof_shadow.gdshader"))
 		_kinds[Part.TILE_SHADOW] = Masonry.Kind.new(Meshes.plain_box(), roof_shadow, false, false, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 		_kinds[Part.COAT] = Masonry.Kind.new(Meshes.plain_box(), roof_shadow, true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, true)
 		_kinds[Part.IVY] = Masonry.Kind.new(Meshes.sprig(), leaf, true, false, off)
 		_kinds[Part.TIMBER] = Masonry.Kind.new(box, Stones.shared_material(), true, true, off, true)
 		_kinds[Part.TIMBER].far = Stones.far_mesh()
-		_kinds[Part.TIMBER].far_material = _material("res://src/timber_far.gdshader")
-		_kinds[Part.TIMBER].far_baked = _material("res://src/timber_far_baked.gdshader")
+		_kinds[Part.TIMBER].far_material = _material(preload("res://src/timber_far.gdshader"))
+		_kinds[Part.TIMBER].far_baked = _material(preload("res://src/timber_far_baked.gdshader"))
 		_kinds[Part.FLOOR] = Masonry.Kind.new(box, Stones.shared_material(), true, true, off)
 		_kinds[Part.FLOOR].far = _kinds[Part.TIMBER].far
 		_kinds[Part.FLOOR].far_material = _kinds[Part.TIMBER].far_material
@@ -153,9 +153,9 @@ func _init(seed: int, glade: Masonry, ground: Terrain) -> void:
 
 
 ## Color uniforms convert to linear and the wall instance buffer carries raw RGB, so the albedo goes as a Vector3.
-static func _material(shader: String, albedo: Variant = null) -> ShaderMaterial:
+static func _material(shader: Shader, albedo: Variant = null) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
-	m.shader = load(shader)
+	m.shader = shader
 	if albedo != null:
 		var c: Color = albedo
 		m.set_shader_parameter("albedo", Vector3(c.r, c.g, c.b))

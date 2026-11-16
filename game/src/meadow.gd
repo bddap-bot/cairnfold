@@ -67,8 +67,8 @@ func _ready() -> void:
 
 
 func _ground() -> void:
-	full = _material("res://src/terrain.gdshader")
-	plain = _material("res://src/terrain_plain.gdshader")
+	full = _material(preload("res://src/terrain.gdshader"))
+	plain = _material(preload("res://src/terrain_plain.gdshader"))
 	var mats: Array[ShaderMaterial] = [full, plain]
 	flora.paint_ground(mats)
 	var box := flora.terrain.bounds()
@@ -93,9 +93,9 @@ func _ground() -> void:
 	_tile()
 
 
-func _material(shader: String) -> ShaderMaterial:
+func _material(shader: Shader) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
-	mat.shader = load(shader)
+	mat.shader = shader
 	StoneStyles.apply(mat)
 	for k in GROUND:
 		mat.set_shader_parameter(k, GROUND[k])

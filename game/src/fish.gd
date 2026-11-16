@@ -67,7 +67,7 @@ class One:
 func _init(home: Wildlife, seed: int) -> void:
 	wildlife = home
 	rng.seed = seed
-	var water: Shader = load("res://src/water.gdshader")
+	var water: Shader = preload("res://src/water.gdshader")
 	crowd = Crowd.new(wildlife.terrain, body(), CAP, "res://src/fish.gdshader", true)
 	var mat: ShaderMaterial = crowd.material_override
 	for tint in ["shallow", "deep"]:

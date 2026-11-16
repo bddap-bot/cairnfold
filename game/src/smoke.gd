@@ -14,7 +14,7 @@ static var _quad := QuadMesh.new()
 
 static func _made() -> ShaderMaterial:
 	var m := ShaderMaterial.new()
-	m.shader = load("res://src/smoke.gdshader")
+	m.shader = preload("res://src/smoke.gdshader")
 	m.set_shader_parameter("rise", RISE)
 	m.set_shader_parameter("drift", DRIFT)
 	m.set_meta("icon_colour", Color.TRANSPARENT)

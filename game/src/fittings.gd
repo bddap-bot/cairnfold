@@ -4,10 +4,10 @@ extends Node3D
 const HALO_M := 1.1
 
 ## Made at load, as Wall's roof materials are: a shader made on first use stalls a frame.
-static var _flame := _shaded("res://src/flame.gdshader")
+static var _flame := _shaded(preload("res://src/flame.gdshader"))
 ## A glow in the air has no colour of its own for an icon to draw (Hand.unlit).
-static var _halo := _shaded("res://src/halo.gdshader", Color.TRANSPARENT)
-static var _cloth := _shaded("res://src/cloth.gdshader")
+static var _halo := _shaded(preload("res://src/halo.gdshader"), Color.TRANSPARENT)
+static var _cloth := _shaded(preload("res://src/cloth.gdshader"))
 static var _box := BoxMesh.new()
 static var _disc := _halo_disc()
 static var _strip := _flag_mesh()
@@ -19,9 +19,9 @@ var _cloths := Masonry.Kind.new(_strip, _cloth, true, false, GeometryInstance3D.
 var look := 0
 
 
-static func _shaded(shader: String, icon_colour := Color.WHITE) -> ShaderMaterial:
+static func _shaded(shader: Shader, icon_colour := Color.WHITE) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
-	m.shader = load(shader)
+	m.shader = shader
 	m.set_meta("icon_colour", icon_colour)
 	return m
 

@@ -680,7 +680,7 @@ var marks: Ground
 func _init(ground: Terrain, laid: Ground) -> void:
 	terrain = ground
 	marks = laid
-	grass_mat.shader = load("res://src/grass.gdshader")
+	grass_mat.shader = preload("res://src/grass.gdshader")
 	for k in Meadow.GRASS:
 		grass_mat.set_shader_parameter(k, Meadow.GRASS[k])
 	_grass_lod(grass_mat)
@@ -690,7 +690,7 @@ func _init(ground: Terrain, laid: Ground) -> void:
 	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false, GRASS_CELL)
 	grass.survivors = GRASS_SURVIVORS
 	grass.sparse_from = GRASS_LOD_BEGIN + GRASS_LOD_BAND
-	flower_mat = _plant_material("flower", 0.8)
+	flower_mat = _plant_material(preload("res://src/flower.gdshader"), 0.8)
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
 	flower_mat.set_shader_parameter(&"stem", Meshes.FLOWER_HEIGHT)
@@ -714,12 +714,12 @@ func _init(ground: Terrain, laid: Ground) -> void:
 		pool.planted = 1.0
 	flowers.water_plants_further = true
 	var moss_mat := ShaderMaterial.new()
-	moss_mat.shader = load("res://src/moss.gdshader")
+	moss_mat.shader = preload("res://src/moss.gdshader")
 	moss = Pool.new(self, Meshes.moss(), PAINTED_MOSS, moss_mat, false)
 	moss.indexed = true
 	ghost_moss = Pool.new(self, moss.mesh, PAINTED_MOSS, moss_mat, false)
-	trunks = Pool.new(self, ToolModels.cylinder(0.16, 0.3, 1.0, 8), Meadow.TREES + PLACED_TREES, _plant_material("plant", 1.0), true, SOLID_POOL_CELL)
-	var leaf_mat := _plant_material("leaf", 1.0)
+	trunks = Pool.new(self, ToolModels.cylinder(0.16, 0.3, 1.0, 8), Meadow.TREES + PLACED_TREES, _plant_material(preload("res://src/plant.gdshader"), 1.0), true, SOLID_POOL_CELL)
+	var leaf_mat := _plant_material(preload("res://src/leaf.gdshader"), 1.0)
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
 	leaf_mat.set_shader_parameter("crown_lump", Meshes.BLOB_LUMP)
 	for step in Quality.ladder:
@@ -749,7 +749,7 @@ static func far_mesh() -> ArrayMesh:
 
 func _far_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
-	mat.shader = load("res://src/flora_far.gdshader")
+	mat.shader = preload("res://src/flora_far.gdshader")
 	mat.set_shader_parameter(&"stem", Meshes.FLOWER_HEIGHT)
 	mat.set_shader_parameter(&"draw_reach", minf(flower_reach, FLOWER_NEAR))
 	return mat
@@ -770,9 +770,9 @@ func _grass_lod(mat: ShaderMaterial) -> void:
 	Quality.full_detail(mat)
 
 
-static func _plant_material(shader: String, roughness: float) -> ShaderMaterial:
+static func _plant_material(shader: Shader, roughness: float) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
-	mat.shader = load("res://src/%s.gdshader" % shader)
+	mat.shader = shader
 	mat.set_shader_parameter("roughness", roughness)
 	return mat
 

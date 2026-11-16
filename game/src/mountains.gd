@@ -241,9 +241,9 @@ static func _face(corners: PackedVector3Array, colors: PackedColorArray, r: Dict
 ## The ranges, and the lake's water.
 static func build() -> Array[MeshInstance3D]:
 	var material := ShaderMaterial.new()
-	material.shader = load("res://src/mountains.gdshader")
+	material.shader = preload("res://src/mountains.gdshader")
 	var water := ShaderMaterial.new()
-	water.shader = load("res://src/lake.gdshader")
+	water.shader = preload("res://src/lake.gdshader")
 	water.set_shader_parameter("ridges", ImageTexture.create_from_image(ridge_image()))
 	water.set_shader_parameter("level", LAKE)
 	water.set_shader_parameter("radii", Vector2(RANGES[0].radius, RANGES[1].radius))
