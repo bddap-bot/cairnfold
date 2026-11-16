@@ -807,7 +807,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 			if region.field in ExpressionPlayer.UNDRIVEN_LOOKS:
 				undriven[region.field] = undriven.get(region.field, 0) + 1
 	if not undriven.is_empty():
-		report["looks bound that Cairnfold does not drive"] = undriven
+		report["looks bound that Cairnfold does not drive"] = ", ".join(undriven.keys().map(func(f: String) -> String: return "%s %d" % [f, undriven[f]]))
 	if not dropped.is_empty():
 		report["menu: not translated"] = dropped
 	return data
