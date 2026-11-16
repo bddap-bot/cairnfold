@@ -139,7 +139,7 @@ func _the_picker_shows_each_host_s_name() -> void:
 	_the_beacon_names_nobody_until_they_pick_a_name(session)
 	var wheel := SessionWheel.new(session)
 	var where := "%s:%d" % [NOBODY, Session.PORT + 5]
-	session.nearby[where] = {"address": NOBODY, "port": Session.PORT + 5, "key": 5, "avatar": 2, "colour": Session.COLOURS[1], "name": "Hazel Otter", "joins": false, "seen": INF}
+	session.nearby[where] = {"address": NOBODY, "port": Session.PORT + 5, "key": 5, "avatar": 2, "wears": "", "colour": Session.COLOURS[1], "name": "Hazel Otter", "joins": false, "seen": INF}
 	var figure := wheel.figure("join:" + where)
 	var labels := figure.find_children("*", "Label3D", true, false)
 	check(labels.any(func(n: Label3D) -> bool: return n.text == "Hazel Otter"), "the wheel figure carries the host name")

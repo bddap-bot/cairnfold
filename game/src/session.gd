@@ -420,7 +420,7 @@ func _hear() -> void:
 			nearby.erase(key)
 	_prune_previews()
 	for garden in nearby.values():
-		var wears: String = garden.get("wears", "")
+		var wears: String = garden.wears
 		if wears != "" and not previews.has(wears) and not _fetches.has(wears) and _fetches.size() < FETCHES and _clock - _failed.get(wears, -INF) > RETRY:
 			var peer := StreamPeerTCP.new()
 			if peer.connect_to_host(garden.address, garden.port) == OK:
@@ -442,7 +442,7 @@ func previewing() -> bool:
 func _prune_previews() -> void:
 	var named := {worn_key: true}
 	for g in nearby.values():
-		named[g.get("wears", "")] = true
+		named[g.wears] = true
 	for d: Dictionary in [previews, _failed]:
 		for key in d.keys():
 			if not named.has(key):
@@ -508,7 +508,7 @@ func _fetch() -> void:
 
 func _previewed(key: String, _bytes: PackedByteArray, scene: PackedScene, wanted: String) -> void:
 	_fetches.erase(wanted)
-	if not nearby.values().any(func(g: Dictionary) -> bool: return g.get("wears") == wanted):
+	if not nearby.values().any(func(g: Dictionary) -> bool: return g.wears == wanted):
 		return
 	if key == wanted and scene:
 		previews[wanted] = scene

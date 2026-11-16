@@ -169,7 +169,7 @@ func _file(key: String) -> Dictionary:
 
 func _person(key: String) -> Avatar:
 	var garden := _garden(key)
-	var wears: String = garden.get("wears", "")
+	var wears: String = garden.wears
 	var file := _file(key)
 	var scene: PackedScene = file.scene if file.get("scene") != null else session.look(wears, garden.avatar)
 	var a := Avatar.open(scene, garden.colour, wears if session.previews.has(wears) else "")

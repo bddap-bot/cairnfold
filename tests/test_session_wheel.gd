@@ -51,7 +51,7 @@ func _run() -> void:
 	check(hand.people.choices("friends") == ["home"] and hand.people.start("friends") == 0, "with no one near, the friends dial is your own garden alone, and starts there")
 	_check_icons(hand.inventory(), hand.people)
 	for i in 12:
-		session.nearby["192.0.2.1:%d" % (8000 + i)] = {"address": "192.0.2.1", "port": 8000 + i, "key": i, "avatar": i % 3, "colour": Color.WHITE, "name": "Friend %d" % i, "joins": i != 3, "seen": INF}
+		session.nearby["192.0.2.1:%d" % (8000 + i)] = {"address": "192.0.2.1", "port": 8000 + i, "key": i, "avatar": i % 3, "wears": "", "colour": Color.WHITE, "name": "Friend %d" % i, "joins": i != 3, "seen": INF}
 	var friends := hand.people.choices("friends")
 	check(friends.size() == 13 and friends[0] == "home" and friends.slice(1).all(func(k: String) -> bool: return k.begins_with("join:")), "the friends dial holds your garden and every garden near, on one ring")
 	check(Dial.radius(friends.size()) < 0.15, "a full ring of friends stays within a hand's reach: %.2f m" % Dial.radius(friends.size()))
