@@ -35,7 +35,7 @@ func skeleton(file: String) -> Dictionary:
 	var parents := {}
 	var section := ""
 	var bone := {}
-	for line in FileAccess.get_file_as_string(SOURCE + file).split("\n"):
+	for line in FileAccess.open(SOURCE + file, FileAccess.READ).get_as_text().split("\n"):
 		var words := line.strip_edges().split(" ", false)
 		if words.is_empty():
 			continue
@@ -58,7 +58,7 @@ func skeleton(file: String) -> Dictionary:
 
 func frames(file: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for line in FileAccess.get_file_as_string(SOURCE + file).split("\n"):
+	for line in FileAccess.open(SOURCE + file, FileAccess.READ).get_as_text().split("\n"):
 		var words := line.strip_edges().split(" ", false)
 		if words.is_empty() or words[0].begins_with("#") or words[0].begins_with(":"):
 			continue
@@ -88,13 +88,14 @@ func eyes(skel: Dictionary, poses: Dictionary) -> Transform3D:
 
 
 func _initialize() -> void:
-	var error := _wave()
+	var folder: String = (Array(OS.get_cmdline_user_args()) + ["res://animations"])[0]
+	var error := _wave(folder)
 	if error == OK:
-		error = _poses()
+		error = _poses(folder)
 	quit(error)
 
 
-func _wave() -> Error:
+func _wave(folder: String) -> Error:
 	var skel := skeleton("141.asf")
 	var recorded := frames("141_16.amc")
 	var animation := Animation.new()
@@ -121,14 +122,14 @@ func _wave() -> Error:
 			var aim := hand.basis * Basis.looking_at(skel.bones[name].direction, Vector3.BACK)
 			animation.position_track_insert_key(s * 2, i / 120.0, facing * (hand.origin - head) * scale)
 			animation.rotation_track_insert_key(s * 2 + 1, i / 120.0, (facing * aim).get_rotation_quaternion())
-	var error := ResourceSaver.save(animation, "res://animations/wave.tres")
+	var error := ResourceSaver.save(animation, folder.path_join("wave.tres"))
 	print("wave: %d captured frames at 120 Hz, %.3f seconds; save %d" % [recorded.size(), animation.length, error])
 	return error
 
 
 ## In metres on a floor at y = 0, heading removed, facing -Z: `bones` quaternions [x, y, z, w] from the T-pose; `eyes`
 ## basis columns then origin; `hands` left and right; `seat` the hips' height on a support, else 0.
-func _poses() -> Error:
+func _poses(folder: String) -> Error:
 	var out := []
 	var skeletons := {}
 	var recordings := {}
@@ -164,7 +165,7 @@ func _poses() -> Error:
 			"seat": (poses.root.origin.y - floor_y) * scale if p[4] else 0.0,
 		})
 		print("poses: %s from %s frame %d%s: eyes %.2f m up" % [p[0], p[1], p[2], ", mirrored" if p[3] else "", e.origin.y])
-	var f := FileAccess.open("res://animations/poses.json", FileAccess.WRITE)
+	var f := FileAccess.open(folder.path_join("poses.json"), FileAccess.WRITE)
 	if f == null:
 		return FileAccess.get_open_error()
 	f.store_string(JSON.stringify(out, "\t") + "\n")

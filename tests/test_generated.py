@@ -30,6 +30,12 @@ class Generated(unittest.TestCase):
             godot("scripts/avatars.gd", out)
             self.assertSameFiles(out, ROOT / "game/avatars", [p.name for p in (ROOT / "game/avatars").glob("*.vrm")])
 
+    def test_mocap_writes_the_wave_and_the_poses(self):
+        with tempfile.TemporaryDirectory() as out:
+            godot("scripts/mocap.gd", out)
+            self.assertSameFiles(out, ROOT / "game/animations", ["wave.tres", "poses.json"])
+
+
 
 if __name__ == "__main__":
     unittest.main()
