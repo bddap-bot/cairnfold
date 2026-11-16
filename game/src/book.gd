@@ -275,8 +275,8 @@ func faces_in_view() -> Array[int]:
 		return out
 	if rig != null and (global_position - rig.head.global_position).normalized().dot(-rig.head.global_basis.z) < LOOK_COS:
 		return out
-	for f in [_sheets[0].get_meta("back", -1) if _sheets[0].visible else -1, _sheets[1].get_meta("front", -1) if _sheets[1].visible else -1,
-			_sheets[2].get_meta("front", -1) if _sheets[2].visible else -1, _sheets[2].get_meta("back", -1) if _sheets[2].visible else -1]:
+	for f in [_sheets[0].get_meta("back") if _sheets[0].visible else -1, _sheets[1].get_meta("front", -1) if _sheets[1].visible else -1,
+			_sheets[2].get_meta("front") if _sheets[2].visible else -1, _sheets[2].get_meta("back") if _sheets[2].visible else -1]:
 		if f >= 0 and not f in out:
 			out.append(f)
 	return out

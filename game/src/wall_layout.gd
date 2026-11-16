@@ -2682,7 +2682,7 @@ func inputs() -> WallLayout:
 
 func same_inputs(other: WallLayout) -> bool:
 	for k in INPUTS:
-		if get(k) != other.get(k):
+		if self[k] != other[k]:
 			return false
 	return true
 

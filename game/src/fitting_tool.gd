@@ -211,7 +211,7 @@ func _steady(i: int, target: Dictionary) -> Dictionary:
 
 
 static func _opening(target: Dictionary) -> Vector4:
-	return Vector4(target.s, target.y, target.get("style", WallLayout.Family.COTTAGE), target.get("size", 1.0))
+	return Vector4(target.s, target.y, target.style, target.get("size", 1.0))
 
 
 ## Lays each wall in `shown`, by id, with its reshape data, as the command sending it would; every other wall laid
