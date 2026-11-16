@@ -10,6 +10,7 @@ enum Cover { OPEN, ROOF, DECK }
 enum GableEnd { WALL, BOARDS, STEPS }
 enum Foundation { STONE, PLASTER, PILLARS, POSTS }
 const STILTS: Array[Foundation] = [Foundation.PILLARS, Foundation.POSTS]
+const FENCE_FOUNDATIONS: Array[Foundation] = [Foundation.STONE]
 enum Finish { BARE, PLASTER, TIMBER, BOARDS_ACROSS, BOARDS_UPRIGHT }
 
 const COURSE := 0.3
@@ -1864,8 +1865,10 @@ static func suits(f: Finish, is_fence: bool) -> bool:
 	return not is_fence or f == Finish.BARE or boards(f)
 
 
-static func foundations(is_fence: bool, stilts: bool) -> Array:
-	return Foundation.values().filter(func(f: Foundation) -> bool: return (f == Foundation.STONE or not is_fence) and (stilts or f not in STILTS))
+static func foundations(d: Dictionary) -> Array[Foundation]:
+	var out: Array[Foundation] = []
+	out.assign(Foundation.values().filter(func(f: Foundation) -> bool: return (not d.fence or f in FENCE_FOUNDATIONS) and (d.closed or f not in STILTS)))
+	return out
 
 
 ## The first course stays stone, as under plaster.

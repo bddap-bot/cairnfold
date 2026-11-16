@@ -162,11 +162,16 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	if restyle == Restyle.FACE and point.y < wall.layout.point_at(wall.layout.closest_s(point)).y:
 		restyle = Restyle.FOUNDATION
-	var options: Array = WallTool.roof_options(wall.roof.pitch) if restyle == Restyle.ROOF else range(styles(restyle))
-	if restyle == Restyle.FOUNDATION:
-		options = WallLayout.foundations(wall.layout.fence, wall.layout.floored() and wall.layout.supports.is_empty())
-	if restyle == Restyle.FACE:
-		options = options.filter(func(i: int) -> bool: return _faces(wall, int(FACES[i].x) as WallLayout.Finish))
+	var options: Array
+	match restyle:
+		Restyle.ROOF:
+			options = WallTool.roof_options(wall.roof.pitch)
+		Restyle.FOUNDATION:
+			options = WallLayout.foundations(world.state.walls.get(wall.id, wall.data()))
+		Restyle.FACE:
+			options = range(styles(restyle)).filter(func(i: int) -> bool: return _faces(wall, int(FACES[i].x) as WallLayout.Finish))
+		_:
+			options = range(styles(restyle))
 	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "options": options, "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall}
 
 
