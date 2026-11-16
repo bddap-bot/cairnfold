@@ -50,26 +50,26 @@ func _definition() -> Dictionary:
 
 func _controls() -> void:
 	var state := ExpressionState.new(_definition())
-	var toggle := {"type": "toggle", "parameter": "Hat", "value": 1.0}
+	var toggle := {"type": "toggle", "name": "", "parameter": "Hat", "value": 1.0, "axes": []}
 	state.activate(toggle)
 	check(state.active(toggle), "toggle sets the declared value")
 	state.activate(toggle)
 	check(not state.active(toggle), "toggle resets to zero")
-	state.activate({"type": "button", "parameter": "Pulse", "value": 7.0})
+	state.activate({"type": "button", "name": "", "parameter": "Pulse", "value": 7.0, "axes": []})
 	state.advance(0.5)
 	check(state.values.Pulse == 7.0, "button remains set for its pulse")
 	state.advance(0.5)
 	check(state.values.Pulse == 0.0, "button resets without a release edge")
-	state.activate({"type": "submenu", "parameter": "Open", "value": 2.0})
-	state.activate({"type": "radial", "parameter": "", "axes": ["X"]})
-	state.puppet({"type": "radial", "axes": ["X"]}, Vector2.ZERO, 0.65)
+	state.activate({"type": "submenu", "name": "", "parameter": "Open", "value": 2.0, "axes": []})
+	state.activate({"type": "radial", "name": "", "parameter": "", "value": 1.0, "axes": ["X"]})
+	state.puppet({"type": "radial", "name": "", "parameter": "", "value": 1.0, "axes": ["X"]}, Vector2.ZERO, 0.65)
 	state.back()
 	check(is_equal_approx(state.values.X, 0.65) and state.values.Open == 2.0, "closing a puppet keeps its value and parent gate")
 	state.back()
 	check(state.values.Open == 0.0, "leaving a submenu resets its gate")
-	state.puppet({"type": "twoAxis", "axes": ["X", "Y"]}, Vector2(-0.3, 0.7), 0.0)
+	state.puppet({"type": "twoAxis", "name": "", "parameter": "", "value": 1.0, "axes": ["X", "Y"]}, Vector2(-0.3, 0.7), 0.0)
 	check(is_equal_approx(state.values.X, -0.3) and is_equal_approx(state.values.Y, 0.7), "two axes use horizontal and vertical signed values")
-	state.puppet({"type": "fourAxis", "axes": ["Y", "X", "Down", "Left"]}, Vector2(-0.6, -0.8), 0.0)
+	state.puppet({"type": "fourAxis", "name": "", "parameter": "", "value": 1.0, "axes": ["Y", "X", "Down", "Left"]}, Vector2(-0.6, -0.8), 0.0)
 	check(state.values.X == 0.0 and state.values.Y == 0.0 and is_equal_approx(state.values.Down, 0.8) and is_equal_approx(state.values.Left, 0.6), "four axes map up right down left independently")
 	state.put("Pulse", 999)
 	state.put("X", -5)
@@ -77,7 +77,7 @@ func _controls() -> void:
 	var restored := ExpressionState.new(_definition())
 	restored.restore(state.saved())
 	check(restored.values.X == -1 and restored.values.Pulse == 0, "only saved parameters survive an avatar reload")
-	state.activate({"type": "submenu", "parameter": "Open", "value": 2.0})
+	state.activate({"type": "submenu", "name": "", "parameter": "Open", "value": 2.0, "axes": []})
 	state.put("Open", 3)
 	state.advance(0)
 	check(state.opened.is_empty(), "an animator changing a submenu gate closes that submenu")
@@ -108,7 +108,7 @@ func _fx() -> void:
 	var driven := _definition()
 	driven.layers = [{"weight": 1.0, "default": 0, "states": [
 		{"motion": {"clip": 0}, "transitions": [{"to": 1, "conditions": [{"parameter": "Hat", "mode": "if"}]}]},
-		{"motion": {"clip": 0}, "transitions": [], "drivers": [{"parameter": "Pulse", "drive": "add", "value": 2.0}, {"parameter": "Open", "drive": "copy", "source": "Pulse"}]}]}]
+		{"motion": {"clip": 0}, "transitions": [], "drivers": [{"parameter": "Pulse", "drive": "add", "source": "", "value": 2.0, "min": 0.0, "max": 1.0, "chance": 1.0}, {"parameter": "Open", "drive": "copy", "source": "Pulse", "value": 0.0, "min": 0.0, "max": 1.0, "chance": 1.0}]}]}]
 	var counter := ExpressionState.new(driven)
 	counter.put("Pulse", 3)
 	counter.put("Hat", 1)
@@ -146,11 +146,11 @@ func _fx() -> void:
 		for at: Array in samples:
 			worst = maxf(worst, absf(ExpressionState.sample(unity[name]["keys"], at[0], false) - at[1]))
 		check(samples.size() == 20 and worst <= 0.01 * range_of, "a %s curve samples as Unity does: worst %.6f of range %.3f" % [name, worst, range_of])
-		check(ExpressionDefinition.valid({"targets": [{"effect": "switch"}], "clips": [{"curves": [{"target": 0, "keys": unity[name]["keys"]}]}]}), "%s keys are valid curve data" % name)
-	check(not ExpressionDefinition.valid({"targets": [{"effect": "switch"}], "clips": [{"curves": [{"target": 0, "keys": [[0, 0, 1]]}]}]}), "a key with a lone slope is rejected")
+		check(ExpressionDefinition.valid({"targets": [{"effect": "switch", "default": 0.0}], "clips": [{"length": 0.0, "curves": [{"target": 0, "step": false, "keys": unity[name]["keys"]}]}]}), "%s keys are valid curve data" % name)
+	check(not ExpressionDefinition.valid({"targets": [{"effect": "switch", "default": 0.0}], "clips": [{"length": 0.0, "curves": [{"target": 0, "step": false, "keys": [[0, 0, 1]]}]}]}), "a key with a lone slope is rejected")
 	var definition := _definition()
-	definition.layers = [{"states": [{"motion": {"blend": "1d", "parameters": ["X", ""], "children": [
-		{"motion": {"clip": 0}, "threshold": 0}, {"motion": {"clip": 1}, "threshold": 1}]}}]}]
+	definition.layers = [{"weight": 1.0, "default": 0, "states": [{"motion": {"blend": "1d", "parameters": ["X", ""], "children": [
+		{"motion": {"clip": 0}, "threshold": 0, "speed": 1.0, "offset": 0.0}, {"motion": {"clip": 1}, "threshold": 1, "speed": 1.0, "offset": 0.0}]}}]}]
 	state = ExpressionState.new(definition)
 	state.put("X", 0.25)
 	state.advance(0.1)
@@ -165,8 +165,8 @@ func _fx() -> void:
 	definition.targets[0].default = 0.5
 	definition.clips.append({"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 2]]}]})
 	definition.clips.append({"length": 1.0, "curves": []})
-	definition.layers = [{"default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 1}, "transitions": []}]}, {"default": 0, "entry": [], "any": [], "states": [{"motion": {"blend": "1d", "parameters": ["X", ""], "children": [
-		{"motion": {"clip": 3}, "threshold": 0, "parameter": ""}, {"motion": {"clip": 2}, "threshold": 1, "parameter": ""}]}, "transitions": []}]}]
+	definition.layers = [{"weight": 1.0, "default": 0, "entry": [], "any": [], "states": [{"motion": {"clip": 1}, "transitions": []}]}, {"weight": 1.0, "default": 0, "entry": [], "any": [], "states": [{"motion": {"blend": "1d", "parameters": ["X", ""], "children": [
+		{"motion": {"clip": 3}, "threshold": 0, "parameter": "", "speed": 1.0, "offset": 0.0}, {"motion": {"clip": 2}, "threshold": 1, "parameter": "", "speed": 1.0, "offset": 0.0}]}, "transitions": []}]}]
 	state = ExpressionState.new(definition)
 	state.advance(0.1)
 	var resting := state.outputs[0]
@@ -182,7 +182,7 @@ func _fx() -> void:
 	state.advance(0.1)
 	check(is_equal_approx(state.outputs[0], 0.5), "a direct tree's playing child that keys nothing adds nothing: %s" % state.outputs[0])
 	definition = _definition()
-	definition.layers = [{"default": 0, "entry": [], "any": [{"to": 1, "conditions": [{"mode": "if", "parameter": "Hat"}]}], "states": [
+	definition.layers = [{"weight": 1.0, "default": 0, "entry": [], "any": [{"to": 1, "conditions": [{"mode": "if", "parameter": "Hat"}]}], "states": [
 		{"transitions": []}, {"motion": {"clip": 1}, "transitions": [{"to": -1, "conditions": [{"mode": "ifNot", "parameter": "Hat"}]}]}]}]
 	state = ExpressionState.new(definition)
 	state.put("Hat", 1)
@@ -191,7 +191,7 @@ func _fx() -> void:
 	state.put("Hat", 0)
 	state.advance(0.1)
 	check(on == 1.0 and state.outputs[0] == 0.0 and state.states[0] == 0, "a toggle that leaves its state through the exit returns through the entry to the default state: %s, %s in %d" % [on, state.outputs[0], state.states[0]])
-	definition.layers.append({"default": 0, "entry": [], "any": [{"to": 1, "conditions": [{"mode": "if", "parameter": "Pulse"}]}], "states": [
+	definition.layers.append({"weight": 1.0, "default": 0, "entry": [], "any": [{"to": 1, "conditions": [{"mode": "if", "parameter": "Pulse"}]}], "states": [
 		{"transitions": []}, {"motion": {"clip": 0}, "transitions": [{"to": -1, "conditions": [{"mode": "ifNot", "parameter": "Pulse"}]}]}]})
 	state = ExpressionState.new(definition)
 	state.put("Hat", 1)
@@ -212,7 +212,7 @@ func _fx() -> void:
 	state.advance(0.1)
 	check(state.states[0] == 1, "an entry transition to the exit is passed over for the next that holds: in %d" % state.states[0])
 	definition = _definition()
-	definition.layers[0].states[0].transitions = [{"to": 1, "exitTime": 0.5}]
+	definition.layers[0].states[0].transitions = [{"to": 1, "exitTime": 0.5, "conditions": []}]
 	state = ExpressionState.new(definition)
 	state.advance(0.25)
 	var early := state.states[0]
@@ -329,15 +329,15 @@ func _lighting() -> void:
 	Avatar.hold(encoded, "index", 1)
 	var glow := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
 	glow.fill(Color.WHITE)
-	var looks := {"index": encoded, "emission": glow, "materials": [{"lighting": {"model": "flat", "cap": 0.8}}, {"lighting": {"model": "lit"}, "emission": {"color": [0.0, 0.5, 1.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 0.5}}, {"lighting": {"model": "lit"}, "emission": {"color": [1.0, 1.0, 1.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false}}]}
+	var looks := {"index": encoded, "emission": glow, "materials": [{"matcaps": [], "lighting": {"model": "flat", "cap": 0.8}}, {"matcaps": [], "lighting": {"model": "lit"}, "emission": {"color": [0.0, 0.5, 1.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 0.5}}, {"matcaps": [], "lighting": {"model": "lit"}, "emission": {"color": [1.0, 1.0, 1.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0}}]}
 	check(ExpressionDefinition.valid({"looks": looks}), "looks lighting each material are valid")
-	for bad: Dictionary in [{"index": encoded, "materials": [{}]}, {"index": encoded, "materials": [{"lighting": {"model": "glow"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "flat", "cap": "1"}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit", "ramp": [1.0]}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": "0.5"}}]}, {"index": "a PNG", "materials": []}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1], "strength": 1}}]}, {"index": encoded, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1, 1, 1], "strength": 1, "replace": "1"}}]}]:
+	for bad: Dictionary in [{"index": encoded, "materials": [{"matcaps": []}]}, {"index": encoded, "materials": [{"matcaps": [], "lighting": {"model": "glow"}}]}, {"index": encoded, "materials": [{"matcaps": [], "lighting": {"model": "flat", "cap": "1"}}]}, {"index": encoded, "materials": [{"matcaps": [], "lighting": {"model": "lit", "ramp": [1.0]}}]}, {"index": encoded, "materials": [{"matcaps": [], "lighting": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": "0.5"}}]}, {"index": "a PNG", "materials": []}, {"index": encoded, "materials": [{"matcaps": [], "lighting": {"model": "lit"}, "emission": {"color": [1, 1], "strength": 1, "replace": 0.0}}]}, {"index": encoded, "materials": [{"matcaps": [], "lighting": {"model": "lit"}, "emission": {"color": [1, 1, 1], "strength": 1, "replace": "1"}}]}]:
 		check(not ExpressionDefinition.valid({"looks": bad}), "looks without a lighting for each material are refused: %s" % [bad.get("materials")])
 	var layer := glow
 	var shadow := {"border": 0.5, "blur": 0.1, "strength": 1.0, "second": {"border": 0.15, "blur": 0.1, "weight": 0.5}, "edge": {"color": [1.0, 0.1, 0.0], "range": 0.08}}
 	var rim := {"color": [1.0, 0.5, 0.25], "strength": 1.0, "main": 0.0, "border": 0.5, "blur": 0.65, "power": 3.5, "lit": 1.0, "shadowMask": 0.5, "backface": false}
 	var toon := func(light: Dictionary, edge: Variant, shade: Variant) -> Dictionary:
-		var out := {"index": encoded, "materials": [{"lighting": light, "rim": edge}, {"lighting": {"model": "flat", "cap": 1.0, "shadow": null}, "rim": null}]}
+		var out := {"index": encoded, "materials": [{"matcaps": [], "lighting": light, "rim": edge}, {"matcaps": [], "lighting": {"model": "flat", "cap": 1.0, "shadow": null}, "rim": null}]}
 		if shade != null:
 			out.shade = shade
 			out.shade2 = shade
@@ -411,8 +411,8 @@ func _theme_recolours_the_emission() -> void:
 	var theme := {"slot": 1, "hsv": [0.0, 1.0, 1.0], "exposure": 2.0, "hue": 0.0, "saturation": 0.0, "value": 0.0, "speed": 0.0}
 	var turning := theme.merged({"slot": 0, "speed": 1.0}, true)
 	var looks := {"index": index, "emission": glow, "materials": [
-		{"rect": [0.0, 0.0, 0.5, 1.0], "lighting": {"model": "lit"}, "emission": {"color": [2.0, 0.0, 0.0], "strength": 1.5, "hue": 0.0, "shiftsHue": false, "replace": 0.25, "theme": 1}, "themes": [null, theme, null, null]},
-		{"rect": [0.5, 0.0, 1.0, 1.0], "lighting": {"model": "lit"}, "emission": {"color": [2.0, 0.0, 0.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0, "theme": 0}, "themes": [turning, null, null, null]}]}
+		{"matcaps": [], "rect": [0.0, 0.0, 0.5, 1.0], "lighting": {"model": "lit"}, "emission": {"color": [2.0, 0.0, 0.0], "strength": 1.5, "hue": 0.0, "shiftsHue": false, "replace": 0.25, "theme": 1}, "themes": [null, theme, null, null]},
+		{"matcaps": [], "rect": [0.5, 0.0, 1.0, 1.0], "lighting": {"model": "lit"}, "emission": {"color": [2.0, 0.0, 0.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0, "theme": 0}, "themes": [turning, null, null, null]}]}
 	check(ExpressionDefinition.valid({"looks": looks}), "looks whose emissions name their themes are valid")
 	for bad: Variant in [[null, null, null, null], [null, {"slot": 1, "hsv": [0, 1]}, null, null], "themes"]:
 		var broken := looks.duplicate(true)
@@ -438,7 +438,7 @@ func _theme_recolours_the_emission() -> void:
 		shown.append(mi)
 	var region := func(field: String) -> Dictionary: return {"look": [{"node": "Suit", "rect": [0.0, 0.0, 0.5, 1.0], "field": field, "slot": 1}]}
 	var targets := [{"effect": region.call("themeHue"), "default": 0.5}, {"effect": region.call("themeSpeed"), "default": 0.0}, {"effect": region.call("themeValue"), "default": 0.0}]
-	var resting := {"length": 1.0, "curves": [{"target": 2, "keys": [[0, -0.5]]}]}
+	var resting := {"length": 1.0, "curves": [{"target": 2, "step": false, "keys": [[0, -0.5]]}]}
 	root.set_meta("expressions", {"parameters": [], "targets": targets, "clips": [resting], "layers": [{"weight": 1.0, "default": 0, "states": [{"motion": {"clip": 0}, "transitions": []}]}], "shown": [], "menu": [], "looks": looks})
 	ExpressionPlayer.prepare(root)
 	var player := ExpressionPlayer.new(root)
@@ -489,7 +489,7 @@ func _clear_coat() -> void:
 	var coat := {"strength": 0.87, "smoothness": 0.92, "reflection": 1.0, "specular": 0.5, "fresnel": 1.0, "gsaa": [0.15, 0.1], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 0.5, 1.0], "st": [1.0, 1.0, 0.0, 0.22], "inverts": [false, false, false, true], "map": 0, "fallback": 0, "litFallback": false, "forceFallback": true, "fresnelStrength": 0.5, "exposureOcclusion": 0.25}
 	var fallback := Image.create_empty(256, 896, false, Image.FORMAT_RGBA8)
 	Avatar.hold(index, "index", 1)
-	var looks := {"index": index, "clearcoatMaps": [map], "clearcoatFallbacks": [fallback], "materials": [{"lighting": {"model": "lit"}, "clearcoat": coat}, {"lighting": {"model": "flat", "cap": 1.0}}]}
+	var looks := {"index": index, "clearcoatMaps": [map], "clearcoatFallbacks": [fallback], "materials": [{"matcaps": [], "lighting": {"model": "lit"}, "clearcoat": coat}, {"matcaps": [], "lighting": {"model": "flat", "cap": 1.0}}]}
 	check(ExpressionDefinition.valid({"looks": looks}), "looks with a clear coat are valid")
 	for bad: Variant in [{"strength": 1.0}, coat.merged({"map": 0.5}, true), coat.merged({"st": [1, 1, 0]}, true), coat.merged({"inverts": [0, 0, 0, 0]}, true), coat.merged({"specularTint": "white"}, true), coat.merged({"gsaa": [0.15]}, true), coat.merged({"fallback": 0.5}, true), coat.merged({"litFallback": 1}, true), coat.merged({"forceFallback": null}, true), coat.merged({"fresnelStrength": "half"}, true), coat.merged({"exposureOcclusion": null}, true), {"strength": 0.87, "smoothness": 0.92, "reflection": 1.0, "specular": 0.5, "fresnel": 1.0, "gsaa": [0.15, 0.1], "specularTint": [1.0, 1.0, 1.0], "reflectionTint": [1.0, 0.5, 1.0], "st": [1.0, 1.0, 0.0, 0.22], "inverts": [false, false, false, true], "map": 0, "fallback": 0, "litFallback": false, "forceFallback": true, "exposureOcclusion": 0.25}]:
 		var broken := looks.duplicate(true)
@@ -563,14 +563,14 @@ func _toon() -> void:
 	var rim_shade := {"color": [0.9, 0.8, 0.7], "strength": 0.6, "border": 0.4, "blur": 0.2, "power": 1.5}
 	var matcap := {"texture": 0, "mode": "normal", "border": 0.5, "color": [1.0, 0.9, 0.8, 1.0], "intensity": 0.75, "baseMix": 0.0, "replace": 0.0, "multiply": 0.0, "add": 0.6, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.4, "lightMask": 1.0, "hue": null, "circle": null, "theme": null}
 	var looks := {"shade": layer, "shade2": layer, "rimTint": layer, "matcaps": [layer], "materials": [
-		{"lighting": {"model": "flat", "cap": 1.0, "shadow": shadow}},
-		{"lighting": {"model": "lit"}, "rim": rim},
+		{"matcaps": [], "lighting": {"model": "flat", "cap": 1.0, "shadow": shadow}},
+		{"matcaps": [], "lighting": {"model": "lit"}, "rim": rim},
 		{"lighting": {"model": "lit"}, "matcaps": [null, matcap, null, null]},
-		{"lighting": {"model": "flat", "cap": 1.0}, "rimShade": rim_shade},
-		{"lighting": {"model": "flat", "cap": 1.0}}]}
+		{"matcaps": [], "lighting": {"model": "flat", "cap": 1.0}, "rimShade": rim_shade},
+		{"matcaps": [], "lighting": {"model": "flat", "cap": 1.0}}]}
 	for m: Dictionary in looks.materials:
 		check(ExpressionDefinition.looks_valid({"index": layer, "shade": layer, "shade2": layer, "materials": [m]}), "a toon look in the shape the renderer draws is valid: %s" % [m])
-	for bad: Dictionary in [{"lighting": {"model": "flat", "shadow": {"border": 0.5}}}, {"lighting": {"model": "lit"}, "rim": rim.merged({"color": [1, 1]}, true)}, {"lighting": {"model": "lit"}, "rimShade": {"color": [0.9, 0.8, 0.7], "strength": 0.6, "border": 0.4, "blur": 0.2}}, {"lighting": {"model": "lit"}, "rimShade": rim_shade.merged({"color": [0.9, 0.8]}, true)}, {"lighting": {"model": "lit"}, "rimShade": rim_shade.merged({"power": 0.0}, true)}, {"lighting": {"model": "lit"}, "rimShade": [0.9, 0.8, 0.7]}]:
+	for bad: Dictionary in [{"matcaps": [], "lighting": {"model": "flat", "shadow": {"border": 0.5}}}, {"matcaps": [], "lighting": {"model": "lit"}, "rim": rim.merged({"color": [1, 1]}, true)}, {"matcaps": [], "lighting": {"model": "lit"}, "rimShade": {"color": [0.9, 0.8, 0.7], "strength": 0.6, "border": 0.4, "blur": 0.2}}, {"matcaps": [], "lighting": {"model": "lit"}, "rimShade": rim_shade.merged({"color": [0.9, 0.8]}, true)}, {"matcaps": [], "lighting": {"model": "lit"}, "rimShade": rim_shade.merged({"power": 0.0}, true)}, {"matcaps": [], "lighting": {"model": "lit"}, "rimShade": [0.9, 0.8, 0.7]}]:
 		check(not ExpressionDefinition.looks_valid({"index": layer, "shade": layer, "shade2": layer, "materials": [bad]}), "a malformed toon look is refused: %s" % [bad])
 	check(not ExpressionDefinition.looks_valid({"index": layer, "rimTint": "a PNG", "materials": [looks.materials[1]]}), "a rim tint that is not an image is refused")
 	check(ExpressionDefinition.looks_valid({"index": layer, "rimTint": layer, "materials": [looks.materials[1]]}) and not ExpressionDefinition.looks_valid({"index": layer, "rimTint": layer, "materials": [looks.materials[0]]}), "a rim tint is valid beside a rim and refused where no material draws one")
@@ -606,9 +606,9 @@ func _toon() -> void:
 	later.free()
 	player.free()
 	root.free()
-	var dark := _shown({"emission": layer, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1.0, 0.0, 0.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false}}]}, 1, {}, {"emission": true})
+	var dark := _shown({"emission": layer, "materials": [{"matcaps": [], "lighting": {"model": "lit"}, "emission": {"color": [1.0, 0.0, 0.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0}}]}, 1, {}, {"emission": true})
 	check(dark[0].get_surface_material(0).has_meta("lighting") and not dark[0].get_surface_material(0).has_meta("toon"), "an emission dark at rest draws by the looks where a clip may light it, without the toon shaders")
-	var unlit := _shown({"emission": layer, "materials": [{"lighting": {"model": "lit"}, "emission": {"color": [1.0, 0.0, 0.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false}}]}, 1)
+	var unlit := _shown({"emission": layer, "materials": [{"matcaps": [], "lighting": {"model": "lit"}, "emission": {"color": [1.0, 0.0, 0.0], "strength": 0.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0}}]}, 1)
 	check(not unlit[0].get_surface_material(0).has_meta("lighting"), "one no clip may light keeps its plain material")
 
 
@@ -718,7 +718,7 @@ func _looks_need_their_index_and_shades() -> void:
 	var model := preload("res://demo/expressions.gd").scene().instantiate() as Node3D
 	model.set_meta("springs", {})
 	var definition: Dictionary = preload("res://demo/expressions.gd").definition()
-	definition.looks.materials = [{"lighting": {"model": "flat"}}]
+	definition.looks.materials = [{"matcaps": [], "lighting": {"model": "flat"}}]
 	model.set_meta("expressions", definition)
 	Vrm.write(model, "user://unindexed.vrm")
 	model.free()
@@ -735,7 +735,7 @@ func _looks_need_their_index_and_shades() -> void:
 	shadowed.set_meta("springs", {})
 	var shaded: Dictionary = preload("res://demo/expressions.gd").definition()
 	shaded.looks.index = Image.create_empty(4, 4, false, Image.FORMAT_L8)
-	shaded.looks.materials = [{"lighting": {"model": "flat", "shadow": {"border": 0.5, "blur": 0.1, "strength": 1.0, "second": null, "edge": null}}}]
+	shaded.looks.materials = [{"matcaps": [], "lighting": {"model": "flat", "shadow": {"border": 0.5, "blur": 0.1, "strength": 1.0, "second": null, "edge": null}}}]
 	shadowed.set_meta("expressions", shaded)
 	Vrm.write(shadowed, "user://unshaded.vrm")
 	shadowed.free()
@@ -748,7 +748,7 @@ func _looks_need_their_index_and_shades() -> void:
 		var layered: Dictionary = preload("res://demo/expressions.gd").definition()
 		layered.looks.index = Image.create_empty(4, 4, false, Image.FORMAT_L8)
 		layered.looks.shade = shade
-		layered.looks.materials = [{"lighting": {"model": "flat", "shadow": {"border": 0.5, "blur": 0.1, "strength": 1.0, "second": second, "edge": null}}}]
+		layered.looks.materials = [{"matcaps": [], "lighting": {"model": "flat", "shadow": {"border": 0.5, "blur": 0.1, "strength": 1.0, "second": second, "edge": null}}}]
 		single.set_meta("expressions", layered)
 		Vrm.write(single, "user://single-shade.vrm")
 		single.free()
@@ -801,21 +801,21 @@ func _roundtrip() -> void:
 func _malformed() -> void:
 	check(ExpressionDefinition.valid({"targets": [{"effect": {"scale": {"node": &"head", "axis": 0}}, "default": 1.0}]}), "imported bone names remain valid before JSON serialization")
 	for kind: String in ["color", "tone", "look"]:
-		check(ExpressionDefinition.valid({"targets": [{"effect": {kind: [{"node": 0, "rect": [0, 0, 1, 1], "channel": 1, "slot": 2}]}}]}), "an imported %s region is a valid target" % kind)
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0}]}}]}), "a region without its atlas rect is rejected")
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"color": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}), "a colour region past blue is rejected")
-	check(ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}}]}) and not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 4}]}}]}), "a tone region reaches lilToon's HSV saturation and no further")
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [{"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 4, "colorBlend": 0}]}}]}), "a decal region past the fourth slot is rejected")
+		check(ExpressionDefinition.valid({"targets": [{"effect": {kind: [{"node": 0, "rect": [0, 0, 1, 1], "channel": 1, "slot": 2}]}, "default": 0.0}]}), "an imported %s region is a valid target" % kind)
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0}]}, "default": 0.0}]}), "a region without its atlas rect is rejected")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"color": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}, "default": 0.0}]}), "a colour region past blue is rejected")
+	check(ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 3}]}, "default": 0.0}]}) and not ExpressionDefinition.valid({"targets": [{"effect": {"tone": [{"node": 0, "rect": [0, 0, 1, 1], "channel": 4}]}, "default": 0.0}]}), "a tone region reaches lilToon's HSV saturation and no further")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [{"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 4, "colorBlend": 0}]}, "default": 0.0}]}), "a decal region past the fourth slot is rejected")
 	var blended := {"node": 0, "rect": [0, 0, 1, 1], "field": "decal", "slot": 0, "colorBlend": 20.0}
-	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [blended]}}]}) and ExpressionPlayer._settings("look", blended, 0)[1] == 20.0, "a decal region's Color Blend Mode reaches the shader")
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [blended.merged({"colorBlend": 3.0}, true)]}}]}), "a decal region naming a blend mode Poiyomi has not is rejected")
+	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [blended]}, "default": 0.0}]}) and ExpressionPlayer._settings("look", blended, 0)[1] == 20.0, "a decal region's Color Blend Mode reaches the shader")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [blended.merged({"colorBlend": 3.0}, true)]}, "default": 0.0}]}), "a decal region naming a blend mode Poiyomi has not is rejected")
 	var unnamed := blended.duplicate()
 	unnamed.erase("colorBlend")
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [unnamed.merged({"multiply": true})]}}]}), "a decal region converted before decals named their blend mode is rejected, not drawn replacing")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [unnamed.merged({"multiply": true})]}, "default": 0.0}]}), "a decal region converted before decals named their blend mode is rejected, not drawn replacing")
 	var turned := {"node": 0, "rect": [0, 0, 1, 1], "field": "decalHue", "slot": 1, "colorBlend": 0, "alpha": 0.5, "hue": {"shift": 0.25, "space": 1.0, "select": 1.0}}
-	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned]}}]}), "a decal region turning its hue is valid")
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned.merged({"hue": {"shift": "a"}}, true)]}}]}), "a decal region with a malformed hue turn is rejected")
-	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned.merged({"hue": null}, true)]}}]}), "a decal hue region without the turn it drives is rejected")
+	check(ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned]}, "default": 0.0}]}), "a decal region turning its hue is valid")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned.merged({"hue": {"shift": "a", "space": 0.0, "select": 1.0}}, true)]}, "default": 0.0}]}), "a decal region with a malformed hue turn is rejected")
+	check(not ExpressionDefinition.valid({"targets": [{"effect": {"look": [turned.merged({"hue": null}, true)]}, "default": 0.0}]}), "a decal hue region without the turn it drives is rejected")
 	var settings := ExpressionPlayer._settings("look", turned, 3)
 	check(settings == [1, 0, 0.5, 2, 3], "a decal hue region drives its slot's turn, not its alpha, which stays at the saved one: %s" % [settings])
 	check(ExpressionPlayer._turn(turned) == Color(0.25, 4.0, 0.0, 0.0) and ExpressionPlayer._turn({"field": "decal"}).g == 0.0, "a decal's turn at rest reaches the shader, and an unturned decal's is clear")
@@ -823,7 +823,7 @@ func _malformed() -> void:
 		check(ExpressionDefinition.valid({"targets": [{"effect": effect, "default": 0.0}]}), "an imported %s target is valid" % effect.keys()[0])
 	for effect: Dictionary in [{"rotation": {"node": 2, "axis": 3, "rest": [0, 0, 0]}}, {"translation": {"node": 2, "direction": [1, 0]}}, {"constraint": {}}]:
 		check(not ExpressionDefinition.valid({"targets": [{"effect": effect, "default": 0.0}]}), "a malformed %s target is rejected" % effect.keys()[0])
-	check(not ExpressionDefinition.valid({"layers": [{}]}), "a layer without states is rejected")
+	check(not ExpressionDefinition.valid({"layers": [{"weight": 1.0, "default": 0}]}), "a layer without states is rejected")
 	var switch := [{"effect": "switch", "default": 1.0}]
 	check(ExpressionDefinition.valid({"targets": switch, "springs": [{"joints": [&"tail", 3], "when": [[0, 1]]}], "colliders": [{"collider": 2, "when": [[0, 1]]}]}), "switched springs and colliders are valid")
 	for bad: Dictionary in [{"springs": [{"joints": [], "when": [[0, 1]]}]}, {"springs": [{"joints": [3], "when": [[1, 1]]}]}, {"colliders": [{"collider": -1, "when": [[0, 1]]}]}, {"colliders": [{"collider": 0.5, "when": []}]}, {"colliders": [{"collider": 0}]}]:
@@ -835,17 +835,17 @@ func _malformed() -> void:
 	invalid = _definition()
 	invalid.layers[0].states[0].motion.clip = -1
 	check(not ExpressionDefinition.valid(invalid), "negative clip references are rejected")
-	var state := ExpressionState.new({"layers": [{}]})
+	var state := ExpressionState.new({"layers": [{"weight": 1.0, "default": 0}]})
 	state.advance(0.1)
 	check(state.outputs.is_empty(), "malformed external data never enters the evaluator")
 
 
 func _animated_parameters() -> void:
-	var definition := {"parameters": [{"name": "Reset", "type": "bool", "default": 0.0}, {"name": "Gauge", "type": "float", "default": 0.0}],
+	var definition := {"parameters": [{"name": "Reset", "type": "bool", "default": 0.0, "saved": false}, {"name": "Gauge", "type": "float", "default": 0.0, "saved": false}],
 		"targets": [{"effect": {"parameter": "Gauge"}, "default": 0.0}, {"effect": "switch", "default": 0.0}], "menu": [],
-		"clips": [{"length": 1.0, "curves": [{"target": 0, "keys": [[0, 0], [1, 2000]]}]}, {"length": 0.0, "curves": [{"target": 1, "keys": [[0, 1]]}]}],
-		"layers": [{"states": [{"motion": {"clip": 0}, "transitions": [{"to": 1, "conditions": [{"parameter": "Reset", "mode": "if"}]}]}, {"motion": {}, "transitions": []}]},
-			{"states": [{"motion": {}, "transitions": [{"to": 1, "conditions": [{"parameter": "Gauge", "mode": "greater", "threshold": 500.0}]}]}, {"motion": {"clip": 1}, "transitions": []}]}]}
+		"clips": [{"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 0], [1, 2000]]}]}, {"length": 0.0, "curves": [{"target": 1, "step": false, "keys": [[0, 1]]}]}],
+		"layers": [{"weight": 1.0, "default": 0, "states": [{"motion": {"clip": 0}, "transitions": [{"to": 1, "conditions": [{"parameter": "Reset", "mode": "if"}]}]}, {"motion": {}, "transitions": []}]},
+			{"weight": 1.0, "default": 0, "states": [{"motion": {}, "transitions": [{"to": 1, "conditions": [{"parameter": "Gauge", "mode": "greater", "threshold": 500.0}]}]}, {"motion": {"clip": 1}, "transitions": []}]}]}
 	check(ExpressionDefinition.valid(definition), "a parameter target is valid")
 	var state := ExpressionState.new(definition)
 	state.advance(0.5)
@@ -861,12 +861,12 @@ func _animated_parameters() -> void:
 
 
 func _settled_layers() -> void:
-	var definition := {"parameters": [{"name": "Hat", "type": "bool", "default": 0.0}],
+	var definition := {"parameters": [{"name": "Hat", "type": "bool", "default": 0.0, "saved": false}],
 		"targets": [{"effect": "switch", "default": 0.0}, {"effect": "switch", "default": 0.0}], "shown": [], "menu": [],
-		"clips": [{"length": 1.0, "curves": [{"target": 0, "keys": [[0, 1], [1, 1]]}]}, {"length": 1.0, "curves": [{"target": 0, "keys": [[0, 2]]}]},
-			{"length": 1.0, "curves": [{"target": 1, "keys": [[0, 1]]}]}],
-		"layers": [{"states": [{"motion": {"clip": 0}, "transitions": [{"to": 1, "exitTime": 0.5, "conditions": []}]}, {"motion": {"clip": 1}, "transitions": []}]},
-			{"states": [{"motion": {}, "transitions": [{"to": 1, "conditions": [{"parameter": "Hat", "mode": "if"}]}]}, {"motion": {"clip": 2}, "transitions": []}]}]}
+		"clips": [{"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 1], [1, 1]]}]}, {"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 2]]}]},
+			{"length": 1.0, "curves": [{"target": 1, "step": false, "keys": [[0, 1]]}]}],
+		"layers": [{"weight": 1.0, "default": 0, "states": [{"motion": {"clip": 0}, "transitions": [{"to": 1, "exitTime": 0.5, "conditions": []}]}, {"motion": {"clip": 1}, "transitions": []}]},
+			{"weight": 1.0, "default": 0, "states": [{"motion": {}, "transitions": [{"to": 1, "conditions": [{"parameter": "Hat", "mode": "if"}]}]}, {"motion": {"clip": 2}, "transitions": []}]}]}
 	check(ExpressionDefinition.valid(definition), "settling layers are valid")
 	var state := ExpressionState.new(definition)
 	state.advance(0.2)
@@ -889,9 +889,9 @@ func _settled_layers() -> void:
 		sampled.advance(1.0 / 72.0)
 		same = same and settling.outputs == sampled.outputs and settling.states == sampled.states and settling.elapsed == sampled.elapsed
 	check(same, "passing resting layers over plays as sampling every layer every frame does")
-	var looping := {"parameters": [{"name": "Hat", "type": "bool", "default": 0.0}], "targets": [{"effect": "switch", "default": 0.0}], "shown": [], "menu": [],
-		"clips": [{"length": 1.0, "curves": [{"target": 0, "keys": [[0, 1]]}]}],
-		"layers": [{"any": [{"to": 0, "conditions": [{"parameter": "Hat", "mode": "ifNot"}]}], "states": [{"motion": {"clip": 0}, "transitions": []}]}]}
+	var looping := {"parameters": [{"name": "Hat", "type": "bool", "default": 0.0, "saved": false}], "targets": [{"effect": "switch", "default": 0.0}], "shown": [], "menu": [],
+		"clips": [{"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 1]]}]}],
+		"layers": [{"weight": 1.0, "default": 0, "any": [{"to": 0, "conditions": [{"parameter": "Hat", "mode": "ifNot"}]}], "states": [{"motion": {"clip": 0}, "transitions": []}]}]}
 	var again := ExpressionState.new(looping)
 	again.advance(0.1)
 	again.advance(0.1)
@@ -989,7 +989,7 @@ func _contacts() -> void:
 	sk.reset_bone_poses()
 	var receiver := func(type: String, parameter: String, others := true, own := false) -> Dictionary:
 		return {"node": "Head", "shape": {"offset": [0, 0, 0], "radius": 0.2}, "tags": ["Hand"], "when": [], "receiver": {"type": type, "parameter": parameter, "self": own, "others": others, "local": false, "minVelocity": 1.0}}
-	var definition := {"parameters": [{"name": "Near", "type": "float", "default": 0.0}, {"name": "On", "type": "bool", "default": 0.0}, {"name": "Tap", "type": "bool", "default": 0.0}, {"name": "Mine", "type": "bool", "default": 0.0}],
+	var definition := {"parameters": [{"name": "Near", "type": "float", "default": 0.0, "saved": false}, {"name": "On", "type": "bool", "default": 0.0, "saved": false}, {"name": "Tap", "type": "bool", "default": 0.0, "saved": false}, {"name": "Mine", "type": "bool", "default": 0.0, "saved": false}],
 		"targets": [], "clips": [], "layers": [], "menu": [],
 		"contacts": [receiver.call("proximity", "Near"), receiver.call("constant", "On"), receiver.call("onEnter", "Tap"), receiver.call("constant", "Mine", false, true),
 			{"node": "Head", "shape": {"offset": [0, 0, 0.1], "radius": 0.05}, "tags": ["Hand"], "when": []}]}
@@ -1034,7 +1034,7 @@ func _menu_lifts_and_dims_the_lighting() -> void:
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill_rect(Rect2i(0, 0, 2, 4), Color8(1, 1, 1))
 	index.fill_rect(Rect2i(2, 0, 2, 4), Color8(2, 2, 2))
-	var looks := {"index": index, "materials": [{"rect": [0.0, 0.0, 0.5, 1.0], "lighting": {"model": "lit"}}, {"rect": [0.5, 0.0, 1.0, 1.0], "lighting": {"model": "lit"}}]}
+	var looks := {"index": index, "materials": [{"matcaps": [], "rect": [0.0, 0.0, 0.5, 1.0], "lighting": {"model": "lit"}}, {"matcaps": [], "rect": [0.5, 0.0, 1.0, 1.0], "lighting": {"model": "lit"}}]}
 	var root := Node3D.new()
 	var meshes: Array[ImporterMesh] = []
 	for u: float in [0.2, 0.7]:
@@ -1099,7 +1099,7 @@ func _each_converted_look_is_driven_or_named_still() -> void:
 	model.add_child(hat)
 	var rect := [0.0, 0.0, 1.0, 1.0]
 	var theme := {"slot": 0, "hsv": [0.0, 1.0, 1.0], "exposure": 1.0, "hue": 0.0, "saturation": 0.0, "value": 0.0, "speed": 0.0}
-	var looks := {"materials": [{"rect": rect, "lighting": {"model": "lit"}, "emission": {"color": [1.0, 0.0, 0.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0, "theme": 0}, "themes": [theme, null, null, null]}]}
+	var looks := {"materials": [{"matcaps": [], "rect": rect, "lighting": {"model": "lit"}, "emission": {"color": [1.0, 0.0, 0.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0, "theme": 0}, "themes": [theme, null, null, null]}]}
 	var targets := declared.map(func(f: String) -> Dictionary: return {"effect": {"look": [{"node": "Hat", "rect": rect, "field": f, "slot": 0}]}, "default": 0.0})
 	model.set_meta("expressions", {"parameters": [], "targets": targets, "clips": [], "layers": [], "shown": [], "menu": [], "looks": looks})
 	var player := ExpressionPlayer.new(model)

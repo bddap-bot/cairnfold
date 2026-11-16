@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import json
 import subprocess
 import unittest
 
@@ -32,6 +33,17 @@ class Docs(unittest.TestCase):
         for path in tracked.stdout.split():
             with self.subTest(path=path):
                 self.assertEqual(mismatched_tables((ROOT / path).read_text()), [], f'{path}: GFM renders these as text')
+
+    def test_each_extension_lists_the_fields_its_reader_requires(self):
+        vrm = (ROOT / 'game/src/vrm.gd').read_text()
+        names = dict(re.findall(r'^const (\w+) := "(\w+)"$', vrm, re.M))
+        table = re.search(r'^const REQUIRED := (\{\n.*?\n\})$', vrm, re.M | re.S).group(1)
+        required = json.loads(re.sub(r'^\t(\w+):', lambda m: f'"{names[m.group(1)]}":', table, flags=re.M))
+        listed = {}
+        for doc in sorted((ROOT / 'docs').glob('*.md')):
+            for extension, rows in re.findall(r'^`(\w+)` records and the fields each must carry.*\n(?:.*\n)*?\| record \| fields \|\n\|---\|---\|\n((?:\|.*\|\n)+)', doc.read_text(), re.M):
+                listed[extension] = {kind: re.findall(r'`(\w+)`', fields) for kind, fields in re.findall(r'^\| `(\w+)` \| (.*) \|$', rows, re.M)}
+        self.assertEqual(listed, required)
 
 
 if __name__ == '__main__':

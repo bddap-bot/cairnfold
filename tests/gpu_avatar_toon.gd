@@ -58,7 +58,7 @@ func _run() -> void:
 	var shots := {}
 	var moves := {"matcap": ["moved", [0.0, 1.0]], "turned": ["turned", [1.0 / 3.0]], "recoloured": ["recoloured", [1.0]], "decaled": ["greyed", [1.0, 0.0]]}
 	for look: String in ["shadow", "rim", "tinted rim", "rim shade", "plain", "matcap", "reflection", "turned", "recoloured", "decaled", "inside", "inside hidden", "inside shown", "inside rim shade"]:
-		var entry := {"lighting": {"model": "flat", "cap": 1.0}}
+		var entry := {"lighting": {"model": "flat", "cap": 1.0}, "matcaps": []}
 		if look in ["shadow", "rim", "tinted rim", "rim shade", "turned", "recoloured", "decaled", "inside", "inside hidden", "inside shown", "inside rim shade"]:
 			entry.lighting.shadow = shadow
 		if look in ["rim", "tinted rim", "inside hidden"]:
@@ -70,7 +70,7 @@ func _run() -> void:
 		var targets := []
 		if look == "matcap":
 			entry.matcaps = [matcap, null, null, null]
-			entry.emission = {"color": [0.0, 0.0, 0.5], "strength": 0.0, "hue": 0.0, "shiftsHue": false}
+			entry.emission = {"color": [0.0, 0.0, 0.5], "strength": 0.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0}
 			for field: String in ["matcapIntensity", "emission"]:
 				targets.append({"effect": {"look": [{"node": "Ball", "rect": [0, 0, 1, 1], "field": field, "slot": 0}]}, "default": 1.0 if field == "matcapIntensity" else 0.0})
 		if look == "reflection":

@@ -25,26 +25,26 @@ static func valid(data: Dictionary) -> bool:
 	if (data.has("hueMask") and not data.hueMask is Image) or not _untinted(data.get("untinted", {})):
 		return false
 	for p: Variant in data.get("parameters", []):
-		if not p is Dictionary or not p.get("name") is String or p.get("type") not in ["float", "int", "bool"] or not _number(p.get("default", 0.0)):
+		if not p is Dictionary or not Vrm.holds(p, Vrm.EXPRESSIONS, "parameter") or not p.get("name") is String or p.get("type") not in ["float", "int", "bool"] or not _number(p.default) or not p.saved is bool:
 			return false
 	var targets: Array = data.get("targets", [])
 	for t: Variant in targets:
-		if not t is Dictionary or not _number(t.get("default", 0.0)) or not _effect(t.get("effect")):
+		if not t is Dictionary or not Vrm.holds(t, Vrm.EXPRESSIONS, "target") or not _number(t.default) or not _effect(t.get("effect")):
 			return false
 	var clips: Array = data.get("clips", [])
 	for c: Variant in clips:
-		if not c is Dictionary or not _number(c.get("length", 0.0)) or not c.get("curves", []) is Array:
+		if not c is Dictionary or not Vrm.holds(c, Vrm.EXPRESSIONS, "clip") or not _number(c.length) or not c.curves is Array:
 			return false
-		for curve: Variant in c.get("curves", []):
-			if not curve is Dictionary or not is_index(curve.get("target"), targets.size()) or not curve.get("keys") is Array:
+		for curve: Variant in c.curves:
+			if not curve is Dictionary or not Vrm.holds(curve, Vrm.EXPRESSIONS, "curve") or not curve.step is bool or not is_index(curve.get("target"), targets.size()) or not curve.get("keys") is Array:
 				return false
 			if not curve.keys.all(_key):
 				return false
 	for l: Variant in data.get("layers", []):
-		if not l is Dictionary or not l.get("states") is Array or not _number(l.get("weight", 1.0)):
+		if not l is Dictionary or not Vrm.holds(l, Vrm.EXPRESSIONS, "layer") or not l.get("states") is Array or not _number(l.weight):
 			return false
 		var count: int = l.states.size()
-		if count > 0 and not is_index(l.get("default", 0), count):
+		if count > 0 and not is_index(l.default, count):
 			return false
 		if not _transitions(l.get("any", []), count) or not _transitions(l.get("entry", []), count):
 			return false
@@ -52,10 +52,10 @@ static func valid(data: Dictionary) -> bool:
 			if not s is Dictionary or not _number(s.get("speed", 1.0)) or not _motion(s.get("motion", {}), clips.size()) or not _transitions(s.get("transitions", []), count) or not s.get("drivers", []) is Array:
 				return false
 			for driver: Variant in s.get("drivers", []):
-				if not driver is Dictionary or not driver.get("parameter") is String or not driver.get("source", "") is String or driver.get("drive", "set") not in DRIVES:
+				if not driver is Dictionary or not Vrm.holds(driver, Vrm.EXPRESSIONS, "driver") or not driver.get("parameter") is String or not driver.source is String or driver.drive not in DRIVES:
 					return false
 				for key: String in ["value", "min", "max", "chance"]:
-					if not _number(driver.get(key, 0.0)):
+					if not _number(driver[key]):
 						return false
 	var switched: Array = data.get("shown", []) + data.get("springs", []) + data.get("colliders", []) + data.get("contacts", []) + data.get("particles", [])
 	for s: Variant in switched:
@@ -119,13 +119,15 @@ static func looks_valid(looks: Variant) -> bool:
 			push_error("expressions: a look's shadow is not a border, blur and strength with a null or numeric second shade and edge: %s" % [shadow])
 			return false
 		var glow: Variant = m.get("emission")
-		if glow != null and not (glow is Dictionary and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.get("replace", 0.0))):
+		if glow != null and not (glow is Dictionary and Vrm.holds(glow, Vrm.EXPRESSIONS, "emission") and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.replace)):
 			push_error("expressions: a look's emission is not a colour of three numbers, a strength and a numeric replace: %s" % [glow])
 			return false
 		if glow != null and glow.get("theme") != null and not (is_index(glow.theme, 4) and m.get("themes") is Array and m.themes.size() == 4 and _theme(m.themes[int(glow.theme)])):
 			push_error("expressions: a look's emission glows in a theme its material does not carry whole: %s" % [m.get("themes")])
 			return false
-		var matcaps: Variant = m.get("matcaps", [])
+		if not Vrm.holds(m, Vrm.EXPRESSIONS, "material"):
+			return false
+		var matcaps: Variant = m.matcaps
 		if not (matcaps is Array and matcaps.size() <= Avatar.MATCAPS and matcaps.all(_matcap)):
 			push_error("expressions: a look's matcaps are not four slots, each none or a mapping, colour, texture, strengths, hue and circle: %s" % [matcaps])
 			return false
@@ -213,7 +215,7 @@ static func _hue(region: Dictionary) -> bool:
 	var v: Variant = region.get("hue")
 	if v == null:
 		return region.get("field") != "decalHue"
-	return v is Dictionary and _number(v.get("shift", 0.0)) and _number(v.get("space", 0.0)) and _number(v.get("select", 1.0))
+	return v is Dictionary and Vrm.holds(v, Vrm.EXPRESSIONS, "hue") and _number(v.shift) and _number(v.space) and _number(v.select)
 
 
 ## A shape with a "tail" is a capsule; "receiver" fields are Contacts'.
@@ -260,9 +262,9 @@ static func _menu(controls: Array) -> bool:
 	if controls.size() > ToolWheel.SLOTS:
 		return false
 	for c: Variant in controls:
-		if not c is Dictionary or c.get("type") not in ["button", "toggle", "submenu", "radial", "twoAxis", "fourAxis"] or not c.get("name", "") is String or not c.get("parameter", "") is String or not _number(c.get("value", 1.0)) or not c.get("axes", []) is Array:
+		if not c is Dictionary or not Vrm.holds(c, Vrm.EXPRESSIONS, "control") or c.get("type") not in ["button", "toggle", "submenu", "radial", "twoAxis", "fourAxis"] or not c.name is String or not c.parameter is String or not _number(c.value) or not c.axes is Array:
 			return false
-		if not c.get("axes", []).all(func(v: Variant) -> bool: return v is String):
+		if not c.axes.all(func(v: Variant) -> bool: return v is String):
 			return false
 		if c.type == "submenu" and (not c.get("controls") is Array or not _menu(c.controls)):
 			return false
@@ -279,10 +281,10 @@ static func _motion(m: Variant, clips: int) -> bool:
 	if not m.get("children", []) is Array or not m.get("parameters", []) is Array or not m.get("parameters", []).all(func(v: Variant) -> bool: return v is String):
 		return false
 	for c: Variant in m.get("children", []):
-		if not c is Dictionary or not _motion(c.get("motion"), clips):
+		if not c is Dictionary or not Vrm.holds(c, Vrm.EXPRESSIONS, "child") or not _motion(c.get("motion"), clips):
 			return false
 		for key: String in ["speed", "offset", "threshold"]:
-			if not _number(c.get(key, 0.0)):
+			if not _number(c[key]):
 				return false
 		if m.get("blend") == "2d" and not _numbers(c.get("position"), 2):
 			return false
@@ -295,9 +297,9 @@ static func _transitions(list: Variant, states: int) -> bool:
 	if not list is Array:
 		return false
 	for t: Variant in list:
-		if not t is Dictionary or not _number(t.get("to")) or (t.to != -1 and not is_index(t.to, states)) or not t.get("conditions", []) is Array or not _number(t.get("exitTime", 0.0)):
+		if not t is Dictionary or not Vrm.holds(t, Vrm.EXPRESSIONS, "transition") or not _number(t.get("to")) or (t.to != -1 and not is_index(t.to, states)) or not t.conditions is Array or not _number(t.get("exitTime", 0.0)):
 			return false
-		for c: Variant in t.get("conditions", []):
+		for c: Variant in t.conditions:
 			if not c is Dictionary or not c.get("parameter") is String or c.get("mode") not in ["if", "ifNot", "greater", "less", "equals", "notEqual"] or not _number(c.get("threshold", 0.0)):
 				return false
 	return true

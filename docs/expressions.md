@@ -65,6 +65,34 @@ Transitions here are instant: Unity leaves a property part-way through a timed
 transition when one ends under such a state, and that remainder is not reproduced.
 `tests/unity/write-defaults.json` holds the Unity runs this follows.
 
+The converter writes the menu, parameters and controller as the `VRCHAT_expressions` extension and an avatar's
+constraints as `UNITY_constraints`, each carrying its version (`Vrm.VERSIONS`). Every record carries the fields
+below, and a file whose record lacks one is refused, naming it.
+
+`VRCHAT_expressions` records and the fields each must carry (`Vrm.REQUIRED`):
+
+| record | fields |
+|---|---|
+| `parameter` | `default`, `saved` |
+| `target` | `default` |
+| `clip` | `length`, `curves` |
+| `curve` | `step` |
+| `layer` | `weight`, `default` |
+| `driver` | `source`, `drive`, `value`, `min`, `max`, `chance` |
+| `transition` | `conditions` |
+| `control` | `name`, `parameter`, `value`, `axes` |
+| `child` | `speed`, `offset`, `threshold` |
+| `emission` | `replace` |
+| `material` | `matcaps` |
+| `hue` | `shift`, `space`, `select` |
+
+`UNITY_constraints` records and the fields each must carry (`Vrm.REQUIRED`):
+
+| record | fields |
+|---|---|
+| `constraint` | `weight` |
+| `source` | `weight` |
+
 `tests/test_expressions.gd` checks parameters, controller evaluation, malformed
 input and a VRM round trip. `tests/test_expression_wheel.gd` exercises the actual
 wheel inputs, visible avatar changes, puppet operation with the menu button

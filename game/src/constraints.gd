@@ -175,15 +175,15 @@ static func read(extension: Variant, nodes: Array[GLTFNode]) -> Array:
 	var node := func(i: Variant) -> String: return nodes[int(i)].resource_name if (i is float or i is int) and i == floorf(i) and i >= 0 and i < nodes.size() else ""
 	var mask := func(m: Variant) -> bool: return m is Array and m.size() == 3 and m.all(func(b: Variant) -> bool: return b is bool)
 	for c: Variant in list:
-		if not (c is Dictionary and KINDS.has(c.get("kind")) and node.call(c.get("node")) != "" and _weight(c.get("weight", 1.0), 1.0)
+		if not (c is Dictionary and Vrm.holds(c, Vrm.CONSTRAINTS, "constraint") and KINDS.has(c.get("kind")) and node.call(c.get("node")) != "" and _weight(c.weight, 1.0)
 				and mask.call(c.get("translation")) and mask.call(c.get("rotation")) and _matrix(c.get("rest")) and _matrix(c.get("offset"))
 				and c.get("sources") is Array):
 			return []
 		var sources := []
 		for s: Variant in c.sources:
-			if not (s is Dictionary and _weight(s.get("weight", 0.0), INF) and _matrix(s.get("offset"))):
+			if not (s is Dictionary and Vrm.holds(s, Vrm.CONSTRAINTS, "source") and _weight(s.weight, INF) and _matrix(s.get("offset"))):
 				return []
-			var source := {"weight": s.get("weight", 0.0), "offset": s.offset}
+			var source := {"weight": s.weight, "offset": s.offset}
 			if s.has("node"):
 				source.node = node.call(s.node)
 				if source.node == "":
@@ -193,7 +193,7 @@ static func read(extension: Variant, nodes: Array[GLTFNode]) -> Array:
 			else:
 				return []
 			sources.append(source)
-		out.append({"kind": c.kind, "node": node.call(c.node), "weight": c.get("weight", 1.0), "translation": c.translation, "rotation": c.rotation, "rest": c.rest, "offset": c.offset, "sources": sources})
+		out.append({"kind": c.kind, "node": node.call(c.node), "weight": c.weight, "translation": c.translation, "rotation": c.rotation, "rest": c.rest, "offset": c.offset, "sources": sources})
 	return out
 
 

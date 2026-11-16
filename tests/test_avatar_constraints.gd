@@ -98,7 +98,7 @@ func _fixture() -> Node3D:
 		{"kind": "LookAt", "node": "pointer", "weight": 1.0, "translation": every, "rotation": every, "rest": identity, "offset": identity,
 			"sources": [{"node": "anchor", "weight": 1.0, "offset": identity}]}])
 	model.set_meta("expressions", {"parameters": [{"name": "Hold", "type": "bool", "default": 0.0, "saved": true}],
-		"menu": [{"name": "Hold", "type": "toggle", "parameter": "Hold", "value": 1.0}], "icons": [], "shown": [],
+		"menu": [{"name": "Hold", "type": "toggle", "parameter": "Hold", "value": 1.0, "axes": []}], "icons": [], "shown": [],
 		"contacts": [{"node": "tip", "shape": {"offset": [0.0, 0.0, 0.0], "radius": 0.01}, "tags": ["Finger"], "when": []}],
 		"targets": [{"effect": {"constraint": {"node": "prop"}}, "default": 0.0}],
 		"clips": [{"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 0]]}]}, {"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 1]]}]}],

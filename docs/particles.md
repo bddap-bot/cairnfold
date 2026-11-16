@@ -11,6 +11,19 @@ the avatar's axes (`scripts/unity/particles.gd`), so a runtime needs none of Uni
 "UNITY_particles": {"systems": [System...], "meshes": [Mesh...]}
 ```
 
+`UNITY_particles` records and the fields each must carry (`Vrm.REQUIRED`); a file whose record lacks one is refused,
+naming it:
+
+| record | fields |
+|---|---|
+| `root` | `meshes` |
+| `system` | `loop`, `shape`, `renderer` |
+| `shape` | `type` |
+| `velocity` | `world` |
+| `subEmitter` | `inherit` |
+| `renderer` | `draw`, `materials` |
+| `material` | `blend` |
+
 A **curve** is `{"min": [s...], "max": [s...], "scale": [a, b]}`. Samples are evenly spaced over
 its span, from 0 to 1, and are read linearly between neighbours; a lone sample holds everywhere. Its
 value at `t` is `lerp(a * min(t), b * max(t), r)`, where `r` is the particle's own random draw for

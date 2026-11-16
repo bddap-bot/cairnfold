@@ -144,7 +144,7 @@ func _ball(model: String) -> Node3D:
 	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
 	index.fill(Color8(1, 1, 1))
 	var light: Dictionary = {"flat": {"model": "flat", "cap": 0.8}, "matcap": {"model": "flat", "cap": 1.0}, "matcap masked": {"model": "flat", "cap": 1.0}, "ramp": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 0.0}, "tinted": {"model": "lit", "ramp": [0.0, 1.0], "shadowTint": 1.0}, "flat fallback": {"model": "flat", "cap": 0.8}}.get(model, {"model": "lit"})
-	var looks := {"index": index, "materials": [{"lighting": light}]}
+	var looks := {"index": index, "materials": [{"lighting": light, "matcaps": []}]}
 	if model in ["glow", "theme"]:
 		looks.materials[0].emission = {"color": [0.25, 0.0, 0.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 1.0}
 		looks.emission = picture

@@ -352,6 +352,10 @@ static func model(root: Node3D) -> PackedScene:
 		n.owner = root
 	ExpressionPlayer.prepare(root)
 	var particles := ParticleDefinition.read(root.get_meta("particles", {}))
+	if root.has_meta("particles") and particles.is_empty():
+		print("avatar: refused: its particles are not ones this reads")
+		root.free()
+		return null
 	root.remove_meta("particles")
 	if not particles.is_empty():
 		root.set_meta("particle_systems", particles)

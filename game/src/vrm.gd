@@ -18,6 +18,11 @@ const PARTICLES := "UNITY_particles"
 const CONSTRAINTS := "UNITY_constraints"
 const SPRINGS := "VRMC_springBone"
 const VERSIONS := {EXPRESSIONS: 1, PARTICLES: 1, CONSTRAINTS: 1, SPRINGS: 1}
+const REQUIRED := {
+	EXPRESSIONS: {"parameter": ["default", "saved"], "target": ["default"], "clip": ["length", "curves"], "curve": ["step"], "layer": ["weight", "default"], "driver": ["source", "drive", "value", "min", "max", "chance"], "transition": ["conditions"], "control": ["name", "parameter", "value", "axes"], "child": ["speed", "offset", "threshold"], "emission": ["replace"], "material": ["matcaps"], "hue": ["shift", "space", "select"]},
+	PARTICLES: {"root": ["meshes"], "system": ["loop", "shape", "renderer"], "shape": ["type"], "velocity": ["world"], "subEmitter": ["inherit"], "renderer": ["draw", "materials"], "material": ["blend"]},
+	CONSTRAINTS: {"constraint": ["weight"], "source": ["weight"]}
+}
 const EXPRESSION := "expression"
 const RANGES := ["rangeMapHorizontalInner", "rangeMapHorizontalOuter", "rangeMapVerticalDown", "rangeMapVerticalUp"]
 const LOOKS := ["lookLeft", "lookRight", "lookUp", "lookDown"]
@@ -95,6 +100,9 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	if exts.get(PARTICLES) is Dictionary:
 		root.set_meta("particles", _particles(exts[PARTICLES], state))
 	var constraints := Constraints.read(exts.get(CONSTRAINTS), state.get_nodes())
+	if exts.has(CONSTRAINTS) and constraints.is_empty():
+		print("vrm: refused: its constraints are not ones this reads")
+		return ERR_INVALID_DATA
 	if not constraints.is_empty():
 		root.set_meta("constraints", constraints)
 	root.set_meta("springs", springs)
@@ -432,6 +440,14 @@ static func stale_extension(json: Variant) -> String:
 		if ext is Dictionary and not (version is float and version == VERSIONS[name]) and (name != SPRINGS or _spring_extras(ext)):
 			return name
 	return ""
+
+
+static func holds(record: Dictionary, extension: String, kind: String) -> bool:
+	for field: String in REQUIRED[extension][kind]:
+		if not record.has(field):
+			push_error("vrm: refused: a %s %s lacks its '%s'" % [extension, kind, field])
+			return false
+	return true
 
 
 static func _spring_extras(ext: Dictionary) -> bool:

@@ -27,6 +27,7 @@ func _run() -> void:
 			_headless_leaves_the_eyes_clear(scene, path)
 			_skin_bends_as(scene, path, _gltf_skin.bind(FileAccess.get_file_as_bytes(avatar_file(path)), path))
 	_an_extension_at_another_version_is_refused()
+	_a_record_lacking_a_field_it_must_carry_is_refused_naming_it()
 	_a_colour_averages_the_triangles_base_colours()
 	_a_file_the_headset_does_not_draw_stands_in_a_built_in()
 	_both_versions_stand_alike()
@@ -709,7 +710,7 @@ func _simulates_the_longest_chains_within_the_limit() -> void:
 	check(not turned.call(0), "a bone a kept chain moves keeps its own rest")
 	root.free()
 	root = setup.call([[n, 0.1], [2, 0.1], [2, 0.1]])
-	var off := {"length": 1.0, "curves": [{"target": 0, "keys": [[0, 0.0]]}]}
+	var off := {"length": 1.0, "curves": [{"target": 0, "step": false, "keys": [[0, 0.0]]}]}
 	root.set_meta("expressions", {"parameters": [], "targets": [{"effect": "switch", "default": 1.0}], "clips": [off], "layers": [{"weight": 1.0, "default": 0, "states": [{"motion": {"clip": 0}, "transitions": []}]}], "springs": [{"joints": [n, n + 1], "when": [[0, 1]]}]})
 	Avatar._rank_springs(root)
 	var bones: Skeleton3D = root.get_node("Skeleton3D")
@@ -1440,3 +1441,84 @@ func _an_extension_at_another_version_is_refused() -> void:
 			if extras != null:
 				ext.extras = extras
 			check(Vrm.stale_extension(json) == name and Avatar.read(Vrm.glb(json, bin)) == null, "a file whose %s carries %s is refused" % [name, extras])
+
+
+class Errors:
+	extends Logger
+	var lines: PackedStringArray = []
+
+	func _log_error(_function: String, _file: String, _line: int, code: String, rationale: String, _editor_notify: bool, _error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
+		lines.append(code + rationale)
+
+
+func _a_record_lacking_a_field_it_must_carry_is_refused_naming_it() -> void:
+	var demo := preload("res://demo/expressions.gd")
+	var model := demo.scene().instantiate() as Node3D
+	var skeleton := model.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	var bone := skeleton.get_bone_name(0)
+	var identity := [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+	var definition: Dictionary = demo.definition()
+	definition.parameters.append({"name": "Spare", "type": "float", "default": 0.0, "saved": false})
+	definition.clips.append({"length": 0.0, "curves": []})
+	definition.layers.append({"weight": 0.0, "default": 0, "states": [{"motion": {"blend": "1d", "parameters": ["Spare", ""], "children": [{"motion": {"clip": definition.clips.size() - 1}, "threshold": 0.0, "speed": 1.0, "offset": 0.0, "parameter": "", "position": [0.0, 0.0]}]},
+		"drivers": [{"parameter": "Spare", "drive": "set", "value": 0.0, "min": 0.0, "max": 1.0, "chance": 1.0, "source": ""}], "transitions": [{"to": 0, "conditions": [], "exitTime": 1.0}]}]})
+	definition.menu[2].controls.append({"name": "", "type": "radial", "parameter": "", "value": 1.0, "axes": ["Spare"]})
+	var hued: Dictionary = definition.targets.filter(func(t: Dictionary) -> bool: return t.effect is Dictionary and t.effect.has("look") and t.effect.look[0].hue != null)[0]
+	hued.effect.look[0].hue.space = 0.0
+	definition.looks.index = Image.create_empty(4, 4, false, Image.FORMAT_L8)
+	definition.looks.materials = [{"matcaps": [], "lighting": {"model": "flat"}, "emission": {"color": [0.0, 0.0, 0.0], "strength": 0.0, "replace": 0.0}}]
+	model.set_meta("expressions", definition)
+	model.set_meta("particles", {"meshes": [], "images": [], "systems": [
+		{"node": bone, "loop": true, "shape": {"type": "point"}, "renderer": {"draw": false, "materials": []}, "velocity": {"world": false}, "subEmitters": [{"system": 1, "on": "birth", "inherit": []}]},
+		{"node": bone, "loop": true, "shape": {"type": "point"}, "renderer": {"draw": true, "materials": [{"blend": "alpha"}]}}]})
+	model.set_meta("constraints", [{"kind": "Parent", "node": bone, "weight": 1.0, "translation": [true, true, true], "rotation": [true, true, true], "rest": identity, "offset": identity,
+		"sources": [{"world": identity, "weight": 0.0, "offset": identity}, {"world": identity, "weight": 1.0, "offset": identity}]}])
+	model.set_meta("springs", {})
+	Vrm.write(model, "user://fields.vrm")
+	model.free()
+	var bytes := FileAccess.get_file_as_bytes("user://fields.vrm")
+	check(Avatar.read(bytes) != null, "a file whose every record carries the fields it must reads")
+	var size := bytes.decode_u32(12)
+	var bin := bytes.slice(28 + size, 28 + size + bytes.decode_u32(20 + size))
+	var records := {
+		Vrm.EXPRESSIONS: {
+			"parameter": func(e: Dictionary) -> Dictionary: return e.parameters[-1],
+			"target": func(e: Dictionary) -> Dictionary: return e.targets[0],
+			"clip": func(e: Dictionary) -> Dictionary: return e.clips[-1],
+			"curve": func(e: Dictionary) -> Dictionary: return e.clips[0].curves[0],
+			"layer": func(e: Dictionary) -> Dictionary: return e.layers[-1],
+			"driver": func(e: Dictionary) -> Dictionary: return e.layers[-1].states[0].drivers[0],
+			"transition": func(e: Dictionary) -> Dictionary: return e.layers[-1].states[0].transitions[0],
+			"control": func(e: Dictionary) -> Dictionary: return e.menu[2].controls[-1],
+			"child": func(e: Dictionary) -> Dictionary: return e.layers[-1].states[0].motion.children[0],
+			"emission": func(e: Dictionary) -> Dictionary: return e.looks.materials[0].emission,
+			"material": func(e: Dictionary) -> Dictionary: return e.looks.materials[0],
+			"hue": func(e: Dictionary) -> Dictionary: return e.targets.filter(func(t: Dictionary) -> bool: return t.effect is Dictionary and t.effect.has("look") and t.effect.look[0].hue != null)[0].effect.look[0].hue,
+		},
+		Vrm.PARTICLES: {
+			"root": func(e: Dictionary) -> Dictionary: return e,
+			"system": func(e: Dictionary) -> Dictionary: return e.systems[0],
+			"shape": func(e: Dictionary) -> Dictionary: return e.systems[0].shape,
+			"velocity": func(e: Dictionary) -> Dictionary: return e.systems[0].velocity,
+			"subEmitter": func(e: Dictionary) -> Dictionary: return e.systems[0].subEmitters[0],
+			"renderer": func(e: Dictionary) -> Dictionary: return e.systems[0].renderer,
+			"material": func(e: Dictionary) -> Dictionary: return e.systems[1].renderer.materials[0],
+		},
+		Vrm.CONSTRAINTS: {
+			"constraint": func(e: Dictionary) -> Dictionary: return e.constraints[0],
+			"source": func(e: Dictionary) -> Dictionary: return e.constraints[0].sources[0],
+		},
+	}
+	check(records.keys() == Vrm.REQUIRED.keys() and Vrm.REQUIRED.keys().all(func(name: String) -> bool: return records[name].keys() == Vrm.REQUIRED[name].keys()), "every kind of record is checked")
+	var errors := Errors.new()
+	OS.add_logger(errors)
+	for name: String in Vrm.REQUIRED:
+		for kind: String in Vrm.REQUIRED[name]:
+			for field: String in Vrm.REQUIRED[name][kind]:
+				var json: Dictionary = Vrm.json_chunk(bytes)
+				(records[name][kind] as Callable).call(json.extensions[name]).erase(field)
+				errors.lines.clear()
+				var read := Avatar.read(Vrm.glb(json, bin))
+				var named := "a %s %s lacks its '%s'" % [name, kind, field]
+				check(read == null and Array(errors.lines).any(func(line: String) -> bool: return line.contains(named)), "a file whose %s %s lacks its %s is refused, naming it: %s" % [name, kind, field, errors.lines])
+	OS.remove_logger(errors)

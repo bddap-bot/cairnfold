@@ -1,8 +1,6 @@
 class_name ParticleDefinition
 extends RefCounted
 
-## Every field is checked for type and range since files arrive from players; a missing one takes Unity's default.
-
 const SHAPES := ["point", "sphere", "hemisphere", "cone", "box", "circle", "edge"]
 const MODES := ["billboard", "stretched", "horizontal", "vertical", "mesh"]
 const ALIGNS := ["view", "world", "local", "facing", "velocity"]
@@ -22,16 +20,16 @@ const WHITE := {"min": [[1.0, 1.0, 1.0, 1.0]], "max": [[1.0, 1.0, 1.0, 1.0]]}
 ## In: UNITY_particles, each "node" a name and each material's "image" an index into "images" (Images). Out: "sub"
 ## set where another system names it, sub-emitter cycles dropped; {} if any system or mesh is malformed.
 static func read(particles: Variant) -> Dictionary:
-	if not particles is Dictionary or not particles.get("systems") is Array or particles.systems.size() > Avatar.MAX_PARTICLE_SYSTEMS:
+	if not particles is Dictionary or not particles.get("systems") is Array or not Vrm.holds(particles, Vrm.PARTICLES, "root") or particles.systems.size() > Avatar.MAX_PARTICLE_SYSTEMS or not particles.meshes is Array or not particles.images is Array:
 		return {}
 	var meshes: Array[ArrayMesh] = []
-	for m: Variant in particles.get("meshes", []) if particles.get("meshes") is Array else []:
+	for m: Variant in particles.meshes:
 		var mesh := _mesh(m)
 		if mesh == null:
 			return {}
 		meshes.append(mesh)
 	var textures := []
-	for img: Variant in particles.get("images", []) if particles.get("images") is Array else []:
+	for img: Variant in particles.images:
 		textures.append(_texture(img))
 	var systems := []
 	for s: Variant in particles.systems:
@@ -78,12 +76,12 @@ static func _texture(img: Variant) -> Texture2D:
 
 
 static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], systems: int) -> Dictionary:
-	if not s is Dictionary or not s.get("node") is String or s.node == "":
+	if not s is Dictionary or not Vrm.holds(s, Vrm.PARTICLES, "system") or not s.get("node") is String or s.node == "" or not s.shape is Dictionary or not Vrm.holds(s.shape, Vrm.PARTICLES, "shape") or not s.renderer is Dictionary or not Vrm.holds(s.renderer, Vrm.PARTICLES, "renderer") or not s.renderer.materials is Array:
 		return {}
 	var out := {
 		"node": s.node,
 		"duration": maxf(_number(s.get("duration"), 5.0), 0.01),
-		"loop": s.get("loop", true) == true,
+		"loop": s.loop == true,
 		"awake": s.get("awake", true) == true,
 		"world": s.get("world", false) == true,
 		"sub": false,
@@ -103,9 +101,9 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 		if b is Dictionary and bursts.size() < MAX_BURSTS:
 			bursts.append({"time": maxf(_number(b.get("time"), 0.0), 0.0), "count": _curve(b.get("count"), ZERO), "cycles": int(clampf(_number(b.get("cycles"), 1.0), 1.0, 1000.0)), "interval": maxf(_number(b.get("interval"), 0.01), 0.001), "probability": clampf(_number(b.get("probability"), 1.0), 0.0, 1.0)})
 	out.bursts = bursts
-	var shape: Dictionary = s.get("shape") if s.get("shape") is Dictionary else {}
+	var shape: Dictionary = s.shape
 	out.shape = {
-		"type": shape.get("type") if shape.get("type") in SHAPES else "point",
+		"type": shape.type if shape.type in SHAPES else "point",
 		"radius": maxf(_number(shape.get("radius"), 1.0), 0.0),
 		"thickness": clampf(_number(shape.get("thickness"), 1.0), 0.0, 1.0),
 		"angle": clampf(_number(shape.get("angle"), 0.0), 0.0, PI / 2),
@@ -118,7 +116,9 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 	}
 	var velocity: Variant = s.get("velocity")
 	if velocity is Dictionary:
-		out.velocity = {"x": _curve(velocity.get("x"), ZERO), "y": _curve(velocity.get("y"), ZERO), "z": _curve(velocity.get("z"), ZERO), "world": velocity.get("world", false) == true}
+		if not Vrm.holds(velocity, Vrm.PARTICLES, "velocity"):
+			return {}
+		out.velocity = {"x": _curve(velocity.get("x"), ZERO), "y": _curve(velocity.get("y"), ZERO), "z": _curve(velocity.get("z"), ZERO), "world": velocity.world == true}
 	var limit: Variant = s.get("limit")
 	if limit is Dictionary:
 		out.limit = {"speed": _curve(limit.get("speed"), ONE), "dampen": clampf(_number(limit.get("dampen"), 1.0), 0.0, 1.0)}
@@ -141,13 +141,15 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 		out.colorBySpeed = {"range": _speed_range(colour_by.get("range")), "color": _gradient(colour_by.get("color"))}
 	var subs := []
 	for sub: Variant in s.get("subEmitters", []) if s.get("subEmitters") is Array else []:
+		if sub is Dictionary and not Vrm.holds(sub, Vrm.PARTICLES, "subEmitter"):
+			return {}
 		if sub is Dictionary and ExpressionDefinition.is_index(sub.get("system"), systems) and sub.get("on") in ["birth", "death"] and subs.size() < MAX_SUB_EMITTERS:
-			var inherit: Array = sub.get("inherit") if sub.get("inherit") is Array else []
+			var inherit: Array = sub.inherit if sub.inherit is Array else []
 			subs.append({"system": int(sub.system), "on": sub.on, "inherit": inherit.filter(func(p: Variant) -> bool: return p in ["color", "size", "rotation", "lifetime"])})
 	out.subEmitters = subs
-	var r: Dictionary = s.get("renderer") if s.get("renderer") is Dictionary else {}
+	var r: Dictionary = s.renderer
 	var renderer := {
-		"draw": r.get("draw", false) == true,
+		"draw": r.draw == true,
 		"mode": r.get("mode") if r.get("mode") in MODES else "billboard",
 		"align": r.get("align") if r.get("align") in ALIGNS else "view",
 		"pivot": _vector(r.get("pivot")),
@@ -161,12 +163,12 @@ static func _system(s: Variant, textures: Array, meshes: Array[ArrayMesh], syste
 			renderer.mesh = int(r.mesh)
 		else:
 			renderer.draw = false
-	for m: Variant in r.get("materials", []) if r.get("materials") is Array else []:
-		if not m is Dictionary:
+	for m: Variant in r.materials:
+		if not m is Dictionary or not Vrm.holds(m, Vrm.PARTICLES, "material"):
 			return {}
 		var material := {
 			"color": _colour(m.get("color"), Color.WHITE),
-			"blend": m.get("blend") if AvatarParticles.SHADERS.has(m.get("blend")) else "alpha",
+			"blend": m.blend if AvatarParticles.SHADERS.has(m.blend) else "alpha",
 			"cutoff": clampf(_number(m.get("cutoff"), 0.5), 0.0, 1.0),
 			"emission": _colour(m.get("emission"), Color.BLACK),
 		}

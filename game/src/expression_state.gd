@@ -49,9 +49,9 @@ func _init(definition: Dictionary) -> void:
 	data = definition if ExpressionDefinition.valid(definition) else {}
 	for p: Dictionary in data.get("parameters", []):
 		definitions[p.name] = p
-		put(p.name, p.get("default", 0.0))
+		put(p.name, p.default)
 	for t: Dictionary in data.get("targets", []):
-		outputs.append(float(t.get("default", 0.0)))
+		outputs.append(float(t.default))
 		_kept.append(outputs[-1])
 		_writers.append([])
 		if t.effect is Dictionary and t.effect.has("parameter") and definitions.has(t.effect.parameter):
@@ -103,7 +103,7 @@ func _write(key: String, value: float) -> void:
 func saved() -> Dictionary:
 	var out := {}
 	for key: String in definitions:
-		if definitions[key].get("saved", false):
+		if definitions[key].saved:
 			out[key] = values[key]
 	return out
 
@@ -112,9 +112,9 @@ func saved() -> Dictionary:
 func restore(saved_values: Dictionary) -> void:
 	pulses.clear()
 	for key: String in definitions:
-		put(key, definitions[key].get("default", 0.0))
+		put(key, definitions[key].default)
 	for key: String in saved_values:
-		if definitions.get(key, {}).get("saved", false) and (saved_values[key] is float or saved_values[key] is int):
+		if definitions.has(key) and definitions[key].saved and (saved_values[key] is float or saved_values[key] is int):
 			put(key, saved_values[key])
 	states.fill(-1)
 	elapsed.fill(0.0)
@@ -124,7 +124,7 @@ func restore(saved_values: Dictionary) -> void:
 		_holding[i] = false
 		_settled[i] = (data.layers[i].states as Array).is_empty()
 	for t in _kept.size():
-		_kept[t] = float(data.targets[t].get("default", 0.0))
+		_kept[t] = float(data.targets[t].default)
 	_refeed.clear()
 	_holder = -1
 	_rebuild = true
@@ -134,16 +134,16 @@ func reset() -> void:
 	close()
 	pulses.clear()
 	for key: String in definitions:
-		put(key, definitions[key].get("default", 0.0))
+		put(key, definitions[key].default)
 
 
 func active(control: Dictionary) -> bool:
-	return control.get("parameter", "") != "" and is_equal_approx(values.get(control.parameter, 0.0), _typed(control.parameter, float(control.get("value", 1.0))))
+	return control.parameter != "" and is_equal_approx(values.get(control.parameter, 0.0), _typed(control.parameter, float(control.value)))
 
 
 func activate(control: Dictionary) -> void:
-	var key: String = control.get("parameter", "")
-	var value: float = control.get("value", 1.0)
+	var key: String = control.parameter
+	var value: float = control.value
 	match control.type:
 		"toggle": put(key, 0.0 if active(control) else value)
 		"button":
@@ -157,7 +157,7 @@ func activate(control: Dictionary) -> void:
 func back() -> bool:
 	if opened.is_empty():
 		return false
-	put(opened.pop_back().get("parameter", ""), 0.0)
+	put(opened.pop_back().parameter, 0.0)
 	return true
 
 
@@ -178,7 +178,7 @@ func close() -> void:
 
 
 func puppet(control: Dictionary, stick: Vector2, radial: float) -> void:
-	var axes: Array = control.get("axes", [])
+	var axes: Array = control.axes
 	var v: Array = [clampf(radial, 0.0, 1.0)]
 	if control.type == "twoAxis":
 		v = [stick.x, stick.y]
@@ -256,7 +256,7 @@ func advance(delta: float) -> void:
 			_layer_values[i] = all
 	var holder := -1
 	for i in states.size():
-		if _holding[i] and float(data.layers[i].get("weight", 1.0)) > 0.0:
+		if _holding[i] and float(data.layers[i].weight) > 0.0:
 			holder = i
 			break
 	if holder != _holder:
@@ -265,11 +265,11 @@ func advance(delta: float) -> void:
 			changed[t] = true
 	moved.merge(changed)
 	for t: int in changed:
-		var value := float(data.targets[t].get("default", 0.0))
-		var held := lerpf(value, _kept[t], float(data.layers[holder].get("weight", 1.0))) if holder >= 0 else value
+		var value := float(data.targets[t].default)
+		var held := lerpf(value, _kept[t], float(data.layers[holder].weight)) if holder >= 0 else value
 		var written := false
 		for i: int in _writers[t]:
-			var weight := float(data.layers[i].get("weight", 1.0))
+			var weight := float(data.layers[i].weight)
 			if weight <= 0.0 or not _layer_values[i].has(t):
 				continue
 			if not written and i > holder:
@@ -291,7 +291,7 @@ func advance(delta: float) -> void:
 		_write(key, outputs[t] if definitions[key].type == "float" else roundf(outputs[t]))
 	for i in opened.size():
 		var c := opened[i]
-		if c.get("parameter", "") != "" and not active(c):
+		if c.parameter != "" and not active(c):
 			while opened.size() > i:
 				back()
 			break
@@ -304,13 +304,13 @@ func _enter(layer: int, state: int) -> void:
 	_speed[layer] = float(data.layers[layer].states[state].get("speed", 1.0))
 	_lengths[layer] = _length(motion)
 	for d: Dictionary in data.layers[layer].states[state].get("drivers", []):
-		var v: float = d.get("value", 0.0)
-		match d.get("drive", "set"):
+		var v: float = d.value
+		match d.drive:
 			"add": v += values.get(d.parameter, 0.0)
-			"copy": v = values.get(d.get("source", ""), 0.0)
+			"copy": v = values.get(d.source, 0.0)
 			"random":
 				var type: String = definitions.get(d.parameter, {}).get("type", "float")
-				v = float(randf() < d.get("chance", 1.0)) if type == "bool" else float(randi_range(int(d.get("min", 0)), int(d.get("max", 1)))) if type == "int" else randf_range(d.get("min", 0.0), d.get("max", 1.0))
+				v = float(randf() < d.chance) if type == "bool" else float(randi_range(int(d.min), int(d.max))) if type == "int" else randf_range(d.min, d.max)
 		put(d.parameter, v)
 
 
@@ -320,7 +320,7 @@ func _transition(transitions: Array, current: int, time: float) -> int:
 		if (t.get("notToSelf", false) and t.to == current) or (t.has("exitTime") and time < t.exitTime):
 			continue
 		var holds := true
-		for c: Dictionary in t.get("conditions", []):
+		for c: Dictionary in t.conditions:
 			if not _condition(c):
 				holds = false
 				break
@@ -331,7 +331,7 @@ func _transition(transitions: Array, current: int, time: float) -> int:
 
 func _entered(layer: Dictionary) -> int:
 	var entry := _transition((layer.get("entry", []) as Array).filter(func(t: Dictionary) -> bool: return t.to >= 0), -1, 0.0)
-	return entry if entry >= 0 else int(layer.get("default", 0))
+	return entry if entry >= 0 else int(layer.default)
 
 
 func _condition(c: Dictionary) -> bool:
@@ -349,7 +349,7 @@ func _condition(c: Dictionary) -> bool:
 
 func _length(motion: Dictionary) -> float:
 	if motion.has("clip"):
-		return float(data.clips[int(motion.clip)].get("length", 0.0))
+		return float(data.clips[int(motion.clip)].length)
 	var length := 0.0
 	for child: Dictionary in motion.get("children", []):
 		length = maxf(length, _length(child.motion))
@@ -360,14 +360,14 @@ func _motion(motion: Dictionary, time: float) -> Dictionary:
 	var out := {}
 	if motion.has("clip"):
 		var clip: Dictionary = data.clips[int(motion.clip)]
-		var length: float = clip.get("length", 0.0)
+		var length: float = clip.length
 		if motion.has("time"):
 			time = values.get(motion.time, 0.0) * length
 		elif clip.get("loop", false) and length > 0:
 			time = fposmod(time, length)
-		for c: Dictionary in clip.get("curves", []):
+		for c: Dictionary in clip.curves:
 			if not (c.keys as Array).is_empty():
-				out[int(c.target)] = sample(c.keys, time, c.get("step", false))
+				out[int(c.target)] = sample(c.keys, time, c.step)
 		return out
 	var children: Array = motion.get("children", [])
 	var weights: Array[float] = []
@@ -412,7 +412,7 @@ func _motion(motion: Dictionary, time: float) -> Dictionary:
 		if weights[i] <= 0.0:
 			continue
 		var child: Dictionary = children[i]
-		var sample_values := _motion(child.motion, time * float(child.get("speed", 1.0)) + float(child.get("offset", 0.0)) * _length(child.motion))
+		var sample_values := _motion(child.motion, time * float(child.speed) + float(child.offset) * _length(child.motion))
 		var w := weights[i] / divisor
 		share += w
 		for t: int in sample_values:
@@ -421,7 +421,7 @@ func _motion(motion: Dictionary, time: float) -> Dictionary:
 	# Unity blends a 1D or 2D tree from rest, yet a target only children at no weight animate is left to the layers below.
 	if blended:
 		for t: int in keyed:
-			out[t] += float(data.targets[t].get("default", 0.0)) * (share - keyed[t])
+			out[t] += float(data.targets[t].default) * (share - keyed[t])
 	return out
 
 
@@ -470,7 +470,7 @@ static func _bezier(s: float, p0: float, p1: float, p2: float, p3: float) -> flo
 ## A motion with "time" is played by that parameter, not the clock.
 func _timeless_motion(motion: Dictionary) -> bool:
 	if motion.has("clip"):
-		return motion.has("time") or (data.clips[int(motion.clip)].get("curves", []) as Array).all(func(c: Dictionary) -> bool: return _flat(c.keys))
+		return motion.has("time") or (data.clips[int(motion.clip)].curves as Array).all(func(c: Dictionary) -> bool: return _flat(c.keys))
 	return (motion.get("children", []) as Array).all(func(child: Dictionary) -> bool: return _timeless_motion(child.motion))
 
 
@@ -481,7 +481,7 @@ static func _flat(keys: Array) -> bool:
 
 func _targets(motion: Dictionary, targets: Dictionary) -> void:
 	if motion.has("clip"):
-		for curve: Dictionary in data.clips[int(motion.clip)].get("curves", []):
+		for curve: Dictionary in data.clips[int(motion.clip)].curves:
 			targets[int(curve.target)] = true
 	for child: Dictionary in motion.get("children", []):
 		_targets(child.motion, targets)

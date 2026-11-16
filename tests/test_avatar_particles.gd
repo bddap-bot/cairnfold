@@ -21,7 +21,7 @@ static func file(blend := "alpha") -> Dictionary:
 			"shape": {"type": "sphere", "radius": 0.05, "thickness": 1.0}, "subEmitters": [{"system": 1, "on": "birth", "inherit": ["color"]}],
 			"renderer": {"draw": true, "mode": "billboard", "materials": [{"color": [1, 1, 1, 1], "blend": blend}, {"color": [0, 0, 1, 1], "blend": blend}]}},
 		{"node": "emitter", "sub": true, "duration": 1.0, "loop": false, "max": 50, "lifetime": constant.call(2.0), "speed": constant.call(0.0),
-			"bursts": [{"time": 0.0, "count": constant.call(3.0), "cycles": 1, "interval": 0.01, "probability": 1.0}], "renderer": {"draw": false, "materials": []}},
+			"bursts": [{"time": 0.0, "count": constant.call(3.0), "cycles": 1, "interval": 0.01, "probability": 1.0}], "shape": {"type": "point"}, "renderer": {"draw": false, "materials": []}},
 	]}
 
 
@@ -98,7 +98,7 @@ func _bursts_feed_birth_sub_emitters() -> void:
 
 func _switches_and_effects_drive_a_system() -> void:
 	var model := Node3D.new()
-	model.set_meta("expressions", {"parameters": [{"name": "On", "type": "bool", "default": 0.0}, {"name": "Pick", "type": "float", "default": 0.0}],
+	model.set_meta("expressions", {"parameters": [{"name": "On", "type": "bool", "default": 0.0, "saved": false}, {"name": "Pick", "type": "float", "default": 0.0, "saved": false}],
 		"targets": [{"effect": "switch", "default": 0.0}, {"effect": {"particle": {"system": 0, "field": "material"}}, "default": 0.0}, {"effect": {"particle": {"system": 0, "field": "rate", "end": "both"}}, "default": 30.0}],
 		"particles": [{"system": 0, "when": [[0, 1]]}],
 		"clips": [{"length": 1.0, "curves": [{"target": 0, "step": true, "keys": [[0, 1]]}]}, {"length": 1.0, "curves": [{"target": 1, "step": true, "keys": [[0, 1]]}]}],
