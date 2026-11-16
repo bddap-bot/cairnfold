@@ -2,6 +2,7 @@
 // filters smoothly into the dry ground around a pond. Include after ground.gdshaderinc, whose grid it shares.
 global uniform sampler2D water_depth : filter_linear, repeat_disable;
 const float DROWNS = 0.02;
+const float DRY = -0.6;
 
 float water_depth_at(vec2 xz) {
 	return textureLod(water_depth, grid_uv(xz), 0.0).r;
@@ -16,7 +17,7 @@ bool drowned(vec2 xz) {
 }
 
 float bank(float depth) {
-	return smoothstep(-0.25, -0.08, depth);
+	return smoothstep(DRY + 0.35, DRY + 0.52, depth);
 }
 
 vec3 caustic(sampler2D noise, vec2 xz) {
@@ -33,5 +34,5 @@ float pond_near(vec2 xz) {
 	vec2 e = vec2(1.0 / ground_grid.z, 0.0);
 	float deepest = max(max(textureLod(water_depth, t, 0.0).r, textureLod(water_depth, t + e, 0.0).r),
 		max(textureLod(water_depth, t - e, 0.0).r, max(textureLod(water_depth, t + e.yx, 0.0).r, textureLod(water_depth, t - e.yx, 0.0).r)));
-	return deepest > -0.55 ? 1.0 : 0.0;
+	return deepest > DRY + 0.05 ? 1.0 : 0.0;
 }

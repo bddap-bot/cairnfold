@@ -141,7 +141,7 @@ void fragment() {
 	if (pond > 0.0) {
 		float under = water_depth_at(world_xz);
 		// Only near a pond is the depth worth smoothing; elsewhere it is the dry floor, far below any bank.
-		if (under > -0.5) {
+		if (under > DRY + 0.1) {
 			under = grid_smooth(water_depth, world_xz);
 		}
 		mediump float shore = bank(under + (d - 0.5) * 0.12 + (fine - 0.5) * 0.06);
