@@ -858,6 +858,23 @@ func _switched_off_physics_stays_out() -> void:
 	check(ends == [6, 7], "the chain switched off is out; the one switched on stays, and so does one sharing the first bone of the one off: %s" % [ends])
 	check(springs.all(func(c: Dictionary) -> bool: return c.colliders == [1]), "the collider switched off presses on nothing: %s" % [springs])
 	root.free()
+	root = Node3D.new()
+	var sk := Skeleton3D.new()
+	sk.name = "Skeleton3D"
+	root.add_child(sk)
+	var human := {"hips": NodePath("Skeleton3D:b0")}
+	for b in 8:
+		sk.add_bone("b%d" % b)
+		human["spring_%d" % b] = NodePath("Skeleton3D:b%d" % b)
+	sk.set_bone_rest(4, Transform3D(Basis(), Vector3(0, -0.1, 0)))
+	root.set_meta("humanoid", human)
+	var turn := Quaternion(Vector3.RIGHT, 0.5)
+	root.set_meta("expressions", {"targets": [{"effect": "switch", "default": 0.0}, {"effect": "switch", "default": 1.0}], "springs": [{"joints": [3.0, 4.0], "when": [[0, 1]]}, {"joints": [3.0, 7.0], "when": [[1, 1]]}]})
+	root.set_meta("springs", {"springs": [{"joints": [{"node": 3, "settled": turn}, {"node": 4, "settled": turn}], "colliders": []}, {"joints": [{"node": 3}, {"node": 7}], "colliders": []}], "colliders": []})
+	Avatar._switched_off(root)
+	check(sk.get_bone_rest(4).basis.get_rotation_quaternion().is_equal_approx(turn) and sk.get_bone_rest(4).origin.is_equal_approx(Vector3(0, -0.1, 0)), "a bone only a chain left out moves rests at its settled rotation, as VRChat shows the chain once it runs")
+	check(sk.get_bone_rest(3).basis.get_rotation_quaternion().is_equal_approx(Quaternion.IDENTITY), "a bone a kept chain moves keeps its own rest")
+	root.free()
 	var pair := [{"joints": [{"node": 1}, {"node": 2}]}, {"joints": [{"node": 1}, {"node": 2}, {"node": 3}]}]
 	var moved := Avatar.movers(pair, [{"joints": [1, 2]}, {"joints": [1, 2]}, {"joints": [9]}])
 	check(Avatar.stopped(moved, [false, true, false]).is_empty(), "a segment an off PhysBone and an on one both move runs")

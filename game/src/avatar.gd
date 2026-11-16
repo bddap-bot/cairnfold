@@ -488,6 +488,19 @@ static func _switched_off(root: Node3D) -> void:
 	var springs: Dictionary = root.get_meta("springs")
 	var switched: Array = data.get("springs", [])
 	var off := stopped(movers(springs.springs, switched), switched.map(on))
+	var kept := {}
+	for c in springs.springs.size():
+		if not off.has(c):
+			for joint: Dictionary in springs.springs[c].joints:
+				kept[joint.node] = true
+	if springs.springs.any(func(chain: Dictionary) -> bool: return chain.joints.any(func(j: Dictionary) -> bool: return j.has("physbone") and not j.has("settled"))):
+		push_error("avatar: a PhysBone joint carries no settled rotation; convert the avatar again")
+	var bones: Dictionary = root.get_meta("humanoid", {})
+	var sk := root.get_node_or_null(str(bones.get("hips", "")).get_slice(":", 0)) as Skeleton3D
+	for c: int in off:
+		for joint: Dictionary in springs.springs[c].joints:
+			if not kept.has(joint.node):
+				_rest_settled(sk, _bone(sk, bones.get("spring_%d" % joint.node)), joint)
 	springs.springs = range(springs.springs.size()).filter(func(c: int) -> bool: return not off.has(c)).map(func(c: int) -> Dictionary: return springs.springs[c])
 	for chain: Dictionary in springs.springs:
 		chain.colliders = (chain.colliders as Array).filter(func(c: int) -> bool: return not colliders.has(c))
@@ -533,12 +546,17 @@ static func _rank_springs(root: Node3D) -> void:
 		for joint: Dictionary in chains[i].joints:
 			var bone := _bone(sk, bones.get("spring_%d" % joint.node))
 			if not moving.has(joint.node) and not waiting.has(joint.node) and joint.has("settled") and bone >= 0:
-				var rest := sk.get_bone_rest(bone)
 				if not authored.has(bone):
-					authored[bone] = rest.basis.get_rotation_quaternion()
+					authored[bone] = sk.get_bone_rest(bone).basis.get_rotation_quaternion()
 				joint.authored = authored[bone]
-				sk.set_bone_rest(bone, Transform3D(Basis(joint.settled as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
+				_rest_settled(sk, bone, joint)
 	springs.springs = chains if root.has_meta("expressions") else range(chains.size()).filter(func(i: int) -> bool: return run.has(i)).map(func(i: int) -> Dictionary: return chains[i])
+
+
+static func _rest_settled(sk: Skeleton3D, bone: int, joint: Dictionary) -> void:
+	if bone >= 0 and joint.has("settled"):
+		var rest := sk.get_bone_rest(bone)
+		sk.set_bone_rest(bone, Transform3D(Basis(joint.settled as Quaternion).scaled_local(rest.basis.get_scale()), rest.origin))
 
 
 ## The indices of `chains` that run: none `off` holds; of the rest those `drawn` says by index draw a shown mesh first,
