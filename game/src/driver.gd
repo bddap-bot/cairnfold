@@ -1545,7 +1545,7 @@ static func _digested_seq(path: String) -> int:
 	if not FileAccess.file_exists(path):
 		return -1
 	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
-	return int(d.seq) if d is Dictionary and d.has("seq") else -1
+	return int(d.seq) if d is Dictionary else -1
 
 
 func _frenzied() -> bool:
@@ -2446,7 +2446,7 @@ func _neck_cost(s: Dictionary) -> void:
 func _held_snapshot(s: Dictionary) -> void:
 	await get_tree().create_timer(Hand.POP * 3.0).timeout
 	var items := main.session.held_items()
-	if s.get("loaded", false):
+	if s.loaded:
 		assert(items[1].size() == 8 and items[1][0] == HeldItem.Kind.BRUSH and items[1][4] > 0.0, "capture holds a loaded brush")
 	var path: String = main.capture_path(s.name)
 	FileAccess.open(path + ".held", FileAccess.WRITE).store_var([multiplayer.get_unique_id(), items])

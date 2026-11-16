@@ -487,7 +487,7 @@ def check_peers(out, names):
 def heard(folder):
     """PlayLog.heard messages, oldest first, as [frame, from, whose, call]."""
     nets = [r for chunk in sorted(folder.glob("*.jsonl")) for r in map(json.loads, chunk.read_text().splitlines())
-            if r.get("event") == "net"]
+            if r["event"] == "net"]
     return [m for e in sorted(nets, key=lambda e: e["first"]) for m in e["messages"]]
 
 
@@ -603,7 +603,7 @@ def run(out, count, mode="full"):
                 picked = out / f"{name}-avatar-seen.json"
                 if picked.exists():
                     state = json.loads(picked.read_text())
-                    if state.get("avatar_choices") != [2] * count or state.get("worn"):
+                    if state["avatar_choices"] != [2] * count or state["worn"]:
                         fail(name, "wheel avatar selection did not replicate to every peer")
         for name, proc in processes.items():
             if proc.poll():

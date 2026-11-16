@@ -1,3 +1,5 @@
+from contextlib import redirect_stdout
+import io
 from pathlib import Path
 import subprocess
 import sys
@@ -45,3 +47,12 @@ class CoopPlayers(unittest.TestCase):
             self.assertIn("Thread 1", stack.read_text())
         self.assertIsNotNone(hung.returncode)
         hung.stdout.close()
+
+    def test_two_players_reshape_and_build_alike(self):
+        said = io.StringIO()
+        try:
+            with tempfile.TemporaryDirectory() as out, redirect_stdout(said):
+                coop.run(Path(out) / "reshape", 2, "reshape")
+                coop.run(Path(out), 2)
+        except (Exception, SystemExit) as e:
+            raise AssertionError(said.getvalue()[-8000:]) from e

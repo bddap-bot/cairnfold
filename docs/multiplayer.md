@@ -672,7 +672,7 @@ two through eight supported):
 
 The JSON gestures in `demo/coop-host.json` and `demo/coop-join.json` supply the initial
 building sequence through their first digest. `scripts/coop.py` supplies the N-player
-barriers and teardown. `tests/test_coop.py` checks the choreography. The harness reserves
+barriers and teardown. `tests/test_coop.py` checks the choreography and plays the two-player reshape and full runs. The harness reserves
 its discovery range with a socket outside the four listener ports, leaving all four
 available to players.
 
