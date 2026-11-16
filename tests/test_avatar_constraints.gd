@@ -25,7 +25,7 @@ func _run() -> void:
 	var skeleton := avatar.find_child("Skeleton3D", true, false) as Skeleton3D
 	check(Constraints.of(skeleton) != null and Constraints.of(skeleton).constraints.size() == 4, "every constraint the file names solves on the skeleton")
 	skeleton.skeleton_updated.connect(func() -> void:
-		for bone: String in [_hips, "anchor", "prop", "follower", "pointer", "turner"]:
+		for bone: String in [_hips, "anchor", "prop", "follower", "pointer", "turner", "aside"]:
 			_seen[bone] = skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone(bone)))
 	await frames(3)
 	var hips: Transform3D = _seen[_hips]
@@ -58,6 +58,14 @@ func _run() -> void:
 	check(turner.origin.is_equal_approx(hips * Vector3(0.1, 0.4, 0)), "a rotation constraint leaves its bone where it stands")
 	var turned := anchor.basis.get_rotation_quaternion().slerp(Quaternion(Vector3.UP, 0.8), 0.75) * Quaternion(Vector3.RIGHT, 0.3)
 	check(turner.basis.get_rotation_quaternion().is_equal_approx(turned) or turner.basis.get_rotation_quaternion().is_equal_approx(-turned), "and turns it to its sources' weighted turn, by its offset: %s, expected %s" % [turner.basis.get_rotation_quaternion(), turned])
+	var placed_at := avatar.global_transform
+	var head := Transform3D(Basis(Vector3.UP, 2.5), Vector3(1.2, 1.6, -0.8))
+	avatar.pose(head, head * Transform3D(Basis.IDENTITY, Vector3(-0.25, -0.4, -0.35)), head * Transform3D(Basis.IDENTITY, Vector3(0.25, -0.4, -0.35)))
+	await frames(2)
+	var body := placed_at * avatar._get_joint(avatar._hips)
+	var left: Vector3 = body.affine_inverse() * avatar.bone("leftUpperArm").origin
+	var aside: Vector3 = body.affine_inverse() * (_seen.aside as Transform3D).origin
+	check(signf(aside.x) == signf(left.x) and absf(aside.x) > absf(left.x) and Vector2(aside.x, aside.z).length() < 1.0, "a bone hanging from a root beside the hips goes with the posed body, turned and moved, on the side it was made on: %s against the left arm %s, in the hips' frame" % [aside, left])
 	avatar.free()
 	finish()
 
@@ -72,6 +80,8 @@ func _fixture() -> Node3D:
 		skeleton.add_bone(bone[0])
 		skeleton.set_bone_parent(skeleton.find_bone(bone[0]), hips)
 		skeleton.set_bone_rest(skeleton.find_bone(bone[0]), bone[1])
+	skeleton.add_bone("aside")
+	skeleton.set_bone_rest(skeleton.find_bone("aside"), Transform3D(Basis.IDENTITY, skeleton.get_bone_global_rest(skeleton.find_bone(str(bones.leftUpperArm).get_slice(":", 1))).origin * Vector3(3, 0, 1)))
 	skeleton.add_bone("tip")
 	skeleton.set_bone_parent(skeleton.find_bone("tip"), skeleton.find_bone("prop"))
 	skeleton.set_bone_rest(skeleton.find_bone("tip"), TIP)

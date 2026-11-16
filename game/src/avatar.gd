@@ -172,6 +172,7 @@ var _joints := {}
 var _facing: Basis
 var _eye_to_head: Transform3D
 var _hips: Joint
+var _tops: Array[Joint] = []
 var _head: Joint
 var _arms: Array[Arm] = []
 var _legs: Array[Leg] = []
@@ -1026,6 +1027,15 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 		a._alone.append(a._blend([k], [Quaternion.IDENTITY], PackedFloat32Array()))
 	var placed: Array[Joint] = a._body.duplicate()
 	placed.append(a._head)
+	for top: int in a._skeleton.get_parentless_bones():
+		if top != a._hips.bone:
+			var j := Joint.new()
+			j.bone = top
+			j.rest = at * a._skeleton.get_bone_global_rest(top)
+			j.at = j.rest
+			a._find_base(j, [])
+			a._tops.append(j)
+	placed.append_array(a._tops)
 	for s in 2:
 		var side: String = ["left", "right"][s]
 		var hand: Joint = a._joints[side + "Hand"]
@@ -1154,6 +1164,15 @@ func _get_joint(j: Joint) -> Transform3D:
 	return _frame_of(j) * _skeleton.get_bone_pose(j.bone)
 
 
+func _turn_tops(head: Vector3, body: Basis) -> void:
+	var at := head - body * _head.rest.origin
+	var floor_y := _feet_floor()
+	if is_finite(floor_y):
+		at.y = floor_y
+	for j in _tops:
+		_place(j, Transform3D(body, at) * j.rest)
+
+
 func _place(j: Joint, xform: Transform3D) -> void:
 	_skeleton.set_bone_pose(j.bone, _frame_of(j).affine_inverse() * xform)
 	j.at = xform
@@ -1276,6 +1295,7 @@ func _stand_up(at: Transform3D, head: Transform3D, turn: Basis) -> void:
 	var crouch := clampf(1.0 - (at.origin.y - floor_y) / eye_height, 0.0, 1.0) if is_finite(floor_y) else 0.0
 	var bent := Basis(turn * Vector3.RIGHT, -minf(BEND * maxf(down - LOOK, 0.0) + CROUCH_BEND * crouch, MAX_BEND))
 	var model := Transform3D(bent * body, head.origin - bent * body * _head.rest.origin)
+	_turn_tops(head.origin, body)
 	_place(_hips, model * _hips.rest)
 	for j in _body.slice(1):
 		j.at = _get_joint(j)
@@ -1295,6 +1315,13 @@ func _lie(head: Transform3D) -> Array[Vector3]:
 	var body: Array[Transform3D] = _alone[shown[0]] if lone else _blend(shown, yaws, posture.weights)
 	var frame := Transform3D(Basis(yaws[0]) if lone else Basis.IDENTITY, Vector3.ZERO)
 	frame.origin = head.origin - frame.basis * body[-1].origin
+	var turned := Quaternion.IDENTITY
+	var weighed := 0.0
+	for n in shown.size():
+		var w: float = posture.weights[shown[n]]
+		turned = turned.slerp(yaws[n], w / (weighed + w))
+		weighed += w
+	_turn_tops(head.origin, Basis(turned) * _facing)
 	for i in _body.size():
 		if lone and _settled == shown[0] and i > 0:
 			_body[i].at = frame * body[i]
