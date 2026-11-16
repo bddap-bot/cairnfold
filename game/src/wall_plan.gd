@@ -24,6 +24,9 @@ var planks := false
 var supports: Array[Massing] = []
 ## Per stroke point, `_nearest`'s result, recomputed only when the point moves (only the newest does).
 var _hits: Array[Dictionary] = []
+var _merged: Array[bool] = []
+var _along := PackedFloat64Array()
+var _starts := PackedInt32Array()
 
 
 func _init(walls: Array[WallLayout], plants: PackedVector3Array, first_seed: int) -> void:
@@ -56,19 +59,45 @@ func pieces(stroke: Array[Vector3], ground: Callable, commit := false) -> Array[
 	return out
 
 
-func _runs(stroke: Array[Vector3]) -> Array[Array]:
+func tail(stroke: Array[Vector3]) -> float:
+	_mark(stroke, mini(_merged.size(), stroke.size()) - 2)
+	var end := stroke.size() - 1
+	var joined := false
+	if _merged[end]:
+		if end == 0 or _merged[end - 1]:
+			return 0.0
+		joined = _heads_at_wall(stroke, end, 1)
+		end -= 1
+	var i := _starts[end]
+	var length := _along[end] - _along[i] + (_flat(_hits[end + 1].point - stroke[end]) if joined else 0.0)
+	if i > 0 and _heads_at_wall(stroke, i - 1, -1):
+		length += _flat(stroke[i] - _hits[i - 1].point)
+	return length
+
+
+static func _flat(v: Vector3) -> float:
+	return Vector2(v.x, v.z).length()
+
+
+func _mark(stroke: Array[Vector3], from: int) -> void:
 	_hits.resize(stroke.size())
-	for i in stroke.size():
+	_merged.resize(stroke.size())
+	_along.resize(stroke.size())
+	_starts.resize(stroke.size())
+	for i in range(maxi(from, 0), stroke.size()):
 		if _hits[i].is_empty() or not _hits[i].at.is_equal_approx(stroke[i]):
 			_hits[i] = _nearest(stroke[i])
-	var merged: Array[bool] = []
-	for i in stroke.size():
-		var limit := LEAVE if i > 0 and merged[-1] else REACH
-		merged.append(_hits[i].distance < limit)
+		_merged[i] = _hits[i].distance < (LEAVE if i > 0 and _merged[i - 1] else REACH)
+		_along[i] = _along[i - 1] + _flat(stroke[i] - stroke[i - 1]) if i > 0 else 0.0
+		_starts[i] = _starts[i - 1] if i > 0 and not _merged[i - 1] else i
+
+
+func _runs(stroke: Array[Vector3]) -> Array[Array]:
+	_mark(stroke, 0)
 	var out: Array[Array] = []
 	var run: Array[Vector3] = []
 	for i in stroke.size():
-		if merged[i]:
+		if _merged[i]:
 			if not run.is_empty():
 				if _heads_at_wall(stroke, i, 1):
 					run.append(_hits[i].point)

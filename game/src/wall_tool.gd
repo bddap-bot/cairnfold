@@ -317,10 +317,26 @@ func extend_stroke(m: Mason, p: Vector3) -> void:
 	var pts := m.stroke.points
 	if pts[-1].is_equal_approx(p) or Commands.length(pts) >= Commands.STROKE_LENGTH:
 		return
-	if pts.size() >= 2 and pts[-1].distance_to(pts[-2]) < POINT_SPACING:
+	var was := pts[-1]
+	var moved := pts.size() >= 2 and pts[-1].distance_to(pts[-2]) < POINT_SPACING
+	if moved:
 		pts[-1] = p
 	else:
 		pts.append(p)
+	var over := m.stroke.plan.tail(pts) - Commands.GROWN_LENGTH
+	if over > 0.0:
+		var from := pts[-2]
+		var run := Vector2(p.x - from.x, p.z - from.z).length()
+		if run > over:
+			pts[-1] = from.lerp(p, (run - over) / run)
+		if run <= over or m.stroke.plan.tail(pts) > Commands.MAX_LENGTH:
+			if moved:
+				pts[-1] = was
+			else:
+				pts.pop_back()
+			return
+		p = pts[-1]
+	if not moved:
 		_cue(Cues.Act.WALL_LAY, p + Vector3.UP, [m.hand])
 	if not is_nan(m.stroke.level):
 		_rest_on(m.stroke, p)
@@ -333,10 +349,6 @@ func _plan(st: Stroke, commit := false) -> void:
 		return
 	st.planned = true
 	var layouts := st.plan.pieces(st.points, world.terrain.height_at, commit)
-	var over := func(built: Array[WallLayout]) -> bool: return built.any(func(l: WallLayout) -> bool: return Commands.length(l.points) > Commands.MAX_LENGTH)
-	while st.points.size() > 2 and over.call(layouts) and (commit or over.call(st.plan.pieces(st.points, world.terrain.height_at, true))):
-		st.points.pop_back()
-		layouts = st.plan.pieces(st.points, world.terrain.height_at, commit)
 	while st.walls.size() > layouts.size():
 		st.walls.pop_back().queue_free()
 	for i in layouts.size():
@@ -861,19 +873,20 @@ static func stretched(start: Dictionary, span: Vector3, ratio: float) -> Vector2
 		var across: float = angle(span) - start.yaw
 		grows = Vector2.RIGHT if absf(cos(across)) >= absf(sin(across)) else Vector2.DOWN
 	var kept: Vector2 = start.size * (Vector2.ONE - grows)
-	var size: Vector2 = kept + grows * maxf(start.size[grows.max_axis_index()] * ratio, HOUSE_SIDE)
+	var size: Vector2 = kept + (start.size * ratio).max(Vector2.ONE * HOUSE_SIDE) * grows
 	var run := _run_at(start, size)
 	if run <= Commands.MAX_LENGTH:
 		return size
 	var was := _run_at(start, start.size)
-	while run > Commands.MAX_LENGTH and size != start.size:
-		size = start.size + (size - start.size) * maxf(Commands.STRETCH_LENGTH - was, 0.0) / (run - was)
-		run = _run_at(start, size)
-	return size
+	size = start.size + (size - start.size) * maxf(Commands.GROWN_LENGTH - was, 0.0) / (run - was)
+	run = _run_at(start, size)
+	if run <= Commands.MAX_LENGTH:
+		return size
+	return kept + (size - kept) * Commands.GROWN_LENGTH / run
 
 
-static func _run_at(at: Dictionary, size: Vector2) -> float:
-	return Commands.length(outline(at.merged({"size": size}, true)))
+static func _run_at(start: Dictionary, size: Vector2) -> float:
+	return Commands.length(outline(start.merged({"size": size}, true)))
 
 
 ## Grows toward the hand that moved, so a hand held still keeps its wall.
