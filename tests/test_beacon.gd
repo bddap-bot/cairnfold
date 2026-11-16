@@ -102,6 +102,18 @@ func _another_build_is_heard_not_joined() -> void:
 	check(Session.protocol() == Session.fingerprint([World, Session], World.FORMAT), "this build's is its own RPCs' and garden format's")
 	var reformatted := Session.read_beacon(JSON.stringify({"cairnfold": Session.fingerprint([World, Session], World.FORMAT + 1), "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
 	check(not reformatted.is_empty() and not reformatted.joins, "a garden from a build of another garden format is heard, not to be joined: %s" % reformatted)
+	var lists := Session.numbered()
+	check(Session.fingerprint([World, Session], World.FORMAT, lists.duplicate(true)) == Session.protocol(), "builds that agree on the lists a session message numbers join")
+	for carried: Array in [Hand.Tool.keys(), HeldItem.Kind.keys(), Brushwork.Brush.keys(), Brushwork.Medium.keys(), Conure.PLUMAGES.keys(), Avatar.BUILT_IN]:
+		check(PackedStringArray(carried) in lists, "%s, which a session message carries by number, enters the fingerprint" % [carried])
+	for i in lists.size():
+		var reordered := lists.duplicate(true)
+		var names := lists[i].duplicate()
+		names.reverse()
+		check(names != lists[i], "%s has entries to reorder" % [lists[i]])
+		reordered[i] = names
+		var other_order := Session.read_beacon(JSON.stringify({"cairnfold": Session.fingerprint([World, Session], World.FORMAT, reordered), "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
+		check(not other_order.is_empty() and not other_order.joins, "a garden from a build with %s in another order is heard, not to be joined: %s" % [lists[i], other_order])
 
 
 func _a_picked_name_is_kept() -> void:

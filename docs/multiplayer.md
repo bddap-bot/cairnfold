@@ -604,7 +604,10 @@ exception.
 Only gardens of a build with the same networked methods can be joined. Godot numbers a
 node's RPCs by name, so a build with one more or one fewer calls the wrong methods on the
 other: a visitor's digs, ponds and plants never land, and its strokes show and then vanish.
-The beacon carries a fingerprint of `World`'s and `Session`'s RPCs (`Session.protocol`).
+The beacon carries a fingerprint of `World`'s and `Session`'s RPCs, the garden format, and the
+names in order of the lists a session message numbers: tools, cues, built-in avatars, colours,
+a held item's kind, brushes, paint media and plumages (`Session.protocol`), so a build with one
+of them reordered does not join either.
 A garden whose beacon carries another (or the constant 1 of builds before the fingerprint)
 still appears on the dial, a faint figure, and selecting it joins nothing. Builds
 from one revision always match. Builds before the fingerprint drop every beacon but their

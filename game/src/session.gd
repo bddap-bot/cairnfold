@@ -365,8 +365,10 @@ static func protocol() -> int:
 	return _protocol
 
 
-static func fingerprint(scripts: Array[Script], format: int) -> int:
+static func fingerprint(scripts: Array[Script], format: int, lists := numbered()) -> int:
 	var parts := PackedStringArray(["format %d" % format])
+	for i in lists.size():
+		parts.append("list %d %s" % [i, " ".join(lists[i])])
 	for s in scripts:
 		var rpcs: Dictionary = s.get_rpc_config()
 		for m in s.get_script_method_list():
@@ -374,6 +376,12 @@ static func fingerprint(scripts: Array[Script], format: int) -> int:
 				parts.append("%s.%s/%d %s" % [s.get_global_name(), m.name, m.args.size(), rpcs[m.name]])
 	parts.sort()
 	return hash(parts)
+
+
+static func numbered() -> Array[PackedStringArray]:
+	var colours := PackedStringArray(COLOURS.map(func(c: Color) -> String: return c.to_html(false)))
+	return [PackedStringArray(Hand.Tool.keys()), PackedStringArray(Cues.Act.keys()), PackedStringArray(Avatar.BUILT_IN), colours,
+		PackedStringArray(HeldItem.Kind.keys()), PackedStringArray(Brushwork.Brush.keys()), PackedStringArray(Brushwork.Medium.keys()), PackedStringArray(Conure.PLUMAGES.keys())]
 
 
 ## Empty when the packet is not a beacon; `joins` is false for a build with other networked methods.
