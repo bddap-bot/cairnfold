@@ -38,6 +38,14 @@ static func tilled(marks: Ground, x: float, z: float) -> bool:
 	return marks._texel(x, z, marks.laid).b8 & Ground.TILLED != 0
 
 
+class Lines:
+	extends Logger
+	var lines: PackedStringArray = []
+
+	func _log_message(message: String, _error: bool) -> void:
+		lines.append_array(message.split("\n", false))
+
+
 func finish() -> void:
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)

@@ -570,14 +570,6 @@ func _every_way_out_lets_the_palette_go() -> void:
 	check(main.easels.find(id) != null, "and undo stands it back up")
 
 
-class Lines:
-	extends Logger
-	var lines: PackedStringArray = []
-
-	func _log_message(message: String, _error: bool) -> void:
-		lines.append_array(message.split("\n", false))
-
-
 func _every_held_change_logs_a_line() -> void:
 	var log := Lines.new()
 	OS.add_logger(log)

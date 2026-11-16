@@ -1443,14 +1443,6 @@ func _an_extension_at_another_version_is_refused() -> void:
 			check(Vrm.stale_extension(json) == name and Avatar.read(Vrm.glb(json, bin)) == null, "a file whose %s carries %s is refused" % [name, extras])
 
 
-class Errors:
-	extends Logger
-	var lines: PackedStringArray = []
-
-	func _log_error(_function: String, _file: String, _line: int, code: String, rationale: String, _editor_notify: bool, _error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
-		lines.append(code + rationale)
-
-
 func _a_record_lacking_a_field_it_must_carry_is_refused_naming_it() -> void:
 	var demo := preload("res://demo/expressions.gd")
 	var model := demo.scene().instantiate() as Node3D
@@ -1510,7 +1502,7 @@ func _a_record_lacking_a_field_it_must_carry_is_refused_naming_it() -> void:
 		},
 	}
 	check(records.keys() == Vrm.REQUIRED.keys() and Vrm.REQUIRED.keys().all(func(name: String) -> bool: return records[name].keys() == Vrm.REQUIRED[name].keys()), "every kind of record is checked")
-	var errors := Errors.new()
+	var errors := Lines.new()
 	OS.add_logger(errors)
 	for name: String in Vrm.REQUIRED:
 		for kind: String in Vrm.REQUIRED[name]:

@@ -102,7 +102,7 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	var constraints := Constraints.read(exts.get(CONSTRAINTS), state.get_nodes())
 	if exts.has(CONSTRAINTS) and constraints.is_empty():
 		print("vrm: refused: its constraints are not ones this reads")
-		return ERR_INVALID_DATA
+		state.set_additional_data(&"vrm_refused", true)
 	if not constraints.is_empty():
 		root.set_meta("constraints", constraints)
 	root.set_meta("springs", springs)
@@ -445,7 +445,7 @@ static func stale_extension(json: Variant) -> String:
 static func holds(record: Dictionary, extension: String, kind: String) -> bool:
 	for field: String in REQUIRED[extension][kind]:
 		if not record.has(field):
-			push_error("vrm: refused: a %s %s lacks its '%s'" % [extension, kind, field])
+			print("vrm: refused: a %s %s lacks its '%s'" % [extension, kind, field])
 			return false
 	return true
 
@@ -764,6 +764,9 @@ static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image:
 	var root := doc.generate_scene(state) as Node3D
 	if root == null:
 		print("vrm: refused: its scene could not be made")
+		return null
+	if state.get_additional_data(&"vrm_refused"):
+		root.free()
 		return null
 	root.set_meta("colour", colour)
 	return root
