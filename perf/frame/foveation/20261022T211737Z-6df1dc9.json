@@ -3,7 +3,7 @@
   "device": "Steam Frame",
   "msaa": 4,
   "scale": 0.7,
-  "method": "frame-unworn; layer on/off/off/on across fresh processes. Four VRS pairs per view, alternating AB/BA. Existing driver foveation=0 selects VRS_DISABLED and FB level 0; foveation=3 selects VRS_XR and FB level 3. Five one-second viewport_gpu_ms samples per phase after dropping its first labelled second. No screenshot during timing. Stock clocks; unworn gaze untracked. Views from demo/antialias.json; seed 25; meadow; quality pinned to fit.",
+  "method": "headset unworn; layer on/off/off/on across fresh processes. Four VRS pairs per view, alternating AB/BA. Existing driver foveation=0 selects VRS_DISABLED and FB level 0; foveation=3 selects VRS_XR and FB level 3. Five one-second viewport_gpu_ms samples per phase after dropping its first labelled second. No screenshot during timing. Stock clocks; unworn gaze untracked. Views from demo/antialias.json; seed 25; meadow; quality pinned to fit.",
   "runs": [
     {
       "run": "on0",

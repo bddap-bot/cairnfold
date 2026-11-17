@@ -1,7 +1,7 @@
 # Shadow rotation check
 
 Run `scripts/shadows.gd` on the Frame through Godot 4.5.1 with the game's Mobile
-renderer and an active OpenXR session. Hold the TV lease for the run. An unworn
+renderer and an active OpenXR session. An unworn
 headset must render rather than pause in standby; restore its runtime setting
 when finished. The normal game installation need not be replaced.
 

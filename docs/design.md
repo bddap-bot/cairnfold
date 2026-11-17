@@ -254,7 +254,7 @@ On 2026-10-22, build `6df1dc9c`, the Frame's SteamVR OpenXR runtime advertised
 These came from `xrEnumerateInstanceExtensionProperties` on the headset's
 `/opt/steamvr/bin/linuxarm64/libopenxr_loader.so`, with the same list when Valve's
 injection layer was disabled. This supersedes the assumption that this runtime
-has no FB foveation. The full lists and loader logs are job 9323's artifacts.
+has no FB foveation.
 
 The implicit layer manifest
 `/usr/share/openxr/1/api_layers/implicit.d/XrApiLayer_VALVE_fdm_injection.json`
@@ -262,7 +262,7 @@ names `DISABLE_VULKAN_FDM_INJECTION_LAYER`; setting it to `1` for the game proce
 makes the loader log that the layer is disabled. Unset, the log confirms loading
 `XR_APILAYER_VALVE_fdm_injection`. No global runtime setting was changed for that A/B.
 
-Four fresh processes ran layer on/off/off/on through `frame-unworn`, at the fixed
+Four fresh processes ran layer on/off/off/on with the headset unworn, at the fixed
 calibration scale 0.70, with MSAA **4x** in every measured phase. Each repeated the
 air and standing views from `demo/antialias.json`, four alternating AB/BA pairs per
 view, in the seed-25 meadow. The existing driver's `foveation: 0` selects VRS disabled
@@ -294,11 +294,10 @@ therefore do not establish two independent, stacked gaze maps.
 No rendering default changes on this evidence. Fixed foveation remains load-driven
 in the shared quality controller; any eye-tracked path must use capabilities, remain
 outside that ladder, and avoid headset-model or build checks. The worn same-view,
-gaze-following pair is carried by job 9454, parked on `hand:frame-foveation-pair`;
-MSAA stays 4x. The current compositor screenshot restriction to unworn captures
+gaze-following pair is still to be measured; MSAA stays 4x. The current compositor screenshot restriction to unworn captures
 must be respected when arranging its worn evidence method. No screenshot ran during
-these timings. All four processes exited 0 and `frame-unworn` restored
-`steamvr.vrsettings` before the TV lease was released.
+these timings. All four processes exited 0 and
+`steamvr.vrsettings` was restored afterwards.
 
 ### Quest 2 measurements
 
@@ -839,7 +838,7 @@ fragments ("Steps 9 and 10 on the Quest 2"), and the per-vertex reads that saved
 nor cost it.
 
 The stress scene, played governed since it holds the gardens a player can build, on the Frame on b4e2a39
-(`perf/frame/stress/20261025T161738Z-b4e2a39.json`, unworn through `frame-unworn`): all 140 phases other than the
+(`perf/frame/stress/20261025T161738Z-b4e2a39.json`, unworn): all 140 phases other than the
 sweeps within the 11.1 ms line, the dearest `r25/ground` at 9.4 ms, and every one at the 72 Hz period but
 `held/house`, whose frame p50 reads 14.4 ms from a 324 ms main-thread stall as the house tool is taken, with the
 GPU at 5.2 ms.
@@ -891,7 +890,7 @@ The hill stroke draws 132 more calls while its walls move and 36 ms less, the co
 outweighing the calls; a wall in hand draws fewer.
 
 On the Frame, with these steps and the governor as they stand (07745685), a governed run of the
-whole stress scene (each phase 20 s, unworn through `frame-unworn`) held 72 Hz in every phase its
+whole stress scene (each phase 20 s, unworn) held 72 Hz in every phase its
 last 15 s, the heaviest at step 10: the village from the air 8.7 ms, the r25 walls 8.0 and 8.8,
 the hill stroke 8.0, the camera held up 9.6 to 10.3, the garden from the air 8.5. The two phases
 standing on a wall walk through the roofs village did not: `standing/along` and `standing/across`
@@ -2138,7 +2137,7 @@ The sky's light is read from one radiance map per roughness, not a texture array
 Android, so the Quest draws the same). Godot 4.6 moved sky radiance from cube maps to octahedral
 maps, and the array form reads two layers per sample with a level of detail from screen-space
 derivatives, for the ambient light, the reflections and the fog's aerial perspective. The arm64
-Linux export is not a mobile platform to Godot, so it took the array: on the Frame (`frame-unworn`,
+Linux export is not a mobile platform to Godot, so it took the array: on the Frame (unworn,
 the meadow and full flora pools, the GPU time a frame) 4.5.1 drew 10.0 ms, 4.6 13.0 ms, and 4.6
 with one map 8.7 ms, the view captures the same.
 
@@ -2942,7 +2941,7 @@ the Quest 2 (`App=` ms, the bare meadow, each round main's shaders and these swa
 five rounds), against main: at the ladder's bottom step standing 20.67, +0.03 ms (standard error
 0.08), from the air 26.75, -0.01 ms (0.17); at its top step standing 28.15, +0.16 ms (0.10), from
 the air 47.68, +0.14 ms (0.10). Without that steepness move the bottom step standing was +0.14 ms
-(0.05). On the Steam Frame (`frame-unworn`, the kernel's GPU time a frame, the same
+(0.05). On the Steam Frame (unworn, the kernel's GPU time a frame, the same
 pairing): bottom step standing 4.31, +0.02 ms (0.004), from the air 5.42, -0.00 ms (0.004); top
 step standing 6.92, -0.02 ms (0.003), from the air 10.19, -0.02 ms (0.002); 72 Hz throughout. Tried over the new look in two runs (arm order reversed in the second), GPU ms
 a frame over it, mean of the two, and left out:
@@ -6221,8 +6220,7 @@ The curved-join fix's physical Quest 2 stress run is recorded in
 interior measures 9.94 ms GPU time against the then 12.5 ms budget, with zero late
 frames; the existing ceiling interior measures 10.32 ms. The full benchmark
 exits 1: 71 non-sweep phases exceed budget. This is not a whole-scene pass or a
-paired attribution of those costs to the join change. Botq job 9186 carries the
-remaining performance and stress-driver errors recorded in job 9165's artifacts.
+paired attribution of those costs to the join change.
 
 
 

@@ -78,7 +78,6 @@ class Records(unittest.TestCase):
         self.rebase_onto('game/plants.gd')
         self.assertEqual(self.records().returncode, 0)
 
-    # botq land checks a stack's top, and the other landings in it are not the record's change.
     def test_record_of_a_main_build_passes_stacked_with_other_game_landings(self):
         built = self.git('rev-parse', 'main')
         self.git('checkout', '-q', '-b', 'job', 'main')

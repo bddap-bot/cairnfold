@@ -97,4 +97,4 @@ and the benchmark exited 0:
 
 Reproduce the visual review with `scripts/render.sh demo/decorations.json OUT`.
 Run the device measurements with `CAIRNFOLD_SCENE=demo/decoration-costs.json scripts/bench.sh OUT --android APK`
-(and `demo/decoration-density.json`) through the leased device wrapper.
+(and `demo/decoration-density.json`).
