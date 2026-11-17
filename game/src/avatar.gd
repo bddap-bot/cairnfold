@@ -802,7 +802,9 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 	drawn.resize(256)
 	var coats := materials.filter(func(m: Dictionary) -> bool: return m.get("clearcoat") is Dictionary).size()
 	var maps: int = (looks.get("clearcoatMaps", []) as Array).size() if looks.get("clearcoatMaps") is Array else 0
-	var matcapped := materials.filter(func(m: Dictionary) -> bool: return not _drawn_matcaps(m).is_empty()).size()
+	var blends: Array = BLENDED_BY.reduce(func(rects: Array, f: String) -> Array: return rects + animated.get(f, []), [])
+	var blended := func(m: Dictionary) -> bool: return blends.any(func(r: Variant) -> bool: return ExpressionPlayer.same_rect(r, m.get("rect", [])))
+	var matcapped := materials.filter(func(m: Dictionary) -> bool: return not _drawn_matcaps(m, blended.call(m)).is_empty()).size()
 	var tooned := materials.filter(_toon).size()
 	var rows := HEAD_ROWS + RAMP + (COAT_ROWS if coats + matcapped + tooned > 0 else 0) + (1 + MATCAPS * MATCAP_ROWS if matcapped + tooned > 0 else 0) + (TOON_ROWS if tooned > 0 else 0)
 	var table := Image.create_empty(materials.size() + 1, rows, false, Image.FORMAT_RGBAF)
@@ -812,9 +814,9 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 	for k in materials.size():
 		if posted.any(func(r: Variant) -> bool: return ExpressionPlayer.same_rect(r, materials[k].get("rect", []))):
 			drawn[k + 1] |= LOOKED
-		if not _drawn_matcaps(materials[k]).is_empty():
+		if not _drawn_matcaps(materials[k], blended.call(materials[k])).is_empty():
 			drawn[k + 1] |= LOOKED
-			_matcap_rows(table, k + 1, materials[k], textures)
+			_matcap_rows(table, k + 1, materials[k], textures, blended.call(materials[k]))
 		if _toon(materials[k]):
 			drawn[k + 1] |= LOOKED | TOON
 			_toon_rows(table, k + 1, materials[k])
@@ -932,18 +934,19 @@ static func _toon_rows(table: Image, column: int, m: Dictionary) -> void:
 		table.set_pixel(column, row + 7, Color(rim_shade.border, rim_shade.blur, 0.0, 0.0))
 
 
-## A matcap at zero in all of these leaves its material as it is.
+## A matcap at zero in all of these leaves its material as it is, unless a look target moves one of BLENDED_BY.
 const DRAWN_BY := ["replace", "multiply", "add", "screen", "mixed", "lightAdd", "emission"]
+const BLENDED_BY := ["matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed"]
 
 
-static func _drawn_matcaps(m: Dictionary) -> Array:
+static func _drawn_matcaps(m: Dictionary, blended: bool) -> Array:
 	var matcaps: Array = m.get("matcaps", [])
-	return range(matcaps.size()).filter(func(k: int) -> bool: return matcaps[k] is Dictionary and DRAWN_BY.any(func(f: String) -> bool: return matcaps[k][f] != 0.0))
+	return range(matcaps.size()).filter(func(k: int) -> bool: return matcaps[k] is Dictionary and (blended or DRAWN_BY.any(func(f: String) -> bool: return matcaps[k][f] != 0.0)))
 
 
-static func _matcap_rows(table: Image, column: int, m: Dictionary, textures: int) -> void:
+static func _matcap_rows(table: Image, column: int, m: Dictionary, textures: int, blended: bool) -> void:
 	var row := HEAD_ROWS + RAMP + COAT_ROWS
-	var slots := _drawn_matcaps(m)
+	var slots := _drawn_matcaps(m, blended)
 	table.set_pixel(column, row, Color(slots.size(), 0.0, 0.0, 0.0))
 	for k in slots.size():
 		var c: Dictionary = m.matcaps[slots[k]]

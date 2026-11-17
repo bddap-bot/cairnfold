@@ -1341,7 +1341,7 @@ func draws(key: String, look: Dictionary, property: String) -> bool:
 		"themeHue", "themeSaturation", "themeValue", "themeSpeed":
 			return glows_in(key, look.slot) or range(MATCAPS.size()).any(func(k: int) -> bool: return matcap(key, k).get("theme") == look.slot)
 		"matcapHueShift":
-			return matcap(key, look.slot).get("hue") != null and _drawn_matcap(key, look.slot)
+			return matcap(key, look.slot).get("hue") != null
 		"clearcoatST":
 			return coat_uv(key) >= 0
 		"lightAdd", "brightness":
@@ -1349,12 +1349,7 @@ func draws(key: String, look: Dictionary, property: String) -> bool:
 			var name := property.get_slice(".", 0)
 			var live := not str(m.get("shader", "")).begins_with("Hidden/Locked/") or (m.get("animated", {}) as Dictionary).keys().any(func(k: String) -> bool: return name == k or name.begins_with(k + "_"))
 			return poiyomi(m) and live and (look.field == "lightAdd" or _float(m, "_PostProcess") != 0.0)
-	return _drawn_matcap(key, look.slot)
-
-
-func _drawn_matcap(key: String, slot: int) -> bool:
-	var drawn := matcap(key, slot)
-	return Avatar.DRAWN_BY.any(func(f: String) -> bool: return drawn.get(f, 0.0) != 0.0)
+	return not matcap(key, look.slot).is_empty()
 
 
 func coat_uv(key: String) -> int:
