@@ -161,6 +161,9 @@ var springs: SpringRuntime
 var _springs_off := {}
 ## `movers` of the chains of `springs`.
 var _moved_by: Array = []
+var _left_out_by: Array = []
+var _left_out_off := {}
+var _left_out_authored := {}
 var simulate_springs := true
 var local := false
 var expressions: ExpressionPlayer
@@ -495,12 +498,11 @@ static func _switched_off(root: Node3D) -> void:
 				kept[joint.node] = true
 	if springs.springs.any(func(chain: Dictionary) -> bool: return chain.joints.any(func(j: Dictionary) -> bool: return j.has("physbone") and not j.has("settled"))):
 		push_error("avatar: a PhysBone joint carries no settled rotation; convert the avatar again")
-	var bones: Dictionary = root.get_meta("humanoid", {})
-	var sk := root.get_node_or_null(str(bones.get("hips", "")).get_slice(":", 0)) as Skeleton3D
-	for c: int in off:
-		for joint: Dictionary in springs.springs[c].joints:
-			if not kept.has(joint.node):
-				_rest_settled(sk, _bone(sk, bones.get("spring_%d" % joint.node)), joint)
+	var left_out: Array = off.keys().map(func(c: int) -> Dictionary: return springs.springs[c])
+	for chain: Dictionary in left_out:
+		for joint: Dictionary in chain.joints:
+			joint.shared = kept.has(joint.node)
+	root.set_meta("left_out", left_out)
 	springs.springs = range(springs.springs.size()).filter(func(c: int) -> bool: return not off.has(c)).map(func(c: int) -> Dictionary: return springs.springs[c])
 	for chain: Dictionary in springs.springs:
 		chain.colliders = (chain.colliders as Array).filter(func(c: int) -> bool: return not colliders.has(c))
@@ -583,6 +585,7 @@ static func running(chains: Array, drawn: Callable, off := {}) -> Dictionary:
 ## A chain whose PhysBone is switched on again swings about the pose it was left in, as VRChat's does, so each time it
 ## is switched off and on it rests where it last sagged to.
 func _budget() -> void:
+	_rest_left_out()
 	if springs == null:
 		return
 	var sources: Array = springs.chains.map(func(chain: Dictionary) -> Dictionary: return chain.source)
@@ -598,6 +601,41 @@ func _budget() -> void:
 			for joint: Dictionary in springs.chains[i].joints:
 				springs.set_rest(joint.node, joint.node.transform)
 	_springs_off = off
+
+
+func _rest_left_out() -> void:
+	var left: Array = _model.get_meta("left_out", [])
+	if left.is_empty() or expressions == null:
+		return
+	var switched: Array = _model.get_meta("expressions", {}).get("springs", [])
+	if _left_out_by.is_empty():
+		_left_out_by = movers(left, switched)
+		for c in left.size():
+			_left_out_off[c] = true
+	var off := stopped(_left_out_by, switched.map(func(s: Dictionary) -> bool: return ExpressionPlayer.shows(expressions.state.outputs, s.when)))
+	rest_left_out(_skeleton, _model.get_meta("humanoid"), left, off, _left_out_off, _left_out_authored)
+	_left_out_off = off
+
+
+static func rest_left_out(sk: Skeleton3D, bones: Dictionary, left: Array, off: Dictionary, was: Dictionary, authored: Dictionary) -> void:
+	var touched := {}
+	for c in left.size():
+		if off.has(c) != was.has(c):
+			for joint: Dictionary in left[c].joints:
+				touched[joint.node] = not joint.shared
+	var settled := {}
+	for c in left.size():
+		for joint: Dictionary in left[c].joints if not off.has(c) else []:
+			if joint.has("settled") and not settled.has(joint.node):
+				settled[joint.node] = joint.settled
+	for node: int in touched:
+		var bone := _bone(sk, bones.get("spring_%d" % node))
+		if bone < 0 or not touched[node]:
+			continue
+		var rest := sk.get_bone_rest(bone)
+		var turn: Quaternion = settled.get(node, authored.get_or_add(bone, rest.basis.get_rotation_quaternion()))
+		sk.set_bone_rest(bone, Transform3D(Basis(turn).scaled_local(rest.basis.get_scale()), rest.origin))
+		sk.set_bone_pose_rotation(bone, turn)
 
 
 ## The chains of `springs` whose PhysBone the expression `outputs` switch off.

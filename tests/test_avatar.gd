@@ -872,8 +872,21 @@ func _switched_off_physics_stays_out() -> void:
 	root.set_meta("expressions", {"targets": [{"effect": "switch", "default": 0.0}, {"effect": "switch", "default": 1.0}], "springs": [{"joints": [3.0, 4.0], "when": [[0, 1]]}, {"joints": [3.0, 7.0], "when": [[1, 1]]}]})
 	root.set_meta("springs", {"springs": [{"joints": [{"node": 3, "settled": turn}, {"node": 4, "settled": turn}], "colliders": []}, {"joints": [{"node": 3}, {"node": 7}], "colliders": []}], "colliders": []})
 	Avatar._switched_off(root)
-	check(sk.get_bone_rest(4).basis.get_rotation_quaternion().is_equal_approx(turn) and sk.get_bone_rest(4).origin.is_equal_approx(Vector3(0, -0.1, 0)), "a bone only a chain left out moves rests at its settled rotation, as VRChat shows the chain once it runs")
+	var left: Array = root.get_meta("left_out")
+	check(left.size() == 1 and sk.get_bone_rest(4).basis.get_rotation_quaternion().is_equal_approx(Quaternion.IDENTITY), "a chain left out at load keeps its bones' authored rests while its switch is off: %s" % [left])
+	var authored := {}
+	Avatar.rest_left_out(sk, human, left, {}, {0: true}, authored)
+	check(sk.get_bone_rest(4).basis.get_rotation_quaternion().is_equal_approx(turn) and sk.get_bone_pose_rotation(4).is_equal_approx(turn) and sk.get_bone_rest(4).origin.is_equal_approx(Vector3(0, -0.1, 0)), "switched on, a bone only it moves rests and stands at its settled rotation, as VRChat shows the chain running")
 	check(sk.get_bone_rest(3).basis.get_rotation_quaternion().is_equal_approx(Quaternion.IDENTITY), "a bone a kept chain moves keeps its own rest")
+	Avatar.rest_left_out(sk, human, left, {0: true}, {}, authored)
+	check(sk.get_bone_rest(4).basis.get_rotation_quaternion().is_equal_approx(Quaternion.IDENTITY) and sk.get_bone_pose_rotation(4).is_equal_approx(Quaternion.IDENTITY), "switched off again, it returns to its authored rotation")
+	var other := Quaternion(Vector3.UP, 0.3)
+	var twice := [{"joints": [{"node": 4, "settled": turn, "shared": false}]}, {"joints": [{"node": 4, "settled": other, "shared": false}]}]
+	Avatar.rest_left_out(sk, human, twice, {0: true}, {0: true, 1: true}, authored)
+	Avatar.rest_left_out(sk, human, twice, {1: true}, {0: true}, authored)
+	check(sk.get_bone_pose_rotation(4).is_equal_approx(turn), "a bone two chains left out move follows whichever one a switch has on, whatever order they turn in")
+	Avatar.rest_left_out(sk, human, twice, {0: true, 1: true}, {1: true}, authored)
+	check(sk.get_bone_pose_rotation(4).is_equal_approx(Quaternion.IDENTITY), "and its authored rotation once both are off")
 	root.free()
 	var pair := [{"joints": [{"node": 1}, {"node": 2}]}, {"joints": [{"node": 1}, {"node": 2}, {"node": 3}]}]
 	var moved := Avatar.movers(pair, [{"joints": [1, 2]}, {"joints": [1, 2]}, {"joints": [9]}])
