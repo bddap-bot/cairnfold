@@ -119,8 +119,8 @@ static func looks_valid(looks: Variant) -> bool:
 			push_error("expressions: a look's shadow is not a border, blur and strength with a null or numeric second shade and edge: %s" % [shadow])
 			return false
 		var glow: Variant = m.get("emission")
-		if glow != null and not (glow is Dictionary and Vrm.holds(glow, Vrm.EXPRESSIONS, "emission") and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.replace)):
-			push_error("expressions: a look's emission is not a colour of three numbers, a strength and a numeric replace: %s" % [glow])
+		if glow != null and not (glow is Dictionary and Vrm.holds(glow, Vrm.EXPRESSIONS, "emission") and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.replace) and _number(glow.get("base", 0.0)) and _number(glow.get("fluorescence", 0.0))):
+			push_error("expressions: a look's emission is not a colour of three numbers, a strength, a numeric replace and a numeric base and fluorescence where given: %s" % [glow])
 			return false
 		if glow != null and glow.get("theme") != null and not (is_index(glow.theme, 4) and m.get("themes") is Array and m.themes.size() == 4 and _theme(m.themes[int(glow.theme)])):
 			push_error("expressions: a look's emission glows in a theme its material does not carry whole: %s" % [m.get("themes")])

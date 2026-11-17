@@ -27,7 +27,7 @@ func _run() -> void:
 	_clear_coat()
 	_toon()
 	_animated_looks()
-	_each_converted_look_is_driven_or_named_still()
+	_each_converted_look_is_driven()
 	finish()
 
 
@@ -1088,13 +1088,11 @@ func _menu_lifts_and_dims_the_lighting() -> void:
 	root.free()
 
 
-func _each_converted_look_is_driven_or_named_still() -> void:
-	var declared: Array = ExpressionPlayer.DRIVEN_LOOKS + ExpressionPlayer.UNDRIVEN_LOOKS
+func _each_converted_look_is_driven() -> void:
 	var bound := Materials.fields()
-	var undeclared := bound.filter(func(f: String) -> bool: return f not in declared)
-	var unbound := declared.filter(func(f: String) -> bool: return f not in bound)
-	var both := ExpressionPlayer.DRIVEN_LOOKS.filter(func(f: String) -> bool: return f in ExpressionPlayer.UNDRIVEN_LOOKS)
-	check(undeclared.is_empty() and unbound.is_empty() and both.is_empty(), "each look field the converter binds is one the player drives or names as left still, never both, and each named is one it binds: undeclared %s, never bound %s, both %s" % [undeclared, unbound, both])
+	var undriven := bound.filter(func(f: String) -> bool: return f not in ExpressionPlayer.DRIVEN_LOOKS)
+	var unbound := ExpressionPlayer.DRIVEN_LOOKS.filter(func(f: String) -> bool: return f not in bound)
+	check(undriven.is_empty() and unbound.is_empty(), "each look field the converter binds is one the player drives, and each it drives is one the converter binds: undriven %s, never bound %s" % [undriven, unbound])
 	var model := Node3D.new()
 	var hat := MeshInstance3D.new()
 	hat.name = "Hat"
@@ -1106,10 +1104,10 @@ func _each_converted_look_is_driven_or_named_still() -> void:
 	var rect := [0.0, 0.0, 1.0, 1.0]
 	var theme := {"slot": 0, "hsv": [0.0, 1.0, 1.0], "exposure": 1.0, "hue": 0.0, "saturation": 0.0, "value": 0.0, "speed": 0.0}
 	var looks := {"materials": [{"matcaps": [], "rect": rect, "lighting": {"model": "lit"}, "emission": {"color": [1.0, 0.0, 0.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0, "theme": 0}, "themes": [theme, null, null, null]}]}
-	var targets := declared.map(func(f: String) -> Dictionary: return {"effect": {"look": [{"node": "Hat", "rect": rect, "field": f, "slot": 0}]}, "default": 0.0})
+	var targets := ExpressionPlayer.DRIVEN_LOOKS.map(func(f: String) -> Dictionary: return {"effect": {"look": [{"node": "Hat", "rect": rect, "field": f, "slot": 0}]}, "default": 0.0})
 	model.set_meta("expressions", {"parameters": [], "targets": targets, "clips": [], "layers": [], "shown": [], "menu": [], "looks": looks})
 	var player := ExpressionPlayer.new(model)
-	var driven := range(declared.size()).filter(func(i: int) -> bool: return not (player._bindings[i] as Array).is_empty()).map(func(i: int) -> String: return declared[i])
-	check(driven == ExpressionPlayer.DRIVEN_LOOKS, "the player drives each look field it names driven and none it names left still: %s" % [driven])
+	var driven := range(targets.size()).filter(func(i: int) -> bool: return not (player._bindings[i] as Array).is_empty()).map(func(i: int) -> String: return ExpressionPlayer.DRIVEN_LOOKS[i])
+	check(driven == ExpressionPlayer.DRIVEN_LOOKS, "the player drives each look field it names driven: %s" % [driven])
 	player.free()
 	model.free()

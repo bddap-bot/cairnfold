@@ -695,7 +695,7 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 				for ref: Variant in Yaml.list(objs.get(renderer, {}).get("data", {}).get("m_Materials")):
 					var m: Dictionary = materials.materials.get(Yaml.guid(ref), {}) if ref is Dictionary else {}
 					if m.has("cell") and (m.get("properties", {}) as Dictionary).has(property) and (m.get("floats", {}) as Dictionary).has(property):
-						materials.drive_strength(Yaml.guid(ref))
+						materials.drive_strength(Yaml.guid(ref), Materials.field(property).slot)
 	for clip: Dictionary in data.clips:
 		var curves := []
 		for c: Dictionary in clip.curves:
@@ -801,13 +801,6 @@ static func _bound(expressions: Expressions, switches: Dictionary, meshes: Array
 	data.particles = range(particles.when.size()).filter(func(i: int) -> bool: return not (particles.when[i] as Array).is_empty()).map(func(i: int) -> Dictionary: return {"system": i, "when": particles.when[i]})
 	data.shown = meshes.filter(func(m: Dictionary) -> bool: return not (m.when as Array).is_empty()).map(func(m: Dictionary) -> Dictionary: return {"node": m.node, "when": m.when})
 	report["menu"] = "%d controls over %d layers, %d targets" % [_controls(data.menu), (data.layers as Array).size(), targets.size()]
-	var undriven := {}
-	for t: Dictionary in targets:
-		for region: Dictionary in t.effect.get("look", []) if t.effect is Dictionary else []:
-			if region.field in ExpressionPlayer.UNDRIVEN_LOOKS:
-				undriven[region.field] = undriven.get(region.field, 0) + 1
-	if not undriven.is_empty():
-		report["looks bound that Cairnfold does not drive"] = ", ".join(undriven.keys().map(func(f: String) -> String: return "%s %d" % [f, undriven[f]]))
 	if not dropped.is_empty():
 		report["menu: not translated"] = dropped
 	return data

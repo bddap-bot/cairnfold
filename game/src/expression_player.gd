@@ -45,14 +45,13 @@ const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", 
 const DECAL_PAD := 8
 const UNITY_GREY := 0.214
 ## In the shader's field order.
-const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emission", "matcapIntensity", "matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed", "matcapHueShift"]
+const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emission", "matcapIntensity", "matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed", "matcapHueShift", "emissionHue"]
 ## Set only while the target is off its rest; at rest each covered material keeps its own.
-const RESTING_FIELDS := ["emission", "matcapIntensity", "matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed", "matcapHueShift"]
+const RESTING_FIELDS := ["emission", "matcapIntensity", "matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed", "matcapHueShift", "emissionHue"]
 const POST_CHANNELS := {"lightAdd": 0, "brightness": 1}
 const POST_RESTS: Array[float] = [0.0, 1.0]
 const THEME_FIELDS := ["themeHue", "themeSaturation", "themeValue", "themeSpeed"]
 static var DRIVEN_LOOKS: Array = LOOK_FIELDS + THEME_FIELDS + POST_CHANNELS.keys()
-const UNDRIVEN_LOOKS := ["emissionHue"]
 
 ## All avatars; metrics.gd reads and resets it.
 static var process_us := 0
@@ -206,6 +205,9 @@ func _init(model: Node3D) -> void:
 			continue
 		_turning(glows.entries, looks, resting)
 		glows.table = (lighting as ImageTexture).get_image().duplicate() as Image
+		for column: int in glows.get("posts", {}):
+			var rest: Color = glows.table.get_pixel(column, Avatar.POST_ROW)
+			glows.posts[column] = Color(glows.posts[column].r, glows.posts[column].g, rest.b, rest.a)
 		glows.texture = ImageTexture.create_from_image(glows.table)
 		for mat: ShaderMaterial in mats:
 			if mat.get_shader_parameter("lighting") == lighting:

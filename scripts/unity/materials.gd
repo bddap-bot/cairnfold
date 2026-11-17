@@ -57,7 +57,7 @@ var color_regions := {}
 ## Materials whose emission a clip drives: one dark at rest glows only if listed.
 var glow_regions := {}
 var post_regions := {}
-## Materials whose first emission's strength a clip animates: it draws alone, at the clip's strength.
+## The emission slots whose strength a clip animates, by material: the first of them drawn draws alone, at the clip's strength.
 var strength_driven := {}
 ## Caches of `_poiyomi_glows` and `_glow_and_peak` ([map, peak strength]); `looks` drops the map.
 var _glow_lists := {}
@@ -1110,8 +1110,8 @@ func _ramp(m: Dictionary) -> Array:
 	return out
 
 
-## At rest, "color" linear, "replace" Poiyomi's Override Base Color, "theme" a `_theme` slot; or {}. Poiyomi adds
-## its four emissions up, so those alike fold into the drawn one's map (`_folded`).
+## At rest, "color" linear, "replace" Poiyomi's Override Base Color, "theme" a `_theme` slot, "base" and "fluorescence"
+## where set; or {}. Poiyomi adds its four emissions up, so those alike fold into the drawn one's map (`_folded`).
 func emission(key: String) -> Dictionary:
 	var m: Dictionary = materials[key]
 	if not m.has("cell"):
@@ -1135,19 +1135,26 @@ func emission(key: String) -> Dictionary:
 	var out := {"color": [colour.r, colour.g, colour.b], "strength": _peak(key) if mixed else drawn.strength * _peak(key), "hue": 0.0, "shiftsHue": false, "replace": drawn.replace}
 	if not drawn.theme.is_empty():
 		out.theme = drawn.theme.slot
+	if drawn.base:
+		out.base = 1.0
+	if drawn.fluorescence > 0.0:
+		out.fluorescence = drawn.fluorescence
 	return out
 
 
 func _drawn(key: String) -> Dictionary:
 	var glows := _poiyomi_glows(key)
 	var lit := glows.filter(func(g: Dictionary) -> bool: return g.strength > 0.0)
-	if not glows.is_empty() and glows[0].slot == 0 and (glows[0].strength > 0.0 or strength_driven.has(key) or lit.is_empty()):
+	var driven := glows.filter(func(g: Dictionary) -> bool: return g.slot in strength_driven.get(key, []))
+	if not driven.is_empty():
+		return driven[0]
+	if not glows.is_empty() and glows[0].slot == 0 and (glows[0].strength > 0.0 or lit.is_empty()):
 		return glows[0]
 	return lit.reduce(func(strongest: Dictionary, g: Dictionary) -> Dictionary: return g if g.strength > strongest.strength else strongest, lit[0]) if not lit.is_empty() else {}
 
 
-## Each {"slot", "strength", "replace", "theme" ({} for none), "colour" (linear)}, in slot order. Those the base
-## colour tints are out: decals and hue shifts change it after the atlas.
+## Each {"slot", "strength", "replace", "theme" ({} for none), "colour" (linear), "base" (the drawn colour tints it),
+## "fluorescence"}, in slot order.
 func _poiyomi_glows(key: String) -> Array[Dictionary]:
 	if _glow_lists.has(key):
 		return _glow_lists[key]
@@ -1160,16 +1167,16 @@ func _poiyomi_glows(key: String) -> Array[Dictionary]:
 		var n := "" if slot == 0 else str(slot)
 		if _saved(m, "_EnableEmission" + n, 0.0) == 0.0:
 			continue
-		var still := ["_EmissionMap%sUV" % n, "_EmissionMask%sUV" % n, "_EmissionBaseColorAsMap" + n, "_EmissionCenterOutEnabled" + n, "_ScrollingEmission" + n, "_EmissionHueShiftEnabled" + n, "_EnableGITDEmission" + n]
+		var still := ["_EmissionMap%sUV" % n, "_EmissionMask%sUV" % n, "_EmissionCenterOutEnabled" + n, "_ScrollingEmission" + n, "_EmissionHueShiftEnabled" + n, "_EnableGITDEmission" + n]
 		if not still.all(func(name: String) -> bool: return _float(m, name) == 0.0) or not global_mask(m, int(_float(m, "_EmissionMask%dGlobalMask" % slot))) is Dictionary:
 			continue
 		var index := int(_float(m, "_EmissionColor%sThemeIndex" % n)) - 1
 		var theme := _theme(m, index) if index >= 0 and index <= 3 else {}
 		var colour := shader_colour(m, "_EmissionColor" + n, Color.WHITE)
 		var strength := _saved(m, "_EmissionStrength" + n, 0.0)
-		if _float(m, "_EmissionBlinkingEnabled" + n) != 0.0 and not (slot == 0 and strength_driven.has(key)):
+		if _float(m, "_EmissionBlinkingEnabled" + n) != 0.0 and slot not in strength_driven.get(key, []):
 			strength *= (_saved(m, "_EmissiveBlink_Min" + n, 0.0) + _saved(m, "_EmissiveBlink_Max" + n, 1.0)) / 2.0
-		out.append({"slot": slot, "strength": strength if slot == 0 and strength_driven.has(key) else _audio_link_strength(m, slot, strength), "replace": _saved(m, "_EmissionReplace%d" % slot, 0.0), "theme": theme, "colour": colour})
+		out.append({"slot": slot, "strength": strength if slot in strength_driven.get(key, []) else _audio_link_strength(m, slot, strength), "replace": _saved(m, "_EmissionReplace%d" % slot, 0.0), "theme": theme, "colour": colour, "base": _float(m, "_EmissionBaseColorAsMap" + n) != 0.0, "fluorescence": _saved(m, "_EmissionFluorescence" + n, 0.0)})
 	return out
 
 
@@ -1192,7 +1199,7 @@ static func _audio_link_strength(m: Dictionary, slot: int, strength: float) -> f
 ## Emissions folding into `_drawn`'s, as [slot, weight per channel]; `_mixed` colours fold in and `emission` draws white.
 func _folded(key: String) -> Array:
 	var drawn := _drawn(key)
-	if drawn.is_empty() or drawn.strength == 0.0 or drawn.slot == 0 and strength_driven.has(key):
+	if drawn.is_empty() or drawn.strength == 0.0 or drawn.slot in strength_driven.get(key, []):
 		return [] if drawn.is_empty() else [[drawn.slot, Color.WHITE]]
 	if _mixed(key):
 		return _alike(key).map(func(g: Dictionary) -> Array: return [g.slot, g.colour * g.strength])
@@ -1201,12 +1208,12 @@ func _folded(key: String) -> Array:
 
 func _alike(key: String) -> Array:
 	var drawn := _drawn(key)
-	return _poiyomi_glows(key).filter(func(g: Dictionary) -> bool: return g.replace == drawn.replace and g.strength > 0.0 and g.theme.get("slot") == drawn.theme.get("slot"))
+	return _poiyomi_glows(key).filter(func(g: Dictionary) -> bool: return g.replace == drawn.replace and g.base == drawn.base and g.fluorescence == drawn.fluorescence and g.strength > 0.0 and g.theme.get("slot") == drawn.theme.get("slot"))
 
 
 func _mixed(key: String) -> bool:
 	var drawn := _drawn(key)
-	if drawn.is_empty() or not drawn.theme.is_empty() or drawn.strength == 0.0 or drawn.slot == 0 and strength_driven.has(key):
+	if drawn.is_empty() or not drawn.theme.is_empty() or drawn.strength == 0.0 or drawn.slot in strength_driven.get(key, []):
 		return false
 	return _alike(key).any(func(g: Dictionary) -> bool: return not g.colour.is_equal_approx(drawn.colour))
 
@@ -1261,8 +1268,11 @@ func _glow_and_peak(key: String) -> Array:
 	return _folded_maps[key]
 
 
-func drive_strength(key: String) -> void:
-	strength_driven[key] = true
+func drive_strength(key: String, slot: int) -> void:
+	var slots: Array = strength_driven.get_or_add(key, [])
+	if slot not in slots:
+		slots.append(slot)
+		slots.sort()
 	_glow_lists.erase(key)
 	_folded_maps.erase(key)
 
@@ -1334,7 +1344,7 @@ func draws(key: String, look: Dictionary, property: String) -> bool:
 			if emission(key).is_empty():
 				return false
 			if poiyomi(materials[key]):
-				return _drawn(key).slot == 0
+				return _drawn(key).slot == look.slot
 			return not Liltoon.is_liltoon(materials[key]) or Liltoon.blended_by(materials[key]) == property
 		"emissionHue":
 			return not emission(key).is_empty() and emission(key).shiftsHue
@@ -1376,7 +1386,7 @@ static func field(property: String) -> Dictionary:
 		return {"field": MATCAP_LOOKS.Intensity, "slot": int(blend.get_string(1) != "")}
 	var glow := _EMISSION_FIELD.search(property)
 	if glow != null:
-		return {"field": EMISSION_LOOKS[glow.get_string(1)], "slot": 0}
+		return {"field": EMISSION_LOOKS[glow.get_string(1)], "slot": glow.get_string(2).to_int()}
 	var post := _POST_FIELD.search(property)
 	if post != null:
 		return {"field": POST_LOOKS[post.get_string(1)], "slot": 0}
@@ -1405,7 +1415,7 @@ static var LAYER_ALPHAS: Array = Liltoon.LAYERS.map(func(n: String) -> String: r
 static var _DECAL_FIELD := RegEx.create_from_string("^_Decal(%s)([1-3]?)(_|$)" % "|".join(DECAL_LOOKS.keys()))
 static var _MATCAP_FIELD := RegEx.create_from_string("^_Matcap([2-4]?)(%s)(_|$)" % "|".join(MATCAP_LOOKS.keys()))
 static var _MATCAP_BLEND_FIELD := RegEx.create_from_string("^_MatCap(2nd)?Blend$")
-static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(%s)(_|$)" % "|".join(EMISSION_LOOKS.keys()))
+static var _EMISSION_FIELD := RegEx.create_from_string("^_Emission(%s)([1-3]?)(_|$)" % "|".join(EMISSION_LOOKS.keys()))
 static var _POST_FIELD := RegEx.create_from_string("^_(%s)(_|$)" % "|".join(POST_LOOKS.keys()))
 static var _THEME_FIELD := RegEx.create_from_string("^_GlobalTheme(%s)([0-3])(_|$)" % "|".join(THEME_LOOKS.keys()))
 

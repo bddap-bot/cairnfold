@@ -853,6 +853,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 			if lit or glow.get("theme") != null:
 				drawn[k + 1] |= LOOKED
 				table.set_pixel(k + 1, 1, Color(glow.color[0], glow.color[1], glow.color[2], float(glow.get("replace", 0.0))))
+				table.set_pixel(k + 1, POST_ROW, Color(0.0, 0.0, float(glow.get("base", 0.0)), float(glow.get("fluorescence", 0.0))))
 		table.set_pixel(k + 1, 0, head)
 	if drawn.count(0) == drawn.size():
 		return

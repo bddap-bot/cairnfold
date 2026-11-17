@@ -64,6 +64,16 @@ func _run() -> void:
 	env.ambient_light_color = Color.BLACK
 	shots["glow"] = await _sides(view)
 	glowing.queue_free()
+	for model: String in ["base glow", "dark glow", "lit glow"]:
+		var tinted := _ball(model)
+		view.add_child(tinted)
+		if model == "lit glow":
+			sun.light_energy = 0.25
+			RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE * 0.25)
+		shots[model] = await _sides(view)
+		tinted.queue_free()
+	sun.light_energy = 0.0
+	RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ZERO)
 	var turning := _ball("theme")
 	view.add_child(turning)
 	await _sides(view)
@@ -90,6 +100,12 @@ func _run() -> void:
 	check(absf(tinted.x - 0.5) < 0.04 and absf(tinted.y - 0.5) < 0.04, "a white material whose shadow tint is whole is lit whole on its shaded side too: %s" % tinted)
 	var glow: Vector2 = shots["glow"]
 	check(absf(glow.x - 0.75) < 0.04 and absf(glow.y - 0.75) < 0.04, "a material glowing red 0.25 at strength 2 that overrides its base colour glows 0.5 over the half it replaces, 0.75, on both sides in the dark: %s" % glow)
+	var base_glow: Vector2 = shots["base glow"]
+	var dark_glow: Vector2 = shots["dark glow"]
+	check(absf(base_glow.x - 0.107) < 0.02 and absf(base_glow.y - 0.107) < 0.02, "a white glow the drawn colour tints takes the albedo's red, 0.214, at half its fluorescence of 0.5 in the dark, 0.107: %s" % base_glow)
+	var lit_glow: Vector2 = shots["lit glow"]
+	check(absf(lit_glow.y - 0.214 * (0.5 + 0.5 * 0.75 * 0.5)) < 0.02, "under a light of 0.25 its fluorescence keeps half plus half of (1 - 0.25) * sqrt(0.25) on the side the light misses: %s" % lit_glow)
+	check(dark_glow.distance_to(base_glow) < 0.01, "a menu taking the brightness to nothing leaves the glow as Poiyomi adds it after: %s" % dark_glow)
 	check(reds.min() < 0.05 and reds.max() > 0.6, "a glow in a theme colour whose hue turns a third a frame goes from red to none and back: %s" % [reds])
 	var masked: Vector2 = shots["masked"]
 	var coat: Vector2 = shots["coat"]
@@ -167,7 +183,7 @@ func _ball(model: String) -> Node3D:
 	sphere.radial_segments = 48
 	sphere.rings = 24
 	var picture := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
-	picture.fill(Color.WHITE)
+	picture.fill(Color(0.5, 0.0, 0.0) if model.ends_with(" glow") else Color.WHITE)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = ImageTexture.create_from_image(picture)
 	var im := ImporterMesh.new()
@@ -181,10 +197,17 @@ func _ball(model: String) -> Node3D:
 	if model in ["glow", "theme"]:
 		looks.materials[0].emission = {"color": [0.25, 0.0, 0.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 1.0}
 		looks.emission = picture
+	if model.ends_with(" glow"):
+		looks.materials[0].emission = {"color": [1.0, 1.0, 1.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0, "base": 1.0, "fluorescence": 0.5}
+		looks.materials[0].rect = [0, 0, 1, 1]
+		looks.emission = Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+		looks.emission.fill(Color.WHITE)
 	if model == "theme":
 		looks.materials[0].emission.theme = 0
 		looks.materials[0].themes = [{"slot": 0, "hsv": [0.0, 1.0, 0.25], "exposure": 1.0, "hue": 0.0, "saturation": 0.0, "value": 0.0, "speed": 400.0}, null, null, null]
 	var expressions := {"looks": looks}
+	if model == "dark glow":
+		expressions.merge({"parameters": [], "clips": [], "layers": [], "shown": [], "menu": [], "targets": [{"effect": {"look": [{"node": "Ball", "rect": [0, 0, 1, 1], "field": "brightness", "slot": 0}]}, "default": 1.0}]})
 	if model in ["coat", "masked", "unmasked"]:
 		var map := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
 		map.set_pixel(0, 0, Color8(0, 255, 255, 255))
@@ -227,6 +250,10 @@ func _ball(model: String) -> Node3D:
 	ExpressionPlayer.prepare(ball)
 	var player := ExpressionPlayer.new(ball)
 	player.apply()
+	if model == "dark glow":
+		player.set_process(false)
+		player.state.outputs.assign([0.0])
+		player.apply()
 	ball.add_child(player)
 	return ball
 
