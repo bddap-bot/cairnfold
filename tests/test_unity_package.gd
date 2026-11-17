@@ -2337,7 +2337,7 @@ static func _near(a: Color, b: Color, bytes := 2) -> bool:
 func _a_liltoon_shader_the_package_omits_is_known() -> void:
 	var assets := _liltoon_fixture("liltoon-known", {
 		"veil": _liltoon_mat(LILTOON_MULTI, ["UNITY_UI_CLIP_RECT"], {"_TransparentMode": 2, "_SrcBlend": 1, "_DstBlend": 10, "_ZWrite": 1}),
-		"lace": _liltoon_mat(LILTOON_MULTI, ["UNITY_UI_ALPHACLIP"], {"_TransparentMode": 1, "_Cutoff": 0.3, "_DstBlend": 0}),
+		"clipped": _liltoon_mat(LILTOON_MULTI, ["UNITY_UI_ALPHACLIP"], {"_TransparentMode": 1, "_Cutoff": 0.3, "_DstBlend": 0}),
 		"sheer": _liltoon_mat(LILTOON_TRANSPARENT, [], {"_SrcBlend": 1, "_DstBlend": 10, "_ZWrite": 0}),
 		"plain": _liltoon_mat(LILTOON, [], {"_DstBlend": 0, "_TransparentMode": 2}),
 		"lite": _liltoon_mat(LILTOON_LITE, [], {"_UseShadow": 1}),
@@ -2347,11 +2347,11 @@ func _a_liltoon_shader_the_package_omits_is_known() -> void:
 	var of := func(guid: String) -> Dictionary: return materials.materials[materials.use({"guid": guid}, Color.WHITE)]
 	check(of.call("veil").shader == "_lil/lilToonMulti" and of.call("veil").properties.has("_MainTexHSVG") and of.call("veil").properties.has("_Color"), "lilToon Multi is known by name with its declared properties: %s" % of.call("veil").shader)
 	check(Materials.pass_of(of.call("veil")) == Materials.Pass.BLENDED_DEPTH, "Multi in Transparent mode blends, writing depth")
-	check(of.call("lace").alpha == Materials.Alpha.CUTOUT and is_equal_approx(of.call("lace").cutoff, 0.3), "Multi in Cutout mode cuts at its _Cutoff")
+	check(of.call("clipped").alpha == Materials.Alpha.CUTOUT and is_equal_approx(of.call("clipped").cutoff, 0.3), "Multi in Cutout mode cuts at its _Cutoff")
 	check(of.call("sheer").shader == "Hidden/lilToonTransparent" and Materials.pass_of(of.call("sheer")) == Materials.Pass.BLENDED, "the Transparent variant blends by its _DstBlend, writing no depth")
 	check(of.call("plain").alpha == Materials.Alpha.OPAQUE, "a variant ignores the _TransparentMode it declares")
 	check(of.call("lite").properties.has("_Color") and not of.call("lite").properties.has("_MainTexHSVG"), "Lite declares its own properties")
-	materials.pack(["veil", "lace", "sheer", "plain", "lite", "odd"].map(func(key: String) -> String: return materials.use({"guid": key}, Color.WHITE)))
+	materials.pack(["veil", "clipped", "sheer", "plain", "lite", "odd"].map(func(key: String) -> String: return materials.use({"guid": key}, Color.WHITE)))
 	var losses := materials.losses()
 	check("lite: shadow (lilToon Lite)" in losses and "odd: render mode (_TransparentMode 0, but _DstBlend 10)" in losses and losses.size() == 2, "Lite's shadow and a Multi mode its blend state disagrees with are reported: %s" % [losses])
 
@@ -3093,9 +3093,9 @@ func _contacts_keep_their_shape_tags_and_switch() -> void:
 		10: transform.call(110, 0, v.call(0, 1, 0)), 11: transform.call(111, 10, v.call(0, 0.5, 0)), 12: transform.call(112, 10, v.call(0, 0, 0)), 13: transform.call(113, 12, v.call(0, 0.03, 0)),
 		30: transform.call(130, 11, v.call(0.2, 0, 0)), 31: transform.call(131, 10, v.call(0, 0, 0.1)),
 		110: object.call("Chest", [10]), 111: object.call("Head", [11]), 112: object.call("Middle", [12]), 113: object.call("Tip", [13]),
-		130: object.call("Boop", [30, 40], "0"), 131: object.call("Badge", [31, 41]),
+		130: object.call("Boop", [30, 40], "0"), 131: object.call("Emitter", [31, 41]),
 		40: contact.call(130, {"shapeType": "1", "height": "0.5", "receiverType": "2", "parameter": "Boop", "allowSelf": "0", "allowOthers": "1", "localOnly": "1", "minVelocity": "0.1"}),
-		41: contact.call(131, {"collisionTags": ["Badge", "Torso"]}),
+		41: contact.call(131, {"collisionTags": ["Emitter", "Torso"]}),
 	}
 	var descriptor := {"collider_head": {"state": "1", "transform": {"fileID": "11"}, "radius": "0.07", "height": "0", "position": v.call(0, 0.06, 0), "rotation": {"x": "0", "y": "0", "z": "0", "w": "1"}},
 		"collider_fingerIndexL": {"state": "0", "transform": {"fileID": "13"}, "radius": "0.01", "height": "0.05", "position": v.call(0, 0, 0), "rotation": {"x": "0", "y": "0", "z": "0", "w": "1"}},
@@ -3111,8 +3111,8 @@ func _contacts_keep_their_shape_tags_and_switch() -> void:
 	check(boop.get("receiver") == {"type": "proximity", "parameter": "Boop", "self": false, "others": true, "local": true, "minVelocity": 0.1}, "and keeps its receiving: %s" % [boop.get("receiver")])
 	var ends: Array = [boop.shape.offset, boop.shape.tail].map(func(a: Array) -> Vector3: return Vector3(a[0], a[1], a[2]))
 	check(ends[0].is_equal_approx(Vector3(-0.2, -0.15, 0)) and ends[1].is_equal_approx(Vector3(-0.2, 0.15, 0)) and is_equal_approx(boop.shape.radius, 0.1), "its capsule runs its height less the caps along Y, X mirrored: %s" % [boop.shape])
-	var badge: Dictionary = by_tag.get("Badge", {})
-	check(badge.get("node") == "Chest" and not badge.has("receiver") and not badge.shape.has("tail") and badge.tags == ["Badge", "Torso"], "a sender keeps its tags and sphere: %s" % [badge])
+	var emitter: Dictionary = by_tag.get("Emitter", {})
+	check(emitter.get("node") == "Chest" and not emitter.has("receiver") and not emitter.shape.has("tail") and emitter.tags == ["Emitter", "Torso"], "a sender keeps its tags and sphere: %s" % [emitter])
 	var head: Dictionary = by_tag.get("body Head", {})
 	check(head.get("node") == "Head" and Vector3(head.shape.offset[0], head.shape.offset[1], head.shape.offset[2]).is_equal_approx(Vector3(0, 0.06, 0)) and is_equal_approx(head.shape.radius, 0.07), "the head collider sends as the head: %s" % [head])
 	var finger: Dictionary = by_tag.get("body FingerIndexL", {})
