@@ -61,8 +61,7 @@ func boot_main(args := {}) -> void:
 
 func drawn() -> Image:
 	await RenderingServer.frame_post_draw
-	while not nothing_skipped(root.get_viewport_rid()):
-		await RenderingServer.frame_post_draw
+	await until(func() -> bool: return nothing_skipped(root.get_viewport_rid()), "a frame draws the view with nothing skipped")
 	return root.get_texture().get_image()
 
 
