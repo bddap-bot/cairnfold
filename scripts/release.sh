@@ -88,8 +88,14 @@ if [ -n "$store" ]; then
   util=$(fetch "${ovr_platform_util[@]}")
   chmod +x "$util"
   # The uploader takes its secret only as an argument: its --config rejects any file, and it reads no environment.
-  # shellcheck source=/dev/null
-  (. "$meta_store"; "$util" upload-quest-build --app-id "$meta_app_id" --app-secret "$META_APP_SECRET" --channel ALPHA \
-    --age-group TEENS_AND_ADULTS --apk "$out/cairnfold-quest-store.apk" --notes "$tag, built from $rev" \
-    --disable-progress-bar --wait-for-postprocessing)
+  # Once $tag is Latest no later run of this rev reaches here, so a store-side processing failure is retried now.
+  for try in 1 2 3; do
+    # shellcheck source=/dev/null
+    (. "$meta_store"; "$util" upload-quest-build --app-id "$meta_app_id" --app-secret "$META_APP_SECRET" --channel ALPHA \
+      --age-group TEENS_AND_ADULTS --apk "$out/cairnfold-quest-store.apk" --notes "$tag, built from $rev" \
+      --disable-progress-bar --wait-for-postprocessing) && exit 0
+    [ "$try" != 3 ] || { echo "release: $tag published, but its store upload failed $try times" >&2; exit 1; }
+    echo "release: store upload of $tag failed, trying again" >&2
+    sleep $((try * 300))
+  done
 fi
