@@ -119,6 +119,7 @@ const int LOOK_DECAL_HUE = 2;
 const int LOOK_CLEARCOAT_ST = 3;
 const int LOOK_EMISSION = 4;
 const int LOOK_MATCAP_INTENSITY = 5;
+const int LOOK_MATCAP_HUE_SHIFT = 10;
 uniform int region_count = 0;
 uniform sampler2D hue_mask : hint_default_white, filter_linear, repeat_disable;
 uniform sampler2D untinted : source_color, hint_default_white, filter_linear_mipmap_anisotropic;
@@ -258,8 +259,8 @@ float fresnel_band(float facing, float facing_width, float power, float border, 
 #endif
 
 // Poiyomi's matcaps, blended into `base`; returns the light they add. `n` and `v` (toward the eye) are world space,
-// looked up in Unity's axes (Godot's mirrored through X). `at` replaces a slot's intensity where `moved`.
-vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, vec3 v, float lit, vec4 moved, vec4 at) {
+// looked up in Unity's axes (Godot's mirrored through X). `at[k]` replaces a slot's k-th look field from matcapIntensity on where `moved`.
+vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, vec3 v, float lit, vec4 moved[6], vec4 at[6]) {
 	vec4 masks = textureGrad(matcap_masks, uv, dx, dy);
 	vec3 up = vec3(0.0, 1.0, 0.0) - v * v.y;
 	up = dot(up, up) > 1e-8 ? normalize(up) : vec3(0.0, 0.0, -sign(v.y));
@@ -278,7 +279,7 @@ vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, ve
 		vec2 mapped = (map.y > 0.5 ? vec2(-r.x, r.y) : vec2(dot(right, n), dot(up, n))) * map.z + 0.5;
 		vec4 sampled = (map.x >= 0.0 ? textureLod(matcaps, vec3(mapped.x, 1.0 - mapped.y, map.x), 0.0) : vec4(1.0)) * paint;
 		int own = int(circle.a + 0.5);
-		vec3 light = sampled.rgb * mix(map.w, at[own], moved[own]);
+		vec3 light = sampled.rgb * mix(map.w, at[0][own], moved[0][own]);
 		float mask = masks[own] * mix(1.0, lit, rest.w);
 		if (circle.r > 0.5) {
 			mask *= 1.0 - smoothstep(circle.y - 0.5 * circle.z, circle.y + 0.5 * circle.z, distance(mapped, vec2(0.5)));
@@ -286,14 +287,15 @@ vec3 matcapped(inout vec3 base, int entry, vec2 uv, vec2 dx, vec2 dy, vec3 n, ve
 		float cover = sampled.a * mask;
 		vec3 coloured = mix(light, light * base, rest.y);
 		if (hue.a > 0.5) {
-			coloured = shift_hue(coloured, hue.xyz);
+			coloured = shift_hue(coloured, vec3(mix(hue.x, at[5][own], moved[5][own]), hue.yz));
 		}
+		strengths.xyz = mix(strengths.xyz, vec3(at[1][own], at[2][own], at[3][own]), vec3(moved[1][own], moved[2][own], moved[3][own]));
 		strengths *= cover;
 		base = mix(base, coloured, strengths.x);
 		base *= mix(vec3(1.0), coloured, strengths.y);
 		base += coloured * strengths.z;
 		base = mix(base, 1.0 - (1.0 - base) * (1.0 - coloured), strengths.w);
-		base = mix(base, base + base * coloured, rest.x * cover);
+		base = mix(base, base + base * coloured, mix(rest.x, at[4][own], moved[4][own]) * cover);
 		added += coloured * rest.z * cover;
 	}
 	return added;
@@ -340,8 +342,8 @@ void fragment() {
 	vec4 coat_at = vec4(0.0);
 #endif
 	float strength = glow_and_brightness.x;
-	vec4 matcap_moved = vec4(0.0);
-	vec4 matcap_at = vec4(0.0);
+	vec4 matcap_moved[6] = vec4[6](vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0));
+	vec4 matcap_at[6] = vec4[6](vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0), vec4(0.0));
 	for (int i = 0; i < region_count; i++) {
 		vec4 rect = texelFetch(regions, ivec2(i, 0), 0);
 		if (all(greaterThanEqual(UV, rect.xy)) && all(lessThanEqual(UV, rect.zw))) {
@@ -364,9 +366,9 @@ void fragment() {
 					strength = s.x;
 					continue;
 				}
-				if (field == LOOK_MATCAP_INTENSITY) {
-					matcap_moved[slot] = 1.0;
-					matcap_at[slot] = s.x;
+				if (field >= LOOK_MATCAP_INTENSITY && field <= LOOK_MATCAP_HUE_SHIFT) {
+					matcap_moved[field - LOOK_MATCAP_INTENSITY][slot] = 1.0;
+					matcap_at[field - LOOK_MATCAP_INTENSITY][slot] = s.x;
 					continue;
 				}
 #ifdef CLEAR_COAT

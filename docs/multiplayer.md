@@ -321,8 +321,8 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   its half Lambert toward the main light falls past the shadow's border it takes its first and second shade colours,
   which the importer bakes per texel. A rim brightens a material's silhouette and a rim shade darkens it. Only the meshes that show a material
   with any of these draw with the shaders that draw them, since compiled in they cost the Quest 2 GPU time on every pixel
-  those shaders cover. A clip moving an emission's strength or a matcap's intensity off its rest sets it for the
-  material it shows.
+  those shaders cover. A clip moving an emission's strength, or a matcap's intensity, replace, multiply, add, mixed strength or hue
+  shift, off its rest sets it for the material it shows.
 
   A material's Poiyomi matcaps, and lilToon's in their form, draw over its colour before it is lit, each looked up by
   the surface's own normal as the eye sees it (or by the view reflected in it), in Unity's handedness, and blended by

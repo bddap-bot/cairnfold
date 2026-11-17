@@ -45,14 +45,14 @@ const TEXTURES := {"hue": ["hue_mask"], "color": ["untinted", "untinted_cells", 
 const DECAL_PAD := 8
 const UNITY_GREY := 0.214
 ## In the shader's field order.
-const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emission", "matcapIntensity"]
+const LOOK_FIELDS := ["decal", "decalIntensity", "decalHue", "clearcoatST", "emission", "matcapIntensity", "matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed", "matcapHueShift"]
 ## Set only while the target is off its rest; at rest each covered material keeps its own.
-const RESTING_FIELDS := ["emission", "matcapIntensity"]
+const RESTING_FIELDS := ["emission", "matcapIntensity", "matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed", "matcapHueShift"]
 const POST_CHANNELS := {"lightAdd": 0, "brightness": 1}
 const POST_RESTS: Array[float] = [0.0, 1.0]
 const THEME_FIELDS := ["themeHue", "themeSaturation", "themeValue", "themeSpeed"]
 static var DRIVEN_LOOKS: Array = LOOK_FIELDS + THEME_FIELDS + POST_CHANNELS.keys()
-const UNDRIVEN_LOOKS := ["matcapHueShift", "matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed", "emissionHue"]
+const UNDRIVEN_LOOKS := ["emissionHue"]
 
 ## All avatars; metrics.gd reads and resets it.
 static var process_us := 0

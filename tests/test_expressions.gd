@@ -624,16 +624,22 @@ func _animated_looks() -> void:
 	player.apply()
 	var mat := hat.get_surface_override_material(0) as ShaderMaterial
 	var rows := func() -> Image: return (mat.get_shader_parameter("regions") as Texture2D).get_image()
-	check(mat != null and mat.get_shader_parameter("region_count") == 2, "the emission and matcap intensity regions are bound, the matcap replace one Cairnfold does not draw left out")
+	check(mat != null and mat.get_shader_parameter("region_count") == 3, "the emission, matcap intensity and matcap replace regions are bound")
 	check(rows.call().get_pixel(0, 2).g == -1.0 and rows.call().get_pixel(1, 2).g == -1.0, "a look target at rest leaves each material its own value")
 	player.state.outputs[0] = 2.5
 	player.state.outputs[1] = 0.5
+	player.state.outputs[2] = 0.25
 	mat.set_shader_parameter("regions", null)
 	player.apply()
 	var moved: Image = rows.call()
 	var emission := ExpressionPlayer.LOOK_FIELDS.find("emission")
 	var intensity := ExpressionPlayer.LOOK_FIELDS.find("matcapIntensity")
 	check(moved.get_pixel(0, 1).r == 2.5 and moved.get_pixel(0, 2).g == emission and moved.get_pixel(1, 1).r == 0.5 and moved.get_pixel(1, 1).b == 1.0 and moved.get_pixel(1, 2).g == intensity, "a moved emission sets the strength and a moved matcap its slot's intensity: %s %s" % [moved.get_pixel(0, 1), moved.get_pixel(1, 2)])
+	check(moved.get_pixel(2, 1).r == 0.25 and moved.get_pixel(2, 2).g == ExpressionPlayer.LOOK_FIELDS.find("matcapReplace"), "a moved matcap replace sets its slot's replace: %s" % [moved.get_pixel(2, 2)])
+	var source := FileAccess.get_file_as_string("res://src/expression.gdshaderinc")
+	var constant := func(name: String) -> int: return int(RegEx.create_from_string("const int %s = (\\d+);" % name).search(source).get_string(1))
+	var first: int = constant.call("LOOK_MATCAP_INTENSITY")
+	check(ExpressionPlayer.LOOK_FIELDS.slice(first, constant.call("LOOK_MATCAP_HUE_SHIFT") + 1) == ["matcapIntensity", "matcapReplace", "matcapMultiply", "matcapAdd", "matcapMixed", "matcapHueShift"], "the shader's matcap look fields run in the order its overrides read them: %s" % [ExpressionPlayer.LOOK_FIELDS.slice(first)])
 	player.free()
 	model.free()
 

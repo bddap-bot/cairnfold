@@ -56,8 +56,8 @@ func _run() -> void:
 	var rest := BASE.linear_to_srgb()
 	var matcap := {"texture": 0, "mode": "normal", "border": 0.5, "color": [1.0, 1.0, 1.0, 1.0], "intensity": 1.0, "baseMix": 0.0, "replace": 0.0, "multiply": 0.0, "add": 1.0, "screen": 0.0, "mixed": 0.0, "lightAdd": 0.0, "emission": 0.0, "lightMask": 0.0, "hue": null, "circle": null, "theme": null}
 	var shots := {}
-	var moves := {"matcap": ["moved", [0.0, 1.0]], "turned": ["turned", [1.0 / 3.0]], "recoloured": ["recoloured", [1.0]], "decaled": ["greyed", [1.0, 0.0]]}
-	for look: String in ["shadow", "rim", "tinted rim", "rim shade", "plain", "matcap", "reflection", "turned", "recoloured", "decaled", "inside", "inside hidden", "inside shown", "inside rim shade"]:
+	var moves := {"matcap": ["moved", [0.0, 1.0]], "blended": ["unblended", [0.0]], "turned": ["turned", [1.0 / 3.0]], "recoloured": ["recoloured", [1.0]], "decaled": ["greyed", [1.0, 0.0]]}
+	for look: String in ["shadow", "rim", "tinted rim", "rim shade", "plain", "matcap", "blended", "reflection", "turned", "recoloured", "decaled", "inside", "inside hidden", "inside shown", "inside rim shade"]:
 		var entry := {"lighting": {"model": "flat", "cap": 1.0}, "matcaps": []}
 		if look in ["shadow", "rim", "tinted rim", "rim shade", "turned", "recoloured", "decaled", "inside", "inside hidden", "inside shown", "inside rim shade"]:
 			entry.lighting.shadow = shadow
@@ -73,6 +73,9 @@ func _run() -> void:
 			entry.emission = {"color": [0.0, 0.0, 0.5], "strength": 0.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0}
 			for field: String in ["matcapIntensity", "emission"]:
 				targets.append({"effect": {"look": [{"node": "Ball", "rect": [0, 0, 1, 1], "field": field, "slot": 0}]}, "default": 1.0 if field == "matcapIntensity" else 0.0})
+		if look == "blended":
+			entry.matcaps = [matcap, null, null, null]
+			targets.append({"effect": {"look": [{"node": "Ball", "rect": [0, 0, 1, 1], "field": "matcapAdd", "slot": 0}]}, "default": 1.0})
 		if look == "reflection":
 			entry.matcaps = [matcap.merged({"mode": "reflection"}, true), null, null, null]
 		if look == "turned":
@@ -123,6 +126,8 @@ func _run() -> void:
 	var moved: Image = shots.moved
 	var still := _mean(moved, -0.1, 0.1, 0.6).r - _mean(plain, -0.1, 0.1, 0.6).r
 	var glowing := _mean(moved, -0.7, -0.5, 0.0).b - _mean(plain, -0.7, -0.5, 0.0).b
+	var blended := _mean(shots.blended, -0.1, 0.1, 0.6).r - _mean(plain, -0.1, 0.1, 0.6).r
+	var unblended := _mean(shots.unblended, -0.1, 0.1, 0.6).r - _mean(plain, -0.1, 0.1, 0.6).r
 	var reflected: Image = shots.reflection
 	var reflected_up := _mean(reflected, -0.1, 0.1, 0.6).r - _mean(plain, -0.1, 0.1, 0.6).r
 	var reflected_right := _mean(reflected, 0.5, 0.7, 0.0).b - _mean(plain, 0.5, 0.7, 0.0).b
@@ -151,6 +156,7 @@ func _run() -> void:
 	check(behind < 0.9, "a rim shade darkens back faces turning from the view too: %.3f of the green without it" % behind)
 	check(up > 0.3 and absf(down) < 0.02 and right > 0.3 and absf(left) < 0.02, "the matcap's top half lies where the ball faces up and its right half where it faces right: up %+.3f, down %+.3f, right %+.3f, left %+.3f" % [up, down, right, left])
 	check(absf(still) < 0.02 and absf(glowing - 0.5) < 0.04, "a clip taking the matcap's intensity to nothing takes it away, %+.3f, and one setting the emission's strength to one lights it 0.5 blue, %+.3f" % [still, glowing])
+	check(absf(blended - up) < 0.02 and absf(unblended) < 0.02, "a matcap whose add a clip takes to nothing adds nothing, %+.3f, where at rest it adds as its material does, %+.3f" % [unblended, blended])
 	# Poiyomi reflects in Unity's axes, which are Godot's mirrored through X.
 	check(reflected_up > 0.3 and reflected_left > 0.3 and absf(reflected_right) < 0.02, "a reflection matcap lays its top half where the ball faces up and its left half where it faces right: up %+.3f, right %+.3f, left %+.3f" % [reflected_up, reflected_right, reflected_left])
 	# In a channel the albedo lacks, a shade keeps its share of the whole colour.
