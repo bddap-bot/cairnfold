@@ -21,8 +21,8 @@ func _run() -> void:
 	await _flat_brush_is_flat()
 	await _wet_paint_shows()
 	await _relief_undone()
-	check(await _dries_alike(strokes.slice(0, 8)), "flow run a few rows a frame dries to what it dries to run whole")
-	check(await _dries_alike(_crowd()), "more dabs than a batch holds, on tiles wet again after drying, dry the same run whole or a few rows a frame")
+	check(await _dries_alike(strokes.slice(0, 8)), "flow run a few rows a frame runs the steps, on the rows and tiles, it runs whole")
+	check(await _dries_alike(_crowd()), "more dabs than a batch holds, on tiles wet again after drying, run the same dabs and steps whole or a few rows a frame")
 
 	var fresh := await _canvas()
 	fresh.rebuild(kept)
@@ -75,20 +75,82 @@ func _crowd() -> Array:
 	return out
 
 
+## Two GPU runs of one command stream, under other GPU load, can lay a texel a rounding step apart, and the flow carries
+## it on, so the runs compare what they hand the shader: each texel's result follows from that alone.
 func _dries_alike(strokes: Array) -> bool:
-	var whole := await _canvas()
+	var whole: Recorder = await _canvas(Recorder.new())
 	whole.rebuild(strokes)
-	var want := await _dried(whole)
+	await _dried(whole)
 	check(whole._replay_frames == 1, "a replay run whole takes one frame: %d" % whole._replay_frames)
 	Canvas.steps = 200000.0
-	var slow := await _canvas()
+	var slow: Recorder = await _canvas(Recorder.new())
 	slow.rebuild(strokes)
-	var alike := await _dried(slow) == want
+	await _dried(slow)
+	var want := Recorder.merged(whole.ran)
+	var got := Recorder.merged(slow.ran)
+	check(got.size() < slow.ran.size() and want.size() == whole.ran.size(), "the replay a few rows a frame splits flow steps, the whole one none")
+	var alike := want == got
+	if not alike:
+		var i := 0
+		while i < mini(want.size(), got.size()) and want[i] == got[i]:
+			i += 1
+		print("ran apart at %d of %d / %d: %s / %s" % [i, want.size(), got.size(), want.slice(i, i + 1), got.slice(i, i + 1)])
 	Canvas.steps = 1.0e9
 	whole.queue_free()
 	slow.queue_free()
 	await process_frame
 	return alike
+
+
+## Read from what each bundle last took up, since a batch's later parts run on its bundle without uploading again.
+class Recorder:
+	extends Canvas
+	var ran: Array = []
+	var _taken := {}
+
+	func _dispatch_all(batches: Array) -> void:
+		for b: Array in batches:
+			if b[4]:
+				_taken[b[3]] = [b[1], b[2]]
+			var dabs: PackedFloat32Array = _taken[b[3]][0]
+			var wet: PackedInt32Array = _taken[b[3]][1]
+			for op: Array in b[0]:
+				match op[0]:
+					"dabs":
+						ran.append(["dabs", Canvas._chain(0, op[1]), dabs.slice(op[2] * Brushwork.DAB, (op[2] + op[3]) * Brushwork.DAB), op[4]])
+					"flow":
+						ran.append(["flow", op[1], op[3], op[2], _read(wet, op[2], op[1]), upright])
+					_:
+						ran.append(op.duplicate())
+		super(batches)
+
+	## One tile each way holds every neighbour the flow reads: paint.glsl reaches EDGE_REACH texels, under a tile.
+	func _read(wet: PackedInt32Array, rect: Rect2i, tick: int) -> Dictionary:
+		var out := {}
+		var from := (rect.position / Brushwork.TILE - Vector2i.ONE).max(Vector2i.ZERO)
+		var to := ((rect.end - Vector2i.ONE) / Brushwork.TILE + Vector2i.ONE).min(tiles - Vector2i.ONE)
+		for y in range(from.y, to.y + 1):
+			for x in range(from.x, to.x + 1):
+				var t := y * tiles.x + x
+				out[t] = [wet[t * 2] <= tick and tick < wet[t * 2 + 1], tick == wet[t * 2 + 1] - 1]
+		return out
+
+	static func merged(ops: Array) -> Array:
+		var out: Array = []
+		for op: Array in ops:
+			if op[0] == "flow" and not out.is_empty() and out[-1][0] == "flow":
+				var last: Array = out[-1]
+				var a: Rect2i = last[3]
+				var b: Rect2i = op[3]
+				var agree := true
+				for t: int in op[4]:
+					agree = agree and (not last[4].has(t) or last[4][t] == op[4][t])
+				if agree and last[1] == op[1] and last[2] == op[2] and last[5] == op[5] and a.position.x == b.position.x and a.size.x == b.size.x and a.end.y == b.position.y:
+					last[3] = a.merge(b)
+					last[4].merge(op[4])
+					continue
+			out.append(op.duplicate(true))
+		return out
 
 
 ## The row the dried pigment balances on.
@@ -306,8 +368,7 @@ func _relief_undone() -> void:
 	await process_frame
 
 
-func _canvas() -> Canvas:
-	var c := Canvas.new()
+func _canvas(c := Canvas.new()) -> Canvas:
 	root.add_child(c)
 	await process_frame
 	return c
