@@ -24,29 +24,34 @@ func _run() -> void:
 	check(await _dries_alike(strokes.slice(0, 8)), "flow run a few rows a frame runs the steps, on the rows and tiles, it runs whole")
 	check(await _dries_alike(_crowd()), "more dabs than a batch holds, on tiles wet again after drying, run the same dabs and steps whole or a few rows a frame")
 
-	var fresh := await _canvas()
+	var fresh: Recorder = await _canvas(Recorder.new())
 	fresh.rebuild(kept)
-	var want := await _dried(fresh)
+	await _dried(fresh)
+	var want := _saveless(fresh.ran)
 
-	var undone := await _canvas()
+	var undone: Recorder = await _canvas(Recorder.new())
 	undone.rebuild(kept)
 	await _caught_up(undone)
 	undone.play(strokes[N], 30)
 	var at := undone.last_end
 	while undone.last_end == at:
 		await process_frame
-	RenderingServer.call_on_render_thread(_spoil.bind(undone))
 	undone.rebuild(kept)
 	check(not undone.catching_up(), "the undo is a checkpoint, with nothing to replay")
-	var got := await _dried(undone)
-	check(got == want, "undone through a checkpoint, whatever its scratch texture held, the canvas dries to what a fresh replay dries to")
+	await _dried(undone)
+	var span := _restored(undone)
+	check(span.x >= 0 and _saveless(undone.ran.slice(0, span.x) + undone.ran.slice(span.y + 1)) == want, "undone through a checkpoint, the canvas runs the dabs and steps a fresh replay runs")
+	check(await _puts_back(undone, span), "the undo puts back, bit for bit, the wet and dry paint its checkpoint saved")
 
-	var resumed := await _canvas()
+	var resumed: Recorder = await _canvas(Recorder.new())
 	resumed.rebuild(strokes.slice(0, N - 3))
 	await _caught_up(resumed)
 	resumed.rebuild(kept)
 	check(resumed.catching_up() and resumed._pending == 3, "only the strokes after the checkpoint replay")
-	check(await _dried(resumed) == want, "a checkpoint and the strokes after it dry to what a fresh replay dries to")
+	await _dried(resumed)
+	span = _restored(resumed)
+	check(span.x >= 0 and _saveless(resumed.ran.slice(0, span.x) + resumed.ran.slice(span.y + 1)) == want, "a checkpoint and the strokes after it run the dabs and steps a fresh replay runs")
+	check(await _puts_back(resumed, span), "a resumed replay starts from, bit for bit, the wet and dry paint its checkpoint saved")
 	Canvas.steps = steps
 
 	finish()
@@ -102,10 +107,41 @@ func _dries_alike(strokes: Array) -> bool:
 	return alike
 
 
+## In `ran`, the save a canvas's last restore took up and that restore; -1s without one.
+func _restored(c: Recorder) -> Vector2i:
+	var r := c.ran.rfind_custom(func(op: Array) -> bool: return op[0] == "restore")
+	if r < 0:
+		return Vector2i(-1, -1)
+	var s := c.ran.rfind_custom(func(op: Array) -> bool: return op == ["save", c.ran[r][1]], r)
+	return Vector2i(s, r) if s >= 0 else Vector2i(-1, -1)
+
+
+## A canvas lays its checkpoints in whichever slot is free, and a step run in parts is one step.
+func _saveless(ops: Array) -> Array:
+	return Recorder.merged(ops.filter(func(op: Array) -> bool: return op[0] != "save"))
+
+
+## A texture copy is exact, as the shader's arithmetic is not between runs.
+func _puts_back(c: Recorder, span: Vector2i) -> bool:
+	if span.x < 0:
+		return false
+	var out := []
+	var rd := RenderingServer.get_rendering_device()
+	RenderingServer.call_on_render_thread(func() -> void:
+		for i in [span.x, span.y]:
+			for t: RID in c.states[i]:
+				out.append(rd.texture_get_data(t, 0)))
+	while out.size() < 4:
+		await process_frame
+	return out[0] == out[2] and out[1] == out[3]
+
+
 ## Read from what each bundle last took up, since a batch's later parts run on its bundle without uploading again.
 class Recorder:
 	extends Canvas
 	var ran: Array = []
+	## By the index in `ran` of each save and restore: copies of the wet and dry paint just after it.
+	var states := {}
 	var _taken := {}
 
 	func _dispatch_all(batches: Array) -> void:
@@ -114,6 +150,8 @@ class Recorder:
 				_taken[b[3]] = [b[1], b[2]]
 			var dabs: PackedFloat32Array = _taken[b[3]][0]
 			var wet: PackedInt32Array = _taken[b[3]][1]
+			var part: Array = []
+			var upload: bool = b[4]
 			for op: Array in b[0]:
 				match op[0]:
 					"dabs":
@@ -122,7 +160,28 @@ class Recorder:
 						ran.append(["flow", op[1], op[3], op[2], _read(wet, op[2], op[1]), upright])
 					_:
 						ran.append(op.duplicate())
-		super(batches)
+				part.append(op)
+				if op[0] == "save" or op[0] == "restore":
+					super([[part, b[1], b[2], b[3], upload]])
+					part = []
+					upload = false
+					var kept: Array[RID] = []
+					for t in [_wet[0], _dry]:
+						kept.append(_rd.texture_create(_rd.texture_get_format(t), RDTextureView.new()))
+						_copy(t, kept[-1])
+					states[ran.size() - 1] = kept
+			if not part.is_empty():
+				super([[part, b[1], b[2], b[3], upload]])
+
+	func _exit_tree() -> void:
+		var rd := _rd
+		var gone := states.values()
+		if rd != null:
+			RenderingServer.call_on_render_thread(func() -> void:
+				for kept: Array in gone:
+					for r: RID in kept:
+						rd.free_rid(r))
+		super()
 
 	## One tile each way holds every neighbour the flow reads: paint.glsl reaches EDGE_REACH texels, under a tile.
 	func _read(wet: PackedInt32Array, rect: Rect2i, tick: int) -> Dictionary:
