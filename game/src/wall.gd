@@ -750,8 +750,9 @@ func _take(packed: Dictionary) -> void:
 	_ruin_pick = packed.ruin_pick
 
 
-## Only a settling lay occludes: every occluder change rebuilds the occlusion BVH, which a sculpt relaying every wall
-## turned into frames of waiting. A wall occluding nothing has no node: a carry moving even an empty one rebuilds it.
+## Only a settling lay occludes, and only a changed occluder is set: every occluder change rebuilds the occlusion BVH,
+## which a sculpt relaying every wall turned into frames of waiting. A wall occluding nothing has no node: a carry moving
+## even an empty one rebuilds it.
 func _occlude(vertices: PackedVector3Array, indices: PackedInt32Array) -> void:
 	if vertices.is_empty():
 		if _occluder != null:
@@ -762,7 +763,9 @@ func _occlude(vertices: PackedVector3Array, indices: PackedInt32Array) -> void:
 		_occluder = OccluderInstance3D.new()
 		_occluder.occluder = ArrayOccluder3D.new()
 		add_child(_occluder)
-	(_occluder.occluder as ArrayOccluder3D).set_arrays(vertices, indices)
+	var occluder := _occluder.occluder as ArrayOccluder3D
+	if occluder.vertices != vertices or occluder.indices != indices:
+		occluder.set_arrays(vertices, indices)
 
 
 ## For a wall a hold set back as it was laid, which no lay settles.

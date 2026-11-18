@@ -495,6 +495,15 @@ func _only_settled_stones_occlude() -> void:
 	w.rebuild(true)
 	w.lay_now()
 	check(occluding.call(), "settled again, it occludes")
+	var sets := [0]
+	w._occluder.occluder.changed.connect(func() -> void: sets[0] += 1)
+	w.rebuild(true)
+	w.lay_now()
+	check(sets[0] == 0, "a lay settling as it stood leaves its occluder unset, so the occlusion BVH is not rebuilt")
+	w.layout.height = 2.5
+	w.rebuild(true)
+	w.lay_now()
+	check(sets[0] == 1, "a taller wall settling sets its occluder")
 	w.draw_live()
 	check(w._occluder == null, "a carried wall has no occluder to move")
 	w.rebuild(false)
