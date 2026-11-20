@@ -16,6 +16,7 @@ const FLOOR_BYTES := 100 << 20
 const READ_BYTES_PER_BYTE := 20
 const READ_LOW := 512 << 20
 const UNCAPPED := 1e4
+const GLOW_ALPHA_IS_SHARE := 2.0
 const POST_ROW := 2
 const HEAD_ROWS := 3
 ## As many points as the shader reads.
@@ -925,7 +926,7 @@ static func _shows(im: ImporterMesh, moves: Array, drawn: PackedByteArray, texel
 
 
 static func replacing(glow: Dictionary) -> float:
-	return float(glow.get("replace", 0.0)) + (2.0 if glow.get("shared", false) else 0.0)
+	return float(glow.get("replace", 0.0)) + (GLOW_ALPHA_IS_SHARE if glow.get("shared", false) else 0.0)
 
 
 static func _toon(m: Dictionary) -> bool:

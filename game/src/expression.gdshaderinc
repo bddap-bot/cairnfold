@@ -6,8 +6,7 @@ uniform bool use_vertex = false;
 uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
 // light_index red: the texel's column in `lighting` (Avatar._lit_looks). Row 0: r 0 lit by angle, 1 flat, 2 ramp-lit;
 // g cap; b shadow tint; a emission strength. Row 1: emission colour over `glow`, a how far the glow overrides the lit
-// colour (Poiyomi's lerp by its brightest channel), plus 2 where `glow`'s alpha is each texel's share of the emission
-// that overrides and fluoresces. Row 2: b the drawn colour tints the glow, a its fluorescence.
+// colour (Poiyomi's lerp by its brightest channel). Row 2: b the drawn colour tints the glow, a its fluorescence.
 uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D glow : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
@@ -61,6 +60,7 @@ const int MATCAP_ROWS = 6;
 const int MATCAPS = 4;
 const int TOON_ROW = MATCAP + 1 + MATCAPS * MATCAP_ROWS;
 const int TOON_ROWS = 8;
+const float GLOW_ALPHA_IS_SHARE = 2.0;
 const int RIM_ROW = TOON_ROW + TOON_ROWS;
 const int RIM_ROWS = 4;
 const int MATCAPPED = 256;
@@ -548,9 +548,9 @@ void fragment() {
 	if (any(greaterThan(glows, vec3(0.0)))) {
 		vec4 glow_texel = textureGrad(glow, uv, dx, dy);
 		float led = 1.0;
-		if (replacing > 1.5) {
+		if (replacing > GLOW_ALPHA_IS_SHARE - 0.5) {
 			led = glow_texel.a;
-			replacing = (replacing - 2.0) * led;
+			replacing = (replacing - GLOW_ALPHA_IS_SHARE) * led;
 		}
 		glowing = glow_texel.rgb * glows * mix(vec3(1.0), base.rgb, glow_and_brightness.z) * (1.0 - led * glow_and_brightness.w);
 		if (glow_turn != 0.0) {
