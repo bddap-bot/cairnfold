@@ -14,7 +14,7 @@ const SEASONS := [
 	{"name": "summer", "swatch": Color(0.40, 0.60, 0.18), "meadow": Color(0, 0, 0, 0), "foliage": Color(0, 0, 0, 0), "bloom": 1.0, "fireflies": true, "winter": false},
 	{"name": "late summer", "swatch": Color(0.70, 0.66, 0.26), "meadow": Color(0.66, 0.6, 0.24, 0.5), "foliage": Color(0.42, 0.44, 0.16, 0.3), "bloom": 0.55, "fireflies": true, "winter": false},
 	{"name": "autumn", "swatch": Color(0.80, 0.42, 0.14), "meadow": Color(0.6, 0.48, 0.2, 0.6), "foliage": Color(0.82, 0.36, 0.1, 0.85), "bloom": 0.15, "fireflies": false, "winter": false},
-	{"name": "winter", "swatch": Color(0.86, 0.89, 0.93), "meadow": Color(0.84, 0.87, 0.92, 0.85), "foliage": Color(0.86, 0.88, 0.92, 0.7), "bloom": 0.0, "fireflies": false, "winter": true},
+	{"name": "winter", "swatch": Color(0.86, 0.89, 0.93), "meadow": Color(0.84, 0.87, 0.92, 0.85), "foliage": Color(0.26, 0.36, 0.28, 0.6), "bloom": 0.0, "fireflies": false, "winter": true},
 ]
 const SUMMER := 1
 

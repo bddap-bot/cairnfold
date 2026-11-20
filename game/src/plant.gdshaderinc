@@ -4,6 +4,7 @@
 
 uniform float roughness = 1.0;
 #ifdef BACKLIT
+#include "res://src/noise.gdshaderinc"
 uniform vec3 backlight : source_color = vec3(0.0);
 // Share of a grass blade's give at the blob's height; the blob moves as one, so the crown sways rather than ripples.
 const float CROWN_GIVE = 0.12;
@@ -73,6 +74,8 @@ void vertex() {
 	VERTEX.y += ground;
 #ifdef BACKLIT
 	vec2 out_of_crown = VERTEX.xz - INSTANCE_CUSTOM.zw;
+	// A lump's own rise, before the crown rounds it: the rounding tilts a wide bush's every face sideways.
+	float lump_up = NORMAL.y;
 	NORMAL = normalize(NORMAL + CROWN_ROUND * vec3(out_of_crown.x, 0.0, out_of_crown.y) / max(length(out_of_crown), 0.3));
 	VERTEX += wind_push(INSTANCE_CUSTOM.zw, wind_gust(INSTANCE_CUSTOM.zw)) * CROWN_GIVE * max(MODEL_MATRIX[3].y, 0.0);
 	if (IN_SHADOW_PASS) {
@@ -129,6 +132,8 @@ void vertex() {
 #endif
 #ifdef BACKLIT
 	COLOR.rgb = seasoned(COLOR.rgb, season_foliage) * mix(vec3(1.0), CROWN_SHADE, smoothstep(0.2, -0.8, NORMAL.y));
+	// Only kept crowns show it: a broadleaf's is shed just below. Hashed where the wind does not move it, so it holds still.
+	COLOR.rgb = mix(COLOR.rgb, SNOW, snow_cover(lump_up + 0.3, 1.0, hash((INSTANCE_CUSTOM.zw + out_of_crown) * 7.0)));
 	// A broadleaf's blob (FloraLayout.SHED in its colour's alpha) is shed for the winter.
 	if (COLOR.a < 0.5 && season_winter > 0.5) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);

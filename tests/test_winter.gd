@@ -49,16 +49,18 @@ func _snow_lies_on_what_faces_the_open_sky() -> void:
 		"res://src/terrain.gdshaderinc": "snow_cover(1.0 - s, sky_seen, d) * lying * (1.0 - TRODDEN * clamp(max(cover.r, max(cover.g, cover.a)), 0.0, 1.0))",
 		"res://src/stone.gdshaderinc": "COLOR.a = snow_cover(up, 1.0 - room_in, 0.5) * (1.0 - glass);",
 		"res://src/thatch.gdshader": "snowy = snow_cover(world_nrm.y, 1.0 - room_in, straw);",
+		"res://src/moss.gdshader": "snow_cover(up - 0.25, bounce.a, patchiness) * (1.0 - wet)",
+		"res://src/plant.gdshaderinc": "COLOR.rgb = mix(COLOR.rgb, SNOW, snow_cover(lump_up + 0.3, 1.0, hash(",
 	}
 	for path: String in asks:
 		var shader: Resource = load(path)
 		check(str(shader.get("code")).contains(asks[path]), "%s lays snow by its slope and the sky over it" % path.get_file())
-	check((load("res://src/terrain.gdshaderinc") as ShaderInclude).code.contains("lying = smoothstep(0.02, -0.04, under);"), "the ground's snow stops at a pond's edge")
+	check((load("res://src/terrain.gdshaderinc") as ShaderInclude).code.contains("lying = smoothstep(0.02, -0.04, under - season_winter * ICE_RIM);"), "the ground's snow reaches under the ice's snowy rim, so no wet bank rings it")
 	for path: String in ["res://src/stone.gdshaderinc", "res://src/thatch.gdshader"]:
 		check(str(load(path).get("code")).contains("EMISSION += ALBEDO * snowy * (1.0 - bounce.a) * sky_ambient * mix(sky_horizon, sky_zenith, 0.8);"), "a snowed face of %s takes the whole sky's light" % path.get_file())
 	var frozen := {
 		"res://src/water.gdshader": ["slope *= 1.0 - season_winter;", "if (rippling && season_winter < 0.5) {", "col = mix(col, sheet, season_winter);", "foam *= 1.0 - season_winter;"],
-		"res://src/fish.gdshader": ["ALPHA = 0.88 * shown * (1.0 - season_winter * 0.3);"],
+		"res://src/fish.gdshader": ["ALBEDO = mix(mix(c, tint, 0.25), ICE, season_winter * 0.12);"],
 		"res://src/lilypad.gdshader": ["* 0.03 * (1.0 - season_winter);", "ALBEDO = mix(leaf, FROST, season_winter * "],
 	}
 	for path: String in frozen:

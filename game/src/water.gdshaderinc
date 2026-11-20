@@ -3,6 +3,9 @@
 global uniform sampler2D water_depth : filter_linear, repeat_disable;
 const float DROWNS = 0.02;
 const float DRY = -0.6;
+// How deep snow drifts onto a frozen pond's ice from its shore; the bed under that rim lies under snow too, so no wet
+// bank rings the ice.
+const float ICE_RIM = 0.22;
 
 float water_depth_at(vec2 xz) {
 	return textureLod(water_depth, grid_uv(xz), 0.0).r;

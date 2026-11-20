@@ -89,10 +89,10 @@ void fragment() {
 			// Ice: clear and dark over deep water, frosted white in patches and toward the shore, where snow has drifted
 			// onto it; fine cracks run where two noises cross. It mirrors the sky more dully than water.
 			float frost = texture(detail, s * 0.11).r;
-			float cloud = smoothstep(0.5, 0.85, frost + (1.0 - body) * 0.35);
+			float cloud = smoothstep(0.55, 0.9, frost + (1.0 - body) * 0.2);
 			float crack = smoothstep(0.012, 0.0, abs(frost - texture(detail, s * 0.17 + 0.4).r)) * smoothstep(0.1, 0.3, depth);
-			vec3 sheet = mix(mix(col, ICE, 0.5), FROST, max(cloud * 0.65, crack * 0.7));
-			sheet = mix(sheet, SNOW, smoothstep(0.22, 0.04, depth + (texture(detail, s * 0.6).r - 0.5) * 0.12));
+			vec3 sheet = mix(mix(col, ICE, 0.35), FROST, max(cloud * 0.65, crack * 0.7));
+			sheet = mix(sheet, SNOW, smoothstep(ICE_RIM, 0.04, depth + (texture(detail, s * 0.6).r - 0.5) * 0.12));
 			col = mix(col, sheet, season_winter);
 			alpha = mix(alpha, 0.9, season_winter);
 			foam *= 1.0 - season_winter;

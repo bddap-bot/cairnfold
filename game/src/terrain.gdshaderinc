@@ -148,7 +148,7 @@ void fragment() {
 		if (under > DRY + 0.1) {
 			under = grid_smooth(water_depth, world_xz);
 		}
-		lying = smoothstep(0.02, -0.04, under);
+		lying = smoothstep(0.02, -0.04, under - season_winter * ICE_RIM);
 		mediump float shore = bank(under + (d - 0.5) * 0.12 + (fine - 0.5) * 0.06);
 		if (shore > 0.0) {
 			mediump float pebble = texture(detail, world_xz * 2.3).r;
