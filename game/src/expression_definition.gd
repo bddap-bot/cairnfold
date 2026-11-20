@@ -119,7 +119,7 @@ static func looks_valid(looks: Variant) -> bool:
 			push_error("expressions: a look's shadow is not a border, blur and strength with a null or numeric second shade and edge: %s" % [shadow])
 			return false
 		var glow: Variant = m.get("emission")
-		if glow != null and not (glow is Dictionary and Vrm.holds(glow, Vrm.EXPRESSIONS, "emission") and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.replace) and _number(glow.get("base", 0.0)) and _number(glow.get("fluorescence", 0.0))):
+		if glow != null and not (glow is Dictionary and Vrm.holds(glow, Vrm.EXPRESSIONS, "emission") and glow.get("color") is Array and glow.color.size() == 3 and glow.color.all(_number) and _number(glow.get("strength")) and _number(glow.replace) and _number(glow.get("base", 0.0)) and _number(glow.get("fluorescence", 0.0)) and glow.get("shared", false) is bool):
 			push_error("expressions: a look's emission is not a colour of three numbers, a strength, a numeric replace and a numeric base and fluorescence where given: %s" % [glow])
 			return false
 		if glow != null and glow.get("theme") != null and not (is_index(glow.theme, 4) and m.get("themes") is Array and m.themes.size() == 4 and _theme(m.themes[int(glow.theme)])):
@@ -137,6 +137,10 @@ static func looks_valid(looks: Variant) -> bool:
 		var rim: Variant = m.get("rim")
 		if rim != null and not (rim is Dictionary and _numbers(rim.get("color"), 3) and ["strength", "main", "border", "blur", "power", "lit", "shadowMask"].all(func(k: String) -> bool: return _number(rim.get(k))) and rim.get("backface") is bool):
 			push_error("expressions: a look's rim is not a colour of three numbers with a strength, main, border, blur, power, lit and shadowMask, and a backface flag: %s" % [rim])
+			return false
+		var rim_light: Variant = m.get("rimLight")
+		if rim_light != null and not (rim_light is Dictionary and _numbers(rim_light.get("color"), 4) and ["power", "width", "sharpness", "strength", "brightness", "baseMix", "blend"].all(func(k: String) -> bool: return _number(rim_light.get(k))) and _whole(rim_light.get("mode")) and int(rim_light.mode) <= 4 and rim_light.get("invert") is bool):
+			push_error("expressions: a look's rim lighting is not a colour of four numbers with a power, width, sharpness, strength, brightness, baseMix, blend, a blend mode of 0 to 4 and an invert flag: %s" % [rim_light])
 			return false
 		var rim_shade: Variant = m.get("rimShade")
 		if rim_shade != null and not (rim_shade is Dictionary and _numbers(rim_shade.get("color"), 3) and ["strength", "border", "blur", "power"].all(func(k: String) -> bool: return _number(rim_shade.get(k))) and float(rim_shade.power) > 0.0):

@@ -325,7 +325,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   strength or hue shift, off its rest sets it for the material it shows; one moving any of a Poiyomi material's four
   emission strengths draws that emission alone. A Poiyomi emission using the base colour as its map takes the colour the
   material draws after a menu's hue, tone and decals, its fluorescence dims it per vertex by the light it stands in, near how Poiyomi
-  computes it, and the emission is added after the post-processing brightness, as Poiyomi adds it.
+  computes it, and the emission is added after the post-processing brightness, as Poiyomi adds it. Emissions alike in
+  colour source and theme add into one map; where one replaces the colour or fluoresces and the others do neither, the
+  map carries each texel's share of the one that does. Poiyomi's rim lighting blends its colour into the material
+  toward its silhouette and glows there by its strength.
 
   A material's Poiyomi matcaps, and lilToon's in their form, draw over its colour before it is lit, each looked up by
   the surface's own normal as the eye sees it (or by the view reflected in it), in Unity's handedness, and blended by

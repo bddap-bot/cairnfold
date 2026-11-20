@@ -5,6 +5,7 @@ const Materials = preload("res://../scripts/unity/materials.gd")
 
 func _run() -> void:
 	_malformed()
+	_shared_glow()
 	_controls()
 	_fx()
 	_bindings()
@@ -478,6 +479,28 @@ func _theme_recolours_the_emission() -> void:
 	root.free()
 	player.free()
 
+
+
+func _shared_glow() -> void:
+	var index := Image.create_empty(4, 4, false, Image.FORMAT_L8)
+	index.fill(Color8(1, 1, 1))
+	var glow := Image.create_empty(4, 4, false, Image.FORMAT_RGBA8)
+	glow.fill(Color.WHITE)
+	var emission := {"color": [1.0, 1.0, 1.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 1.0, "shared": true}
+	var looks := {"index": index, "emission": glow, "materials": [{"matcaps": [], "lighting": {"model": "lit"}, "emission": emission}]}
+	check(ExpressionDefinition.valid({"looks": looks}), "looks whose emission shares its map are valid")
+	var broken := looks.duplicate(true)
+	broken.materials[0].emission.shared = 1
+	check(not ExpressionDefinition.valid({"looks": broken}), "a share flag that is no bool is refused")
+	var im := ImporterMesh.new()
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3.ZERO, Vector3.RIGHT, Vector3.UP])
+	arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([Vector2(0.2, 0.1), Vector2(0.2, 0.5), Vector2(0.3, 0.9)])
+	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, StandardMaterial3D.new())
+	Avatar._lit_looks(looks, [im])
+	var table: Variant = im.get_surface_material(0).get_meta("lighting") if im.get_surface_material(0).has_meta("lighting") else null
+	check(table is Texture2D and (table as Texture2D).get_image().get_pixel(1, 1).a == 3.0, "the table marks a shared map by adding 2 to how far the glow overrides: %s" % [(table as Texture2D).get_image().get_pixel(1, 1) if table is Texture2D else null])
 
 
 func _clear_coat() -> void:

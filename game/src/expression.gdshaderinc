@@ -6,7 +6,8 @@ uniform bool use_vertex = false;
 uniform vec4 atlas = vec4(1.0, 1.0, 0.0, 0.0);
 // light_index red: the texel's column in `lighting` (Avatar._lit_looks). Row 0: r 0 lit by angle, 1 flat, 2 ramp-lit;
 // g cap; b shadow tint; a emission strength. Row 1: emission colour over `glow`, a how far the glow overrides the lit
-// colour (Poiyomi's lerp by its brightest channel). Row 2: b the drawn colour tints the glow, a its fluorescence.
+// colour (Poiyomi's lerp by its brightest channel), plus 2 where `glow`'s alpha is each texel's share of the emission
+// that overrides and fluoresces. Row 2: b the drawn colour tints the glow, a its fluorescence.
 uniform sampler2D light_index : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D lighting : hint_default_black, filter_nearest, repeat_disable;
 uniform sampler2D glow : source_color, hint_default_black, filter_linear_mipmap, repeat_disable;
@@ -21,7 +22,7 @@ varying vec4 glow_and_brightness;
 // Each *_entry is the `lighting` column, -1 where the material lacks that look. world_normal: the true normal, world
 // space, as a flat material's NORMAL is turned to light it; matcap, coat and toon all derive theirs from it, a Quest 2
 // having no room for a varying each (tests/test_varyings.gd).
-varying flat int matcap_entry;
+varying flat int look_entry;
 varying vec3 world_normal;
 uniform sampler2DArray matcaps : source_color, hint_default_white, filter_linear_mipmap, repeat_disable;
 uniform sampler2D matcap_masks : hint_default_white, filter_linear_mipmap, repeat_disable;
@@ -59,6 +60,11 @@ const int MATCAP = HEAD_ROWS + RAMP + COAT_ROWS;
 const int MATCAP_ROWS = 6;
 const int MATCAPS = 4;
 const int TOON_ROW = MATCAP + 1 + MATCAPS * MATCAP_ROWS;
+const int TOON_ROWS = 8;
+const int RIM_ROW = TOON_ROW + TOON_ROWS;
+const int RIM_ROWS = 4;
+const int MATCAPPED = 256;
+const int RIMMED = 512;
 void vertex() {
 	float entry = textureLod(light_index, UV * atlas.xy + atlas.zw, 0.0).r;
 	ivec2 looked = ivec2(min(int(round(entry * 255.0)), textureSize(lighting, 0).x - 1), 0);
@@ -72,7 +78,9 @@ void vertex() {
 	flat_lit = light.r > 0.5 ? 1.0 : 0.0;
 	vec3 at = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	vec3 normal = normalize(mat3(MODEL_MATRIX) * NORMAL);
-	matcap_entry = textureSize(lighting, 0).y > MATCAP && texelFetch(lighting, looked + ivec2(0, MATCAP), 0).r > 0.5 ? looked.x : -1;
+	int looks = (textureSize(lighting, 0).y > MATCAP && texelFetch(lighting, looked + ivec2(0, MATCAP), 0).r > 0.5 ? MATCAPPED : 0)
+		| (textureSize(lighting, 0).y >= RIM_ROW + RIM_ROWS && texelFetch(lighting, looked + ivec2(0, RIM_ROW + 3), 0).g > 0.5 ? RIMMED : 0);
+	look_entry = looks > 0 ? looked.x | looks : -1;
 	world_normal = normal;
 	bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
 #ifdef TOON
@@ -101,8 +109,8 @@ void vertex() {
 	}
 	vec3 key_light = mirrored ? mirror_light : sun_light;
 	vec3 direct = max(flat_lit > 0.5 ? min(flat_light + key_light, vec3(light.g)) + post.r : given.rgb + key_light, vec3(0.0));
-	float kept = 1.0 - post.a + post.a * dot(clamp((1.0 - direct) * sqrt(direct), 0.0, 1.0), vec3(1.0 / 3.0));
-	glow_and_brightness = vec4(light.a, max(1.0 - post.g, 0.0), post.b, kept);
+	float dimmed = post.a * (1.0 - dot(clamp((1.0 - direct) * sqrt(direct), 0.0, 1.0), vec3(1.0 / 3.0)));
+	glow_and_brightness = vec4(light.a, max(1.0 - post.g, 0.0), post.b, dimmed);
 #ifdef TOON
 	toon_light = flat_lit > 0.5 ? direct : (mirrored ? mirror_ambient : mix(sky_horizon, sky_zenith, 0.5) * sky_ambient) * given.a + given.rgb + key_light;
 #endif
@@ -484,7 +492,7 @@ void fragment() {
 	}
 #endif
 	vec3 matcap_light = vec3(0.0);
-	if (matcap_entry >= 0) {
+	if (look_entry > 0 && (look_entry & MATCAPPED) != 0) {
 		bool mirrored = CAMERA_VISIBLE_LAYERS == mirror_mask;
 		vec3 n = normalize(world_normal) * (FRONT_FACING ? 1.0 : -1.0);
 		vec3 toward = mirrored ? mirror_toward : sun_toward;
@@ -492,7 +500,7 @@ void fragment() {
 #ifdef TOON
 		if (shadowed) { lit = shadowmix; }
 #endif
-		matcap_light = matcapped(base.rgb, matcap_entry, uv, dx, dy, n, normalize(mat3(INV_VIEW_MATRIX) * VIEW), lit, matcap_moved, matcap_at);
+		matcap_light = matcapped(base.rgb, look_entry & 255, uv, dx, dy, n, normalize(mat3(INV_VIEW_MATRIX) * VIEW), lit, matcap_moved, matcap_at);
 	}
 #ifdef TOON
 	if (toon_entry >= 0) {
@@ -504,15 +512,51 @@ void fragment() {
 		}
 	}
 #endif
+	vec3 rim_glow = vec3(0.0);
+	if (look_entry > 0 && (look_entry & RIMMED) != 0) {
+		int column = look_entry & 255;
+		vec4 rim_colour = texelFetch(lighting, ivec2(column, RIM_ROW), 0);
+		vec4 rim_shape = texelFetch(lighting, ivec2(column, RIM_ROW + 1), 0);
+		vec4 rim_blend = texelFetch(lighting, ivec2(column, RIM_ROW + 2), 0);
+		float rim_facing = abs(dot(VIEW, normalize(mat3(VIEW_MATRIX) * world_normal)));
+		if (texelFetch(lighting, ivec2(column, RIM_ROW + 3), 0).r > 0.5) {
+			rim_facing = 1.0 - rim_facing;
+		}
+		float rim_from = min(rim_shape.z, rim_shape.y);
+		float rim_at = clamp((pow(rim_facing, rim_shape.x) - rim_from) / max(rim_shape.y - rim_from, 1e-5), 0.0, 1.0);
+		float rim = (1.0 - rim_at * rim_at * (3.0 - 2.0 * rim_at)) * rim_colour.a * rim_colour.a;
+		vec3 rim_lit = rim_colour.rgb * mix(vec3(1.0), base.rgb, rim_blend.y) * rim_blend.x;
+		float amount = rim * rim_blend.z;
+		int mode = int(rim_blend.w + 0.5);
+		if (mode == 0) {
+			base.rgb += rim_lit * amount;
+		} else if (mode == 1) {
+			base.rgb = mix(base.rgb, rim_lit, amount);
+		} else if (mode == 2) {
+			base.rgb = mix(base.rgb, base.rgb * rim_lit, amount);
+		} else if (mode == 3) {
+			base.rgb = mix(base.rgb, base.rgb + base.rgb * rim_lit, amount);
+		} else {
+			base.rgb = mix(base.rgb, 1.0 - (1.0 - base.rgb) * (1.0 - rim_lit), amount);
+		}
+		rim_glow = rim_lit * rim * rim_shape.w;
+	}
 	vec3 glowing = vec3(0.0);
 	float replaced = 0.0;
+	float replacing = glow_colour.a;
 	vec3 glows = glow_colour.rgb * strength;
 	if (any(greaterThan(glows, vec3(0.0)))) {
-		glowing = textureGrad(glow, uv, dx, dy).rgb * glows * mix(vec3(1.0), base.rgb, glow_and_brightness.z) * glow_and_brightness.w;
+		vec4 glow_texel = textureGrad(glow, uv, dx, dy);
+		float led = 1.0;
+		if (replacing > 1.5) {
+			led = glow_texel.a;
+			replacing = (replacing - 2.0) * led;
+		}
+		glowing = glow_texel.rgb * glows * mix(vec3(1.0), base.rgb, glow_and_brightness.z) * (1.0 - led * glow_and_brightness.w);
 		if (glow_turn != 0.0) {
 			glowing = mix(glowing, shift_hue(glowing, vec3(glow_turn, 2.0, 0.0)), adjust.r);
 		}
-		replaced = clamp(max(glowing.r, max(glowing.g, glowing.b)) * glow_colour.a, 0.0, 1.0);
+		replaced = clamp(max(glowing.r, max(glowing.g, glowing.b)) * replacing, 0.0, 1.0);
 	}
 	ALBEDO = base.rgb * (1.0 - replaced);
 #ifdef BLENDED
@@ -575,5 +619,5 @@ void fragment() {
 	}
 #endif
 	ALBEDO *= glow_and_brightness.y;
-	EMISSION = EMISSION * glow_and_brightness.y + clamp(glowing * glow_colour.a, 0.0, 1.0) * replaced + glowing;
+	EMISSION = EMISSION * glow_and_brightness.y + clamp(glowing * replacing, 0.0, 1.0) * replaced + glowing + rim_glow;
 }

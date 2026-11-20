@@ -27,6 +27,7 @@ const MATCAP_ROWS := 6
 ## Poiyomi's slots.
 const MATCAPS := 4
 const TOON_ROWS := 8
+const RIM_ROWS := 4
 ## Poiyomi's clear coat face on: Unity's dielectric specular, in gamma space.
 const DIELECTRIC := 0.220916301
 ## "clearcoatFallbacks": FALLBACK_LEVELS latitude-longitude levels FALLBACK_SIDE wide, half as tall, stacked top down;
@@ -814,7 +815,8 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 	var blended := func(m: Dictionary) -> bool: return blends.any(func(r: Variant) -> bool: return ExpressionPlayer.same_rect(r, m.get("rect", [])))
 	var matcapped := materials.filter(func(m: Dictionary) -> bool: return not _drawn_matcaps(m, blended.call(m)).is_empty()).size()
 	var tooned := materials.filter(_toon).size()
-	var rows := HEAD_ROWS + RAMP + (COAT_ROWS if coats + matcapped + tooned > 0 else 0) + (1 + MATCAPS * MATCAP_ROWS if matcapped + tooned > 0 else 0) + (TOON_ROWS if tooned > 0 else 0)
+	var rimmed := materials.filter(func(m: Dictionary) -> bool: return m.get("rimLight") is Dictionary).size()
+	var rows := HEAD_ROWS + RAMP + (COAT_ROWS if coats + matcapped + tooned + rimmed > 0 else 0) + (1 + MATCAPS * MATCAP_ROWS if matcapped + tooned + rimmed > 0 else 0) + (TOON_ROWS if tooned + rimmed > 0 else 0) + (RIM_ROWS if rimmed > 0 else 0)
 	var table := Image.create_empty(materials.size() + 1, rows, false, Image.FORMAT_RGBAF)
 	var textures := (looks.get("matcaps", []) as Array).size()
 	var fallbacks: int = (looks.get("clearcoatFallbacks", []) as Array).size() if looks.get("clearcoatFallbacks") is Array else 0
@@ -842,6 +844,15 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 			var strength: Variant = coat.fresnelStrength
 			table.set_pixel(k + 1, row + 5, Color(coat.gsaa[0], coat.gsaa[1], -1.0 if strength == null else DIELECTRIC + lerpf(DIELECTRIC, 1.0, strength) * 0.5, coat.exposureOcclusion))
 			table.set_pixel(k + 1, row + 6, Color(coat.fallback if coat.fallback >= 0 and coat.fallback < fallbacks else fallbacks, float(coat.litFallback), float(coat.forceFallback)))
+		var rim_light: Variant = materials[k].get("rimLight")
+		if rim_light is Dictionary:
+			drawn[k + 1] |= LOOKED
+			var row := HEAD_ROWS + RAMP + COAT_ROWS + 1 + MATCAPS * MATCAP_ROWS + TOON_ROWS
+			var c: Array = rim_light.color
+			table.set_pixel(k + 1, row, Color(c[0], c[1], c[2], c[3]))
+			table.set_pixel(k + 1, row + 1, Color(rim_light.power, lerpf(-0.05, 1.0, rim_light.width), rim_light.sharpness, rim_light.strength))
+			table.set_pixel(k + 1, row + 2, Color(rim_light.brightness, rim_light.baseMix, rim_light.blend, rim_light.mode))
+			table.set_pixel(k + 1, row + 3, Color(float(rim_light.invert), 1.0, 0.0, 0.0))
 		var light: Dictionary = materials[k].lighting
 		var head := Color(0, 0, 0, 0)
 		if light.model == "flat":
@@ -860,7 +871,7 @@ static func _lit_looks(looks: Dictionary, meshes: Array, swaps := {}, animated :
 			var lit: bool = glow.color.any(func(c: Variant) -> bool: return float(c) > 0.0) and (head.a > 0.0 or animated.has("emission"))
 			if lit or glow.get("theme") != null:
 				drawn[k + 1] |= LOOKED
-				table.set_pixel(k + 1, 1, Color(glow.color[0], glow.color[1], glow.color[2], float(glow.get("replace", 0.0))))
+				table.set_pixel(k + 1, 1, Color(glow.color[0], glow.color[1], glow.color[2], replacing(glow)))
 				table.set_pixel(k + 1, POST_ROW, Color(0.0, 0.0, float(glow.get("base", 0.0)), float(glow.get("fluorescence", 0.0))))
 		table.set_pixel(k + 1, 0, head)
 	if drawn.count(0) == drawn.size():
@@ -911,6 +922,10 @@ static func _shows(im: ImporterMesh, moves: Array, drawn: PackedByteArray, texel
 				if shows == LOOKED | COATED | TOON | FORCES_FALLBACK:
 					return shows
 	return shows
+
+
+static func replacing(glow: Dictionary) -> float:
+	return float(glow.get("replace", 0.0)) + (2.0 if glow.get("shared", false) else 0.0)
 
 
 static func _toon(m: Dictionary) -> bool:

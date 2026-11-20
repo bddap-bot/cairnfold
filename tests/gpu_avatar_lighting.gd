@@ -47,7 +47,7 @@ func _run() -> void:
 	RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE)
 	RenderingServer.global_shader_parameter_set(&"sky_ambient", 0.0)
 	env.ambient_light_color = Color.BLACK
-	for model: String in ["coat", "masked", "unmasked", "world", "fallback", "unlit fallback", "forced", "flat fallback", "sharp", "widened", "glancing", "occluded", "matcap", "matcap masked", "no fallback map", "failed fallback map", "no fallback maps"]:
+	for model: String in ["coat", "masked", "unmasked", "world", "fallback", "unlit fallback", "forced", "flat fallback", "sharp", "widened", "glancing", "occluded", "matcap", "matcap masked", "no fallback map", "failed fallback map", "no fallback maps", "plain", "black rim"]:
 		ExpressionPlayer.world_reflects = model in ["coat", "masked", "unmasked", "world", "forced"]
 		RenderingServer.global_shader_parameter_set(&"sun_light", Vector3.ONE * (0.1 if model == "occluded" else 1.0))
 		var coated := _ball(model)
@@ -64,6 +64,11 @@ func _run() -> void:
 	env.ambient_light_color = Color.BLACK
 	shots["glow"] = await _sides(view)
 	glowing.queue_free()
+	var rimmed := _ball("rim")
+	view.add_child(rimmed)
+	shots["rim"] = await _sides(view)
+	var rim_centre := _mean(view.get_texture().get_image(), SIZE / 2)
+	rimmed.queue_free()
 	for model: String in ["base glow", "dark glow", "lit glow"]:
 		var tinted := _ball(model)
 		view.add_child(tinted)
@@ -106,6 +111,8 @@ func _run() -> void:
 	check(absf(lit_glow.y - 0.214 * (0.5 + 0.5 * 0.75 * 0.5)) < 0.02, "under a light of 0.25 its fluorescence keeps half plus half of (1 - 0.25) * sqrt(0.25) on the side the light misses: %s" % lit_glow)
 	check(dark_glow.distance_to(base_glow) < 0.01, "a menu taking the brightness to nothing leaves the glow as Poiyomi adds it after: %s" % dark_glow)
 	check(reds.min() < 0.05 and reds.max() > 0.6, "a glow in a theme colour whose hue turns a third a frame goes from red to none and back: %s" % [reds])
+	var rim: Vector2 = shots["rim"]
+	check(rim.x > 0.2 and rim.y > 0.2 and rim_centre < 0.1, "Poiyomi's rim lighting glows in the dark toward the ball's edge on either side and not where it faces the eye: %s, centre %s" % [rim, rim_centre])
 	var masked: Vector2 = shots["masked"]
 	var coat: Vector2 = shots["coat"]
 	check(coat.x > masked.x + 0.03 and absf(coat.y - masked.y) < 0.01, "a clear coat adds a highlight on the side toward the light and nothing away from it: %s over %s, its map masking it off" % [coat, masked])
@@ -137,6 +144,9 @@ func _run() -> void:
 	check(failed_map.distance_to(no_map) < 0.005, "and one whose map is no fallback image reflects the same grey: %s beside %s" % [failed_map, no_map])
 	var no_maps: Vector2 = shots["no fallback maps"]
 	check(no_maps.distance_to(no_map) < 0.005, "as does one on an avatar with no fallback maps: %s" % no_maps)
+	var plain: Vector2 = shots["plain"]
+	var black_rim: Vector2 = shots["black rim"]
+	check(black_rim.x < plain.x - 0.1 and black_rim.x > 0.05, "a black rim replacing the base colour darkens a lit ball toward its edge, partly where the sides are sampled: %s against %s" % [black_rim, plain])
 	view.queue_free()
 	_reference_replay()
 	finish()
@@ -196,6 +206,10 @@ func _ball(model: String) -> Node3D:
 	if model in ["glow", "theme"]:
 		looks.materials[0].emission = {"color": [0.25, 0.0, 0.0], "strength": 2.0, "hue": 0.0, "shiftsHue": false, "replace": 1.0}
 		looks.emission = picture
+	if model == "rim":
+		looks.materials[0].rimLight = {"color": [1.0, 1.0, 1.0, 1.0], "invert": false, "power": 4.0, "width": 0.9, "sharpness": 0.0, "strength": 1.0, "brightness": 1.0, "baseMix": 0.0, "blend": 0.0, "mode": 0}
+	if model == "black rim":
+		looks.materials[0].rimLight = {"color": [0.0, 0.0, 0.0, 1.0], "invert": false, "power": 4.0, "width": 0.9, "sharpness": 0.0, "strength": 0.0, "brightness": 1.0, "baseMix": 0.0, "blend": 1.0, "mode": 1}
 	if model.ends_with(" glow"):
 		looks.materials[0].emission = {"color": [1.0, 1.0, 1.0], "strength": 1.0, "hue": 0.0, "shiftsHue": false, "replace": 0.0, "base": 1.0, "fluorescence": 0.5}
 		looks.materials[0].rect = [0, 0, 1, 1]

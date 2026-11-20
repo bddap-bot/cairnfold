@@ -870,6 +870,35 @@ func clearcoat(key: String) -> Dictionary:
 const COAT_GLOBAL_MASKS := ["_ClearCoatGlobalMask", "_ClearCoatSmoothnessGlobalMask", "_ClearCoatReflectionStrengthGlobalMask", "_ClearCoatSpecularStrengthGlobalMask"]
 const COAT_CHANNELS := [["_ClearCoatMapsClearCoatMaskChannel", 0.0], ["_ClearCoatMapsRoughnessChannel", 1.0], ["_ClearCoatMapsReflectionMaskChannel", 2.0], ["_ClearCoatMapsSpecularMaskChannel", 3.0]]
 const COAT_INVERTS := ["_ClearCoatMaskInvert", "_ClearCoatSmoothnessMapInvert", "_ClearCoatReflectionMaskInvert", "_ClearCoatSpecularMaskInvert"]
+func rim_lighting(key: String) -> Dictionary:
+	var m: Dictionary = materials[key]
+	if not poiyomi(m) or not (m.properties as Dictionary).has("_RimPoiBlendMode") or _saved(m, "_EnableRimLighting", 0.0) == 0.0 or _float(m, "_RimStyle") != 0.0:
+		return {}
+	var unread := ["_RimShadowToggle", "_RimGlobalMask", "_RimApplyAlpha", "_RimApplyGlobalMaskIndex", "_RimBiasIntensity", "_RimMaskInvert"]
+	var turned := _float(m, "_RimHueShiftEnabled") != 0.0 and (_float(m, "_RimHueSelectOrShift", 1.0) != 1.0 or _saved(m, "_RimHueShift", 0.0) != 0.0 or _float(m, "_RimHueShiftSpeed") != 0.0)
+	var colours: Dictionary = m.get("colours", {})
+	var panned := ["_RimTexPan", "_RimMaskPan"].any(func(p: String) -> bool: return _colour(colours.get(p), Color(0, 0, 0, 0)) != Color(0, 0, 0, 0))
+	if turned or panned or unread.any(func(p: String) -> bool: return _float(m, p) != 0.0) or ["_RimTex", "_RimMask"].any(func(p: String) -> bool: return _texture_guid(m, p) != ""):
+		return {}
+	var theme := int(_float(m, "_RimLightColorThemeIndex")) - 1
+	if theme >= 0 and theme <= 3 and _theme(m, theme).speed != 0.0:
+		return {}
+	var colour: Color = ExpressionPlayer.theme_colour(_theme(m, theme), 0.0) if theme >= 0 and theme <= 3 else shader_colour(m, "_RimLightColor", Color.WHITE)
+	colour.a = _colour(colours.get("_RimLightColor"), Color.WHITE).a
+	return {
+		"color": [colour.r, colour.g, colour.b, colour.a],
+		"invert": _float(m, "_RimLightingInvert") != 0.0,
+		"power": _saved(m, "_RimPower", 1.0),
+		"width": _saved(m, "_RimWidth", 0.8),
+		"sharpness": _saved(m, "_RimSharpness", 0.25),
+		"strength": _saved(m, "_RimStrength", 0.0),
+		"brightness": _saved(m, "_RimBrightness", 1.0),
+		"baseMix": _saved(m, "_RimBaseColorMix", 0.0),
+		"blend": _saved(m, "_RimBlendStrength", 1.0),
+		"mode": int(_float(m, "_RimPoiBlendMode")),
+	}
+
+
 ## The packed maps mask a highlight and a reflection, not a colour.
 const COAT_MAP := 512
 
@@ -1132,14 +1161,25 @@ func emission(key: String) -> Dictionary:
 	var colour: Color = Color.WHITE if mixed else ExpressionPlayer.theme_colour(drawn.theme, 0.0) if not drawn.theme.is_empty() else drawn.colour
 	if colour.r + colour.g + colour.b == 0.0 and drawn.theme.is_empty():
 		return {}
-	var out := {"color": [colour.r, colour.g, colour.b], "strength": _peak(key) if mixed else drawn.strength * _peak(key), "hue": 0.0, "shiftsHue": false, "replace": drawn.replace}
+	var weighed := _weighed(key)
+	var out := {"color": [colour.r, colour.g, colour.b], "strength": _peak(key) if mixed else drawn.strength * _peak(key), "hue": 0.0, "shiftsHue": false, "replace": weighed.replace}
 	if not drawn.theme.is_empty():
 		out.theme = drawn.theme.slot
 	if drawn.base:
 		out.base = 1.0
-	if drawn.fluorescence > 0.0:
-		out.fluorescence = drawn.fluorescence
+	if weighed.fluorescence > 0.0:
+		out.fluorescence = weighed.fluorescence
+	if weighed.shared:
+		out.shared = true
 	return out
+
+
+func _weighed(key: String) -> Dictionary:
+	var drawn := _drawn(key)
+	var slots := _folded(key).map(func(f: Array) -> int: return f[0])
+	var lead := _lead(key) if poiyomi(materials[key]) and slots.size() > 1 else [drawn.replace, drawn.fluorescence]
+	var kinds := _poiyomi_glows(key).filter(func(g: Dictionary) -> bool: return g.slot in slots).map(func(g: Dictionary) -> Array: return [g.replace, g.fluorescence])
+	return {"replace": lead[0], "fluorescence": lead[1], "shared": lead != [0.0, 0.0] and [0.0, 0.0] in kinds}
 
 
 func _drawn(key: String) -> Dictionary:
@@ -1167,8 +1207,10 @@ func _poiyomi_glows(key: String) -> Array[Dictionary]:
 		var n := "" if slot == 0 else str(slot)
 		if _saved(m, "_EnableEmission" + n, 0.0) == 0.0:
 			continue
-		var still := ["_EmissionMap%sUV" % n, "_EmissionMask%sUV" % n, "_EmissionCenterOutEnabled" + n, "_ScrollingEmission" + n, "_EmissionHueShiftEnabled" + n, "_EnableGITDEmission" + n]
-		if not still.all(func(name: String) -> bool: return _float(m, name) == 0.0) or not global_mask(m, int(_float(m, "_EmissionMask%dGlobalMask" % slot))) is Dictionary:
+		var still := ["_EmissionMap%sUV" % n, "_EmissionMask%sUV" % n, "_ScrollingEmission" + n, "_EnableGITDEmission" + n]
+		var turned := _float(m, "_EmissionHueShiftEnabled" + n) != 0.0 and (_float(m, "_EmissionHueSelectOrShift" + n, 1.0) != 1.0 or _saved(m, "_EmissionHueShift" + n, 0.0) != 0.0 or _float(m, "_EmissionHueShiftSpeed" + n) != 0.0 or _saved(m, "_EmissionSaturation" + n, 0.0) != 0.0)
+		var flowing := _float(m, "_EmissionCenterOutEnabled" + n) != 0.0 and _texture_guid(m, "_EmissionMap" + n) != ""
+		if turned or flowing or not still.all(func(name: String) -> bool: return _float(m, name) == 0.0) or not global_mask(m, int(_float(m, "_EmissionMask%dGlobalMask" % slot))) is Dictionary:
 			continue
 		var index := int(_float(m, "_EmissionColor%sThemeIndex" % n)) - 1
 		var theme := _theme(m, index) if index >= 0 and index <= 3 else {}
@@ -1208,7 +1250,20 @@ func _folded(key: String) -> Array:
 
 func _alike(key: String) -> Array:
 	var drawn := _drawn(key)
-	return _poiyomi_glows(key).filter(func(g: Dictionary) -> bool: return g.replace == drawn.replace and g.base == drawn.base and g.fluorescence == drawn.fluorescence and g.strength > 0.0 and g.theme.get("slot") == drawn.theme.get("slot"))
+	var kin := _poiyomi_glows(key).filter(func(g: Dictionary) -> bool: return g.base == drawn.base and g.strength > 0.0 and g.theme.get("slot") == drawn.theme.get("slot"))
+	var lead := _lead(key)
+	return kin.filter(func(g: Dictionary) -> bool: return [g.replace, g.fluorescence] in [lead, [0.0, 0.0]])
+
+
+func _lead(key: String) -> Array:
+	var drawn := _drawn(key)
+	if drawn.replace != 0.0 or drawn.fluorescence != 0.0:
+		return [drawn.replace, drawn.fluorescence]
+	var kinds := {}
+	for g: Dictionary in _poiyomi_glows(key):
+		if g.base == drawn.base and g.strength > 0.0 and g.theme.get("slot") == drawn.theme.get("slot") and (g.replace != 0.0 or g.fluorescence != 0.0):
+			kinds[[g.replace, g.fluorescence]] = true
+	return kinds.keys()[0] if kinds.size() == 1 else [0.0, 0.0]
 
 
 func _mixed(key: String) -> bool:
@@ -1246,7 +1301,9 @@ func _glow_and_peak(key: String) -> Array:
 	var folded := _folded(key) if poiyomi(m) else []
 	if folded.size() <= 1:
 		return [_glow_of(m, "" if folded.is_empty() or folded[0][0] == 0 else str(folded[0][0])), 1.0]
+	var plain := _poiyomi_glows(key).filter(func(g: Dictionary) -> bool: return g.replace == 0.0 and g.fluorescence == 0.0).map(func(g: Dictionary) -> int: return g.slot)
 	var sum := PackedFloat32Array()
+	var led := PackedFloat32Array()
 	var map: Image
 	var peak := 1.0
 	for fold: Array in folded:
@@ -1255,14 +1312,21 @@ func _glow_and_peak(key: String) -> Array:
 		if map == null:
 			map = own
 			sum.resize(data.size())
+			led.resize(data.size() / 4)
 		for i in data.size():
 			if i % 4 != 3:
-				sum[i] += _LINEAR[data[i]] * (fold[1] as Color)[i % 4]
+				var added: float = _LINEAR[data[i]] * (fold[1] as Color)[i % 4]
+				sum[i] += added
+				if fold[0] not in plain:
+					led[i / 4] += added
 				peak = maxf(peak, sum[i])
 	var out := map.get_data()
 	for i in out.size():
 		if i % 4 != 3:
 			out[i] = _ENCODED[int(clampf(sum[i] / peak, 0.0, 1.0) * 4095.0)]
+		else:
+			var whole: float = sum[i - 3] + sum[i - 2] + sum[i - 1]
+			out[i] = roundi(255.0 * (led[i / 4] / whole if whole > 0.0 else 1.0))
 	map.set_data(map.get_width(), map.get_height(), false, Image.FORMAT_RGBA8, out)
 	_folded_maps[key] = [map, peak]
 	return _folded_maps[key]
@@ -1463,7 +1527,7 @@ func looks() -> Dictionary:
 			glows = {}
 		var light := lighting(key)
 		var coat := clearcoat(key)
-		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light == {"model": "lit"} and coat.is_empty() and not post_regions.has(key):
+		if decals.all(func(d: Dictionary) -> bool: return d.is_empty()) and matcaps.all(func(c: Dictionary) -> bool: return c.is_empty()) and glows.is_empty() and light == {"model": "lit"} and coat.is_empty() and rim_lighting(key).is_empty() and not post_regions.has(key):
 			continue
 		if entries.size() == 255:
 			push_error("unity_avatar: over 255 materials with looks; the rest draw lit by angle without decals, matcaps or emission")
@@ -1534,6 +1598,9 @@ func looks() -> Dictionary:
 					fallback_images.append(reflected)
 			drawn_coat.fallback = fallbacks.get(coat.fallbackTexture, -1)
 			entry.clearcoat = drawn_coat
+		var rim_light := rim_lighting(key)
+		if not rim_light.is_empty():
+			entry.rimLight = rim_light
 		var rim := Liltoon.rim(m) if Liltoon.is_liltoon(m) else {}
 		if not rim.is_empty():
 			entry.rim = rim

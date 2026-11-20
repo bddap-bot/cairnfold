@@ -57,6 +57,8 @@ func _run() -> void:
 	_toon_outlines_join_the_look()
 	_an_outline_mask_weighs_as_its_shader_reads_it()
 	_a_clear_coat_carries_its_fallback_cubemap()
+	_poiyomi_emissions_unlike_in_replace_and_fluorescence_add_up()
+	_poiyomi_rim_lighting_reads_as_its_shader_does()
 	_poiyomi_emission_glows_by_its_mask_and_theme()
 	_poiyomi_lighting_moves_only_where_its_shader_reads_it()
 	_poiyomi_emissions_in_one_colour_add_up()
@@ -3576,6 +3578,81 @@ func _a_clear_coat_joins_the_look_and_its_maps_offset_binds() -> void:
 	var dry := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
 	check(dry.targets.is_empty(), "the offset of a material whose coat is off moves nothing, as in VRChat")
 	sk.free()
+
+
+func _poiyomi_emissions_unlike_in_replace_and_fluorescence_add_up() -> void:
+	var dir := ProjectSettings.globalize_path("user://unlike_glows")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _EmissionStrength ("Strength", Range(0, 20)) = 0 } }')
+	write.call("paired.mat", "paired", """Material:
+  m_Shader: {guid: poi}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _EmissionMask:
+        m_Texture: {guid: half}
+    - _EmissionMask1:
+        m_Texture: {guid: half}
+    m_Floats:
+    - _EnableEmission: 1
+    - _EmissionStrength: 3
+    - _EmissionReplace0: 1
+    - _EmissionFluorescence: 0.5
+    - _EmissionCenterOutEnabled: 1
+    - _EmissionHueShiftEnabled: 1
+    - _EnableEmission1: 1
+    - _EmissionStrength1: 1
+    - _EmissionMask1Channel: 1
+""")
+	var half := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	half.set_pixel(0, 0, Color(1, 0, 0, 1))
+	half.set_pixel(1, 0, Color(0, 1, 0, 1))
+	half.save_png(dir.path_join("half.png"))
+	FileAccess.open(dir.path_join("half.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: half\n")
+	var materials := Materials.new(Assets.new(dir))
+	materials.use({"guid": "paired"}, Color.WHITE)
+	materials.pack(["paired"])
+	var paired := materials.emission("paired")
+	check(paired.get("strength") == 3.0 and paired.get("replace") == 1.0 and paired.get("fluorescence") == 0.5 and paired.get("shared") == true, "two emissions, one flowing out from the centre over no map and one whose hue shift turns nothing, both draw, the one that replaces and fluoresces leading and sharing the map with the plain one: %s" % [paired])
+	var glow: Image = materials.looks().get("emission")
+	if glow != null:
+		var cell: Rect2i = materials.materials.paired.cell
+		var left := glow.get_pixel(cell.position.x, cell.position.y + cell.size.y / 2)
+		var right := glow.get_pixel(cell.end.x - 1, cell.position.y + cell.size.y / 2)
+		check(left.a8 == 255 and right.a8 == 0, "the map's alpha is each texel's share of the leading emission, whole where it alone glows and none where only the plain one does: %s %s" % [left, right])
+	check(glow != null, "the emission map is an image")
+
+
+func _poiyomi_rim_lighting_reads_as_its_shader_does() -> void:
+	var dir := ProjectSettings.globalize_path("user://rim_lighting")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var write := func(name: String, guid: String, text: String) -> void:
+		FileAccess.open(dir.path_join(name), FileAccess.WRITE).store_string(text)
+		FileAccess.open(dir.path_join(name + ".meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: %s\n" % guid)
+	write.call("poi.shader", "poi", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _RimPoiBlendMode ("Blend Mode", Int) = 0 } }')
+	write.call("old.shader", "old", 'Shader "Hidden/Locked/.poiyomi/Poiyomi Toon" { Properties { _MainTex ("Main", 2D) = "white" { } } }')
+	var material := "Material:\n  m_Shader: {guid: poi}\n  m_SavedProperties:\n    m_Floats:\n    - _EnableRimLighting: 1\n    - _RimPower: 2\n    - _RimWidth: 0.5\n    - _RimStrength: 4\n    - _RimBrightness: 2\n    - _RimBaseColorMix: 1\n    - _RimPoiBlendMode: 2\n%s    m_Colors:\n    - _RimLightColor: {r: 1, g: 0.5, b: 1, a: 0.5}\n"
+	write.call("edge.mat", "edge", material % "")
+	write.call("inside.mat", "inside", material % "    - _RimLightingInvert: 1\n")
+	write.call("older.mat", "older", (material % "").replace("{guid: poi}", "{guid: old}"))
+	write.call("shadowed.mat", "shadowed", material % "    - _RimShadowToggle: 1\n")
+	write.call("styled.mat", "styled", material % "    - _RimStyle: 2\n")
+	write.call("dark.mat", "dark", (material % "").replace("_EnableRimLighting: 1", "_EnableRimLighting: 0"))
+	var materials := Materials.new(Assets.new(dir))
+	for key: String in ["edge", "shadowed", "styled", "dark", "inside", "older"]:
+		materials.use({"guid": key}, Color.WHITE)
+	materials.pack(["edge", "shadowed", "styled", "dark", "inside", "older"])
+	check(materials.rim_lighting("older").is_empty(), "an earlier Poiyomi's rim, whose shader declares no Poiyomi-style blend mode, is not read as this one")
+	check(materials.rim_lighting("inside").get("invert") == true, "an inverted rim says so: %s" % [materials.rim_lighting("inside")])
+	var rim := materials.rim_lighting("edge")
+	check(rim.get("power") == 2.0 and rim.get("width") == 0.5 and rim.get("strength") == 4.0 and rim.get("brightness") == 2.0 and rim.get("baseMix") == 1.0 and rim.get("mode") == 2 and rim.get("invert") == false, "Poiyomi's rim reads its power, width, strength, brightness, base mix and blend mode: %s" % [rim])
+	var colour: Array = rim.get("color", [])
+	check(colour.size() == 4 and is_equal_approx(colour[1], Color(0.5, 0, 0).srgb_to_linear().r) and colour[3] == 0.5, "its colour is linear and keeps its alpha: %s" % [colour])
+	check(materials.rim_lighting("shadowed").is_empty() and materials.rim_lighting("styled").is_empty() and materials.rim_lighting("dark").is_empty(), "a rim the light masks, one in another style and one off draw none")
+	var entries: Array = materials.looks().get("materials", [])
+	check(entries.size() == 2 and entries[0].get("rimLight") == rim, "the drawn rim joins its material's look: %s" % [entries])
 
 
 ## Each level is RGBM, blurred as Unity's specular convolution blurs its mips.

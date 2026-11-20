@@ -600,7 +600,7 @@ static func _theme_of(look: Dictionary) -> Variant:
 
 
 static func _entry(look: Dictionary) -> Dictionary:
-	return {"theme": (_theme_of(look) as Dictionary).duplicate(), "replace": float(look.emission.get("replace", 0.0)), "frame": -1, "colour": Color()}
+	return {"theme": (_theme_of(look) as Dictionary).duplicate(), "replace": Avatar.replacing(look.emission), "frame": -1, "colour": Color()}
 
 
 ## Linear; offsets applied as Poiyomi's ModifyViaHSV does, hue turning `speed` per Unity _Time.x (seconds / 20).
