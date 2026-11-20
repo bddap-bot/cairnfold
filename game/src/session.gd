@@ -77,13 +77,13 @@ var _sent_held: Array = []
 ## Of this player's .vrm avatars; "" for none.
 var folder := ""
 ## By file name: {seen, when, key, bytes, scene}. `seen` is modified time and size, so a file is read again only when
-## it changes; `key` is "" until read, and `scene` null unless it read as an avatar within the limits.
+## it changes; `key` is "" until read, and `scene` null unless it read as an avatar.
 var files := {}
 ## The newest of the files that last changed, worn once it reads.
 var _wanted := ""
 ## One at a time, newest first, so a full folder never holds every core or its memory.
 var _reading := ""
-## Only a file that read as an avatar within the limits; empty for a built-in avatar.
+## Only a file that read as an avatar; empty for a built-in avatar.
 var worn := PackedByteArray()
 ## Named in the beacon so the picker can fetch the file before anyone joins; "" for a built-in avatar.
 var worn_key := ""
@@ -589,7 +589,7 @@ func _worn_by_peer(key: String, _bytes: PackedByteArray, scene: PackedScene, id:
 	if not _looks.has(id):
 		return
 	if scene == null:
-		print("session: player %d sent a file that is not an avatar within the limits" % id)
+		print("session: player %d's file stands as a built-in" % id)
 		return
 	print("session: player %d wears %s" % [id, key])
 	_wearing[id] = key
@@ -644,7 +644,8 @@ func _prune() -> void:
 static func sha256(bytes: PackedByteArray) -> String:
 	var h := HashingContext.new()
 	h.start(HashingContext.HASH_SHA256)
-	h.update(bytes)
+	if not bytes.is_empty():
+		h.update(bytes)
 	return h.finish().hex_encode()
 
 
@@ -709,7 +710,7 @@ func _have_file(key: String, bytes: PackedByteArray, scene: PackedScene, f: Stri
 	_reading = ""
 	if files.get(f, {}).get("seen") == seen:
 		if scene == null:
-			print("session: %s is not an avatar within the limits" % folder.path_join(f))
+			print("session: %s stands as a built-in" % folder.path_join(f))
 		files[f].merge({"key": key, "bytes": bytes if scene != null else PackedByteArray(), "scene": scene}, true)
 		if f == _wanted:
 			_wanted = ""
@@ -742,15 +743,12 @@ func put_on(scene: PackedScene, key: String, bytes: PackedByteArray, look: int, 
 	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(look), tint, key))
 
 
-## On a worker thread; `done(hash, bytes, scene)` follows on this one, `scene` null unless it is an avatar within the
-## limits. `peer` is whose file it is, 0 for this player's own or a picker fetch.
+## On a worker thread; `done(hash, bytes, scene)` follows on this one, `scene` null unless it read as an avatar.
+## `peer` is whose file it is, 0 for this player's own or a picker fetch.
 func _read(bytes: PackedByteArray, path: String, done: Callable, peer := 0) -> void:
 	var out := {}
 	var task := WorkerThreadPool.add_task(func() -> void:
-		var b := bytes
-		if path != "":
-			var f := FileAccess.open(path, FileAccess.READ)
-			b = f.get_buffer(f.get_length()) if f != null and f.get_length() <= Avatar.max_bytes() else PackedByteArray()
+		var b := Avatar.file_bytes(path) if path != "" else bytes
 		out.merge({"key": sha256(b), "bytes": b, "scene": Avatar.read(b) if not b.is_empty() else null}))
 	_jobs.append({"task": task, "peer": peer, "done": done, "out": out})
 

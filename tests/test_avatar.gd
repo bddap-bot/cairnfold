@@ -51,6 +51,7 @@ func _run() -> void:
 	_a_worn_avatar_frees_its_animated_materials()
 	check(Avatar.read("not a vrm".to_utf8_buffer()) == null, "a file that is not glTF reads as nothing")
 	_read_limits_follow_memory()
+	_unread_files_say_why()
 	_images_are_measured_before_decoding()
 	_textures_share_the_texel_limit()
 	_blend_shapes_are_bounded()
@@ -145,6 +146,29 @@ func _read_limits_follow_memory() -> void:
 	Avatar._reading = needs
 	check(Avatar.read(past, false, needs) == null, "memory a read under way holds is not counted available to another")
 	Avatar._reading = 0
+
+
+## A file that is not read says what kept it, and only one weighed against the memory names a limit.
+func _unread_files_say_why() -> void:
+	var sample := FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))
+	check(Avatar.file_bytes(avatar_file("crimsom-1.0.vrm"), 0) == sample, "a file within the floors is read whole")
+	var missing := ProjectSettings.globalize_path("user://no-such.vrm")
+	var why := Avatar.unread(FileAccess.open(missing, FileAccess.READ), 0, 0)
+	check(why.begins_with("it did not open") and not "memory" in why, "a file that does not open says so and names no limit: %s" % why)
+	check(Avatar.file_bytes(missing).is_empty(), "a file that does not open gives no bytes")
+	var empty := ProjectSettings.globalize_path("user://empty.vrm")
+	FileAccess.open(empty, FileAccess.WRITE).close()
+	why = Avatar.unread(FileAccess.open(empty, FileAccess.READ), 0, 0)
+	check(why == "it is empty" and Avatar.file_bytes(empty).is_empty(), "an empty file says so and names no limit: %s" % why)
+	var heavy := ProjectSettings.globalize_path("user://heavy.vrm")
+	var f := FileAccess.open(heavy, FileAccess.WRITE)
+	f.store_buffer(_padded(sample, Avatar.FLOOR_BYTES + 4))
+	f.close()
+	why = Avatar.unread(FileAccess.open(heavy, FileAccess.READ), Avatar.FLOOR_BYTES + 4, 0)
+	check("memory reads" in why and Avatar.file_bytes(heavy, 0).is_empty(), "a file past what the memory reads names that limit: %s" % why)
+	check(Avatar.file_bytes(heavy, Avatar.memory_to_read(float(Avatar.FLOOR_BYTES + 4) / Avatar.FLOOR_BYTES)).size() == Avatar.FLOOR_BYTES + 4, "the same file is read where the memory it needs is available")
+	DirAccess.remove_absolute(empty)
+	DirAccess.remove_absolute(heavy)
 
 
 func _padded(bytes: PackedByteArray, size: int) -> PackedByteArray:

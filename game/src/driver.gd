@@ -1451,7 +1451,7 @@ func _figures(s: Dictionary) -> void:
 				await get_tree().process_frame
 			scene = result.scene
 			if scene == null:
-				print("figures: %s is past this device's limits, so its figures stand as built-ins, as its player would" % path)
+				print("figures: %s was not read as an avatar, so its figures stand as built-ins, as its player would" % path)
 				scene = Avatar.built_in(0)
 				_figure_path = ""
 		_figures_read.append(scene)
@@ -2102,9 +2102,9 @@ static func daubs(n: int) -> Array:
 
 
 func _wear(s: Dictionary) -> void:
-	var bytes := FileAccess.get_file_as_bytes(s.file) if s.has("file") else PackedByteArray()
-	var scene := Avatar.read(bytes) if s.has("file") else null
-	assert(scene != null or not s.has("file"), "driver: %s is not an avatar within the limits" % s.get("file"))
+	var bytes := Avatar.file_bytes(s.file) if s.has("file") else PackedByteArray()
+	var scene := Avatar.read(bytes) if not bytes.is_empty() else null
+	assert(scene != null or not s.has("file"), "driver: %s was not read as an avatar" % s.get("file"))
 	main.session.put_on.call_deferred(scene, Session.sha256(bytes) if s.has("file") else "", bytes, int(s.get("avatar", 0)), Color(s.get("tint", "#d9824b")))
 	await _frames(2)
 

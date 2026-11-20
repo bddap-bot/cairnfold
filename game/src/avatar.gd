@@ -219,7 +219,8 @@ static func built_in(i: int) -> PackedScene:
 ## converter's check of a file for another renderer.
 static func read(bytes: PackedByteArray, unlimited := false, available := available_memory()) -> PackedScene:
 	if not unlimited and weight(bytes.size()) > reads(available - _reading):
-		return _too_heavy(bytes.size(), available - _reading)
+		print("avatar: refused: " + _too_heavy(bytes.size(), available - _reading))
+		return null
 	var images := Vrm.images(bytes)
 	if images.size() > MAX_IMAGES or images.any(func(image: Dictionary) -> bool: return maxi(image.size.x, image.size.y) > MAX_IMAGE_SIDE):
 		print("avatar: refused: %d images, past %d or one wider than %d" % [images.size(), MAX_IMAGES, MAX_IMAGE_SIDE])
@@ -234,7 +235,8 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 		_reading += held
 	_reading_lock.unlock()
 	if not admitted:
-		return _too_heavy(bytes.size(), room)
+		print("avatar: refused: " + _too_heavy(bytes.size(), room))
+		return null
 	var decoded := [0]
 	var budget := texture_budget()
 	# Each image decoded must be the one Vrm.images measured in its place, or the budget would be another file's.
@@ -253,9 +255,31 @@ static func read(bytes: PackedByteArray, unlimited := false, available := availa
 	return scene
 
 
-static func _too_heavy(size: int, room: int) -> PackedScene:
-	print("avatar: refused: %.1f MB is past what %.0f MB of memory reads" % [size / 1048576.0, room / 1048576.0])
-	return null
+static func _too_heavy(size: int, room: int) -> String:
+	return "%.1f MB is past what %.0f MB of memory reads" % [size / 1048576.0, room / 1048576.0]
+
+
+static func file_bytes(path: String, available := available_memory()) -> PackedByteArray:
+	var f := FileAccess.open(path, FileAccess.READ)
+	var length := f.get_length() if f != null else 0
+	var why := unread(f, length, available)
+	var bytes := f.get_buffer(length) if why == "" else PackedByteArray()
+	if why == "" and bytes.size() != length:
+		why = "it gave %d of its %d bytes: %s" % [bytes.size(), length, error_string(f.get_error())]
+		bytes = PackedByteArray()
+	if why != "":
+		print("avatar: unread: %s: %s" % [path, why])
+	return bytes
+
+
+static func unread(f: FileAccess, length: int, available: int) -> String:
+	if f == null:
+		return "it did not open: %s" % error_string(FileAccess.get_open_error())
+	if length == 0:
+		return "it is empty"
+	if weight(length) > reads(available - _reading):
+		return _too_heavy(length, available - _reading)
+	return ""
 
 
 static func reads(available: int) -> float:

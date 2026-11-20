@@ -1,6 +1,6 @@
 extends "res://../tests/support/booted.gd"
 
-## A file that does not read stands in for one past the device's limits: both reach the step as a null read.
+## A file that does not read reaches the step as a null read, as one too heavy to read does.
 
 
 func _run() -> void:
