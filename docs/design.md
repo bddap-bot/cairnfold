@@ -433,7 +433,9 @@ density, and no build the player can make may bring the frame rate down.
   0.8 of the period), 11.1 ms at 72 Hz, so the bench holds a phase to the line the running game holds. Nothing else
   states it. Passages and records from before held Quest phases to 0.9 of the period, 12.5 ms; their verdicts
   below are against that then line.
-- `demo/stress.json` is the worst case: the bare meadow, then every flora pool full,
+- `demo/stress.json` is the worst case: the bare meadow, then every flora pool full, the painted pools and
+  bushes over a 20 m disc at its centre and the planted trees in a 20 m grove of their own beside it, ahead of the
+  ground views and clear of the aerial ones,
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
   two storeys high, every other one turned a quarter, each crossed by a wing, tiled and then thatched, eight ponds, and the most ducks there can be at them (`bench.sh`
@@ -997,8 +999,8 @@ no foveation) read the bare meadow at 24.7 ms standing and 35.0 from the air, ag
 the top step's cost, not the scene's.
 
 What a village past the budget costs on the Quest 2 when it can be seen (`demo/village-layers.json`, step 6, records
-in `perf/quest-2/village-layers/`): the stress scene's own `village/aerial` view looks through the full tree pool's
-crowns, so it read 19.9 ms. The same village from the same eye with no trees between reads 158 and 161 ms. Hiding the
+in `perf/quest-2/village-layers/`): seen through the full tree pool's crowns from
+the stress scene's `village/aerial` eye, it read 19.9 ms. The same village from the same eye with no trees between reads 158 and 161 ms. Hiding the
 far roof tiles takes it to 83 and 89 ms; hiding all masonry, to 12.0 and 12.1. The timber village read 71 to 131 ms
 at every step tried, top to bottom. The GPU spends 78% of that time shading vertices, 117 M a second, so about 19 M
 a frame for 1.46 M primitives drawn: its bins re-run the vertices of every piece in them. That is the fixed-foveation
@@ -1582,8 +1584,8 @@ The timber village from the air at step 6, every phase in one session on one Que
 | With the 64 tall trees out of view | 101 | |
 | The village with its masonry hidden | 6.8 | |
 
-So the stress scene's village/aerial read 19.6 ms with the map at step 6 only because the flora pools' trees, filled
-earlier in the scene and kept by `clear`, stood in view ("The stress scene on the Quest 2"). The render-stage trace (`ovrgpuprofiler -t -s 21,39`) shows
+So the village read 19.6 ms with the map at step 6 only because the flora pools' tall trees stood in view ("The stress
+scene on the Quest 2"). The render-stage trace (`ovrgpuprofiler -t -s 21,39`) shows
 what the map does when it is dear. Without it, each of the 42 tiles of 192×176 shades the vertices that fall in it,
 1 to 19 thousand. With it, each of the 19 tiles it draws shades 1.46 M vertices, every vertex of the walls in view,
 and takes about 10 ms. Otherwise the tiles shade the same pixels. With the tall trees in view the map's tiles go back
@@ -4565,11 +4567,11 @@ the winter roof and wall top](winter.jpg)).
   spreads the boughs as wide as the species' crown (`FloraLayout.BOUGH_SPREAD`, in the trunk colour's alpha): a poplar's
   stay upright, a beech's reach wide. A fir keeps its needles, and bushes their leaves, snowed on.
 - **In the stress scene:** the scene's seven ponds (its eight digs, two of which meet) lie frozen, each of 8 to 12 wet
-  grid points with its whole share of both, 36 pads and 13 fish in all, among the grove its flora fill plants.
+  grid points with its whole share of both, 36 pads and 13 fish in all, under open sky: the grove of planted trees stands
+  beside them, 31 m and more from the scene's centre, so no crown stands between an aerial eye and a pond or a roof.
   `winter/ground` looks across the pond the summer `fish-frenzy/ground` looks into, from its far side; `winter/aerial`
-  looks at the grove from outside it, its firs and bushes snowed and the meadow's trees bare; `winter/village-aerial`
-  looks down on the plaster village from above the grove, past the build budget like its summer phases. Both aerial
-  eyes stand clear of every crown. On the Steam Frame, governed, all three hold 72 Hz with no late frame
+  looks down over the ponds with the grove at its side, its firs and bushes snowed and the meadow's trees bare; `winter/village-aerial`
+  looks down on the plaster village, past the build budget like its summer phases. On the Steam Frame, governed, all three hold 72 Hz with no late frame
   ([record](../perf/frame/stress/20261120T192303Z-efda6f5.json)): `winter/ground` 6.1 ms of GPU time a frame,
   `winter/aerial` 5.5 and `winter/village-aerial` 4.6. Across
   the scene's phases on a Quest 2 the median change against the build without this stage was +0.06 ms. The phases past the
