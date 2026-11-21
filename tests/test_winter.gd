@@ -62,7 +62,7 @@ func _snow_lies_on_what_faces_the_open_sky() -> void:
 		"res://src/water.gdshader": ["slope *= 1.0 - season_winter;", "if (rippling && season_winter < 0.5) {", "col = mix(col, sheet, season_winter);", "foam *= 1.0 - season_winter;"],
 		"res://src/fish.gdshader": ["ALBEDO = mix(mix(c, tint, 0.25), ICE, season_winter * 0.12);"],
 		"res://src/lilypad.gdshader": ["* 0.03 * (1.0 - season_winter);", "ALBEDO = mix(leaf, SNOW, season_winter * "],
-		"res://src/grass.gdshader": ["float buried = 1.0 - season_winter * (1.0 - weed);", "* stretch, wide) * buried;", "hand_right)) * size * buried, tip);", "VERTEX.y = mix(VERTEX.y, min(VERTEX.y, root.y + depth - under_ice), season_winter * weed);"],
+		"res://src/grass.gdshader": ["float buried = 1.0 - season_winter * (1.0 - weed);", "* stretch, wide) * buried;", "hand_right)) * size * buried, tip);", "VERTEX.y = mix(VERTEX.y, min(VERTEX.y, root.y + max(depth - under_ice, depth * 0.5)), season_winter * weed);"],
 	}
 	for path: String in frozen:
 		for line: String in frozen[path]:
@@ -281,9 +281,18 @@ func _a_pond_floats_pads_and_freezes() -> void:
 	var fed := [false]
 	var swam := true
 	var start := fish.swimming.map(func(f: Fish.One) -> Vector3: return f.at)
+	var deepest := 0.0
+	for g: Vector2i in pond.pond.cells:
+		var c := Terrain.grid_xz(g)
+		deepest = maxf(deepest, pond.pond.level - world.terrain.height_at(c.x, c.y))
+	var under := [0.0, 0]
 	for i in int(20.0 / STEP):
 		feed.tick(STEP)
 		wildlife.tick(STEP)
+		if i * STEP >= 10.0:
+			for f: Fish.One in fish.swimming:
+				under[0] += pond.pond.level - world.terrain.height_at(f.at.x, f.at.z)
+				under[1] += 1
 		fed[0] = fed[0] or fish.swimming.any(func(f: Fish.One) -> bool: return f.feeding)
 		swam = swam and fish.swimming.all(func(f: Fish.One) -> bool:
 			var p := water.pond_at(f.at.x, f.at.z)
@@ -293,6 +302,8 @@ func _a_pond_floats_pads_and_freezes() -> void:
 	for i in mini(start.size(), fish.swimming.size()):
 		moved += fish.swimming[i].at.distance_to(start[i])
 	check(swam and not fish.swimming.is_empty() and moved / fish.swimming.size() > 0.1, "which swim on under the ice, %.2f m on average" % (moved / maxi(fish.swimming.size(), 1)))
+	var overwinter: float = under[0] / maxi(under[1], 1) / deepest
+	check(overwinter > 0.75, "in the deep, where the ice is clearest: %.2f of the deepest water on average" % overwinter)
 	await GladeBase.dig(tool, -6, 5)
 	check(not water.ponds[-1]._lap.playing, "a pond dug in winter freezes too")
 

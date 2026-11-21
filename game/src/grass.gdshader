@@ -88,7 +88,7 @@ void vertex() {
 		vec3 current = (vec3(wind_dir.x, 0.0, wind_dir.y) * (0.4 + 0.6 * sin(swell)) + vec3(-wind_dir.y, 0.0, wind_dir.x) * 0.5 * sin(swell * 0.61 + 1.3)) * current_sway * stretch;
 		vec3 push = mix(wind_push(root.xz, gust), current, weed);
 		VERTEX = bent(VERTEX, (push + parted(VERTEX, root, hand_left) + parted(VERTEX, root, hand_right)) * size * buried, tip);
-		VERTEX.y = mix(VERTEX.y, min(VERTEX.y, root.y + depth - under_ice), season_winter * weed);
+		VERTEX.y = mix(VERTEX.y, min(VERTEX.y, root.y + max(depth - under_ice, depth * 0.5)), season_winter * weed);
 
 		far = smoothstep(far_begin, far_end, dist);
 		if (!full) {
