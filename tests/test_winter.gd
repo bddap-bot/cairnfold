@@ -54,7 +54,7 @@ func _snow_lies_on_what_faces_the_open_sky() -> void:
 	}
 	for path: String in asks:
 		var shader: Resource = load(path)
-		check(str(shader.get("code")).contains(asks[path]), "%s lays snow by its slope and the sky over it" % path.get_file())
+		check(str(shader.get("code")).contains(asks[path]), "%s lays snow by its slope and its shelter" % path.get_file())
 	check((load("res://src/terrain.gdshaderinc") as ShaderInclude).code.contains("lying = smoothstep(0.02, -0.04, under - season_winter * ICE_RIM);"), "the ground's snow reaches under the ice's snowy rim, so no wet bank rings it")
 	for path: String in ["res://src/stone.gdshaderinc", "res://src/thatch.gdshader"]:
 		check(str(load(path).get("code")).contains("EMISSION += ALBEDO * snowy * (1.0 - bounce.a) * sky_ambient * mix(sky_horizon, sky_zenith, 0.8);"), "a snowed face of %s takes the whole sky's light" % path.get_file())
