@@ -62,7 +62,7 @@ func _snow_lies_on_what_faces_the_open_sky() -> void:
 		"res://src/water.gdshader": ["slope *= 1.0 - season_winter;", "if (rippling && season_winter < 0.5) {", "col = mix(col, sheet, season_winter);", "foam *= 1.0 - season_winter;"],
 		"res://src/fish.gdshader": ["ALBEDO = mix(mix(c, tint, 0.25), ICE, season_winter * 0.12);"],
 		"res://src/lilypad.gdshader": ["* 0.03 * (1.0 - season_winter);", "ALBEDO = mix(leaf, SNOW, season_winter * "],
-		"res://src/grass.gdshader": ["float buried = 1.0 - snow_buries * season_winter * (1.0 - weed);", "vec3 push = mix(wind_push(root.xz, gust) * buried, current, weed);", "VERTEX.y = mix(VERTEX.y, min(VERTEX.y, root.y + depth - under_ice), season_winter * weed);"],
+		"res://src/grass.gdshader": ["float buried = 1.0 - season_winter * (1.0 - weed);", "* stretch, wide) * buried;", "hand_right)) * size * buried, tip);", "VERTEX.y = mix(VERTEX.y, min(VERTEX.y, root.y + depth - under_ice), season_winter * weed);"],
 	}
 	for path: String in frozen:
 		for line: String in frozen[path]:
