@@ -16,7 +16,7 @@ void fragment() {
 	// UV.x is 0 at the stalk and 1 at the rim, UV.y once round (Pads.leaf).
 	float vein = smoothstep(0.8, 1.0, abs(sin(UV.y * 28.0))) * smoothstep(0.1, 0.5, UV.x);
 	vec3 leaf = COLOR.rgb * (1.0 + 0.25 * smoothstep(0.7, 1.0, UV.x) - 0.2 * vein);
-	ALBEDO = mix(leaf, FROST, season_winter * (0.3 + 0.45 * smoothstep(0.3, 1.0, UV.x)));
+	ALBEDO = mix(leaf, SNOW, season_winter * (0.7 + 0.25 * smoothstep(0.3, 1.0, UV.x)));
 	ROUGHNESS = 0.55;
 	TAKE_GIVEN;
 }

@@ -34,6 +34,8 @@ uniform float current_sway = 0.06;
 uniform vec3 weed_root : source_color = vec3(0.09, 0.16, 0.06);
 uniform vec3 weed_tip : source_color = vec3(0.36, 0.52, 0.14);
 uniform vec3 weed_deep : source_color = vec3(0.10, 0.30, 0.24);
+uniform float snow_buries = 0.7;
+uniform float under_ice = 0.03;
 
 varying float tip;
 varying vec3 top;
@@ -76,7 +78,8 @@ void vertex() {
 		// An unscaled clump's blades stand about 0.2 m.
 		float stretch = mix(1.0, clamp(depth * weed_reach / (0.2 * size), 1.0, weed_stretch), weed);
 		float wide = (1.0 - worn * 0.5) * mix(1.0, weed_narrow, weed);
-		VERTEX = root + (VERTEX - root) * vec3(wide, (1.0 - worn) * mix(1.0, accent_height, accent) * stretch, wide);
+		float buried = 1.0 - snow_buries * season_winter * (1.0 - weed);
+		VERTEX = root + (VERTEX - root) * vec3(wide, (1.0 - worn) * mix(1.0, accent_height, accent) * stretch * buried, wide);
 		float lod = full ? 0.0 : smoothstep(lod_begin, lod_begin + lod_band, dist);
 		vec2 grown = mix(vec2(1.0), survivor_scale, lod * step(rank, survivors));
 		VERTEX = root + (VERTEX - root) * grown.xyx;
@@ -84,8 +87,9 @@ void vertex() {
 		gust = wind_gust(root.xz) * (1.0 - weed);
 		float swell = TIME * TAU / current_period + dot(root.xz, vec2(0.9, 0.6)) - tip * 1.6;
 		vec3 current = (vec3(wind_dir.x, 0.0, wind_dir.y) * (0.4 + 0.6 * sin(swell)) + vec3(-wind_dir.y, 0.0, wind_dir.x) * 0.5 * sin(swell * 0.61 + 1.3)) * current_sway * stretch;
-		vec3 push = mix(wind_push(root.xz, gust), current, weed);
+		vec3 push = mix(wind_push(root.xz, gust) * buried, current, weed);
 		VERTEX = bent(VERTEX, (push + parted(VERTEX, root, hand_left) + parted(VERTEX, root, hand_right)) * size, tip);
+		VERTEX.y = mix(VERTEX.y, min(VERTEX.y, root.y + depth - under_ice), season_winter * weed);
 
 		far = smoothstep(far_begin, far_end, dist);
 		if (!full) {
