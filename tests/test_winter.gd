@@ -49,7 +49,7 @@ func _snow_lies_on_what_faces_the_open_sky() -> void:
 		"res://src/terrain.gdshaderinc": "snow_cover(1.0 - s, sky_seen, d) * lying * (1.0 - TRODDEN * clamp(max(cover.r, max(cover.g, cover.a)), 0.0, 1.0))",
 		"res://src/stone.gdshaderinc": "COLOR.a = snow_cover(up, 1.0 - room_in, 0.5) * (1.0 - glass);",
 		"res://src/thatch.gdshader": "snowy = snow_cover(world_nrm.y, 1.0 - room_in, straw);",
-		"res://src/moss.gdshader": "snow_cover(up - 0.25, bounce.a, patchiness) * (1.0 - wet)",
+		"res://src/moss.gdshader": "snow_cover(up - 0.25, 1.0, patchiness) * (1.0 - wet)",
 		"res://src/plant.gdshaderinc": "COLOR.rgb = mix(COLOR.rgb, SNOW, snow_cover(lump_up + 0.3, 1.0, hash(",
 	}
 	for path: String in asks:

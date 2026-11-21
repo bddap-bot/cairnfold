@@ -4557,7 +4557,8 @@ the winter roof and wall top](winter.jpg)).
   shards of glass (painted grass under a pond, grown as pondweed, stays under the ice instead);
   ivy and the crowns kept through the winter (firs, bushes) turn a muted evergreen, and those crowns take snow on their
   upper lumps, each asked with its lump's own rise before the crown rounds it. Painted moss asks it with its mound's
-  slope and the sky it sees.
+  slope alone, as the crowns do: between houses the light probe half a metre over a mat sees a tenth to under half
+  the sky, too little to snow by the ground's rule, and a green mat beside snowed bushes reads as unwintered.
 - **Ice:** a frozen pond lies still (no waves, ripples or shore foam): clear dark ice over the deep, frosted in patches
   and toward the shore, with fine cracks, snow drifted onto its edge, and a duller mirror of the sky. A hand rings no
   ripple from it and its lapping stops. The fish swim on under it in their own colours, read through ice less frosted over the deep: as it freezes they
