@@ -4552,14 +4552,18 @@ the winter roof and wall top](winter.jpg)).
   under its roof none. A piece works its snow out a vertex at a time, from its normal under the inverse transpose of
   its frame (a frame stretched unevenly leans a normal carried as is), and hands it to the fragment in its colour's
   alpha, so a stone's fragment adds only a blend, and none where no snow lies. A snowed face of either is lit by the whole sky whatever the
-  light probe beside it sees, so a snowed roof in shade reads pale blue, not grey. Grass whitens by the season's own tint;
+  light probe beside it sees, so a snowed roof in shade reads pale blue, not grey. Snow buries the meadow's grass whole: a
+  blade, and its sway in the wind or round a hand, shrinks to its root, since blades standing white on the snow read as
+  shards of glass (painted grass under a pond, grown as pondweed, stays under the ice instead);
   ivy and the crowns kept through the winter (firs, bushes) turn a muted evergreen, and those crowns take snow on their
   upper lumps, each asked with its lump's own rise before the crown rounds it. Painted moss asks it with its mound's
   slope and the sky it sees.
 - **Ice:** a frozen pond lies still (no waves, ripples or shore foam): clear dark ice over the deep, frosted in patches
   and toward the shore, with fine cracks, snow drifted onto its edge, and a duller mirror of the sky. A hand rings no
-  ripple from it and its lapping stops. The fish swim on under it in their own colours, read through ice less frosted over the deep, and seeds thrown on it bring none up to
-  feed. Pads stay, frozen in and frosted.
+  ripple from it and its lapping stops. The fish swim on under it in their own colours, read through ice less frosted over the deep: as it freezes they
+  turn for the deep, and each spot they make for there is the deepest of its tries, so they overwinter where the ice is
+  clearest rather than passing under its frosted patches. Seeds thrown on it bring none up to feed. Pads stay, frozen
+  in.
 - **Bare trees:** an oak, poplar, birch or copper beech sheds its foliage (`FloraLayout.SHED` in a blob's colour
   alpha, folded away by the leaf shader) and its shade blob with it, and stands as its trunk under boughs
   (`Meshes.bare_trunk`: a leader and five boughs, each forking twice, 288 triangles over the trunk's own); the trunks draw that mesh while
@@ -4572,8 +4576,9 @@ the winter roof and wall top](winter.jpg)).
   `winter/ground` looks across the pond the summer `fish-frenzy/ground` looks into, from its far side; `winter/aerial`
   looks down over the ponds with the grove at its side, its firs and bushes snowed and the meadow's trees bare; `winter/village-aerial`
   looks down on the plaster village, past the build budget like its summer phases. On the Steam Frame, governed, all three hold 72 Hz with no late frame
-  ([record](../perf/frame/stress/20261120T232248Z-a6da621.json)): `winter/ground` 6.0 ms of GPU time a frame,
-  `winter/aerial` 5.4 and `winter/village-aerial` 6.0. With no crown over them, the aerial views of the walls and
+  ([record](../perf/frame/stress/20261121T073409Z-4be695f.json)): `winter/ground` 7.0 ms of GPU time a frame,
+  `winter/aerial` 6.3 and `winter/village-aerial` 6.0, the first two at governor step 4 where the
+  [record](../perf/frame/stress/20261120T232248Z-a6da621.json) before the grass was buried measured 6.0 and 5.4 at step 5. With no crown over them, the aerial views of the walls and
   villages draw what they look at: `village/aerial` 8.3 ms against 4.0 under the crowns, the `r15` to `r25` and other
   village aerials 1.3 to 4.3 ms more; the ground views of the flora, the butterflies, fireflies and conures, the sheep, the deer
   and the fox, the grove ahead of them rather than around them, 0.5 to 1.2 ms less, the ponds' own within 0.2 ms, and those of the walls and villages 0.4 less to 1.2 more, against
