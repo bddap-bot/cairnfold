@@ -12,6 +12,10 @@ const MIN_DEPTH := 0.16
 ## How far under the surface a fish swims, as a share of the water there, and the least and most.
 const SWIM_AT := 0.2
 const SWIM_DEPTH := Vector2(0.04, 0.1)
+## How far from its pond's overwintering spot a fish swims in winter, and how many times its cruise it swims there
+## from afar, so the school forms while the pond freezes.
+const SCHOOL := 0.35
+const HURRY := 4.0
 const CRUISE := 0.14
 const DART := 0.75
 const CALM_DOWN := 1.6
@@ -45,6 +49,8 @@ var _came := {}
 var _due := {}
 var _layouts := []
 var _wintry := false
+## PondWater -> where its fish overwinter (`_school`), until the ponds or the season change.
+var _schools := {}
 
 
 class One:
@@ -125,6 +131,7 @@ func tick(delta: float) -> void:
 		_rehome()
 	if Palette.wintry() != _wintry:
 		_wintry = Palette.wintry()
+		_schools.clear()
 		for f in swimming:
 			f.goal = Vector2.INF
 	var food := _food()
@@ -258,6 +265,7 @@ func _dart(f: One, to: Vector2) -> void:
 
 
 func _rehome() -> void:
+	_schools.clear()
 	swimming = swimming.filter(func(f: One) -> bool:
 		f.pond = wildlife.water.pond_at(f.at.x, f.at.z)
 		f.goal = Vector2.INF
@@ -274,7 +282,7 @@ func _rehome() -> void:
 
 
 func _spawn(p: PondWater) -> One:
-	var spot := _deep_spot(p, Vector3.INF)
+	var spot := _swim_spot(p, Vector3.INF)
 	if spot == Vector2.INF:
 		return null
 	var f := One.new()
@@ -286,20 +294,36 @@ func _spawn(p: PondWater) -> One:
 	return f
 
 
-## In winter the deepest of the tries, where fish overwinter and the ice over them is clearest; Vector2.INF if none is found.
-func _deep_spot(p: PondWater, from: Vector3) -> Vector2:
+## A spot to swim to; in winter one by the pond's school, falling back to anywhere deep when the school cannot be
+## reached straight. Vector2.INF if none is found.
+func _swim_spot(p: PondWater, from: Vector3) -> Vector2:
 	var cells := p.pond.cells
-	var best := Vector2.INF
-	var best_depth := -INF
-	for attempt in 8:
-		var xz := Terrain.grid_xz(cells[rng.randi() % cells.size()]) + Vector2(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3))
+	var school := _school(p) if _wintry else Vector2.INF
+	var by_school := 8 if school != Vector2.INF else 0
+	for attempt in by_school + 8:
+		var xz := school + Vector2.from_angle(rng.randf() * TAU) * rng.randf_range(0.0, SCHOOL) if attempt < by_school \
+			else Terrain.grid_xz(cells[rng.randi() % cells.size()]) + Vector2(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3))
 		if _deep(p, xz) and wildlife._swims_clear(from, xz, p):
-			if not _wintry:
-				return xz
-			var depth := p.pond.level - wildlife.terrain.height_at(xz.x, xz.y)
-			if depth > best_depth:
-				best = xz
-				best_depth = depth
+			return xz
+	return Vector2.INF
+
+
+## Where `p`'s fish overwinter: its deepest grid point clear of the lilypads frozen into the ice, so the pads hide no
+## fish, or its deepest if no deep one is clear.
+func _school(p: PondWater) -> Vector2:
+	if _schools.has(p):
+		return _schools[p]
+	var pads := wildlife.water.pads
+	var best := Vector2.INF
+	var best_key := Vector2(-INF, -INF)
+	for g in p.pond.cells:
+		var xz := Terrain.grid_xz(g)
+		var clear := range(pads.count()).all(func(i: int) -> bool: return pads.pad(i).at.distance_to(xz) >= pads.pad(i).radius + SCHOOL + LENGTH)
+		var key := Vector2(1.0 if clear and _deep(p, xz, p) else 0.0, p.pond.level - wildlife.terrain.height_at(xz.x, xz.y))
+		if key > best_key:
+			best = xz
+			best_key = key
+	_schools[p] = best
 	return best
 
 
@@ -324,9 +348,12 @@ func _swim(f: One, startling: Array[Vector3], delta: float) -> void:
 				break
 	f.dart -= delta
 	if f.dart <= 0.0:
-		f.speed = lerpf(f.speed, CRUISE, 1.0 - exp(-delta * CALM_DOWN))
+		var cruise := CRUISE
+		if _wintry:
+			cruise *= clampf(here.distance_to(_school(f.pond)) / (SCHOOL * 2.0), 1.0, HURRY)
+		f.speed = lerpf(f.speed, cruise, 1.0 - exp(-delta * CALM_DOWN))
 	if f.goal == Vector2.INF or here.distance_to(f.goal) < ARRIVED:
-		f.goal = _deep_spot(f.pond, f.at)
+		f.goal = _swim_spot(f.pond, f.at)
 		if f.goal == Vector2.INF:
 			return
 	var to := f.goal - here

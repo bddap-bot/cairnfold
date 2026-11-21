@@ -4561,8 +4561,8 @@ the winter roof and wall top](winter.jpg)).
 - **Ice:** a frozen pond lies still (no waves, ripples or shore foam): clear dark ice over the deep, frosted in patches
   and toward the shore, with fine cracks, snow drifted onto its edge, and a duller mirror of the sky. A hand rings no
   ripple from it and its lapping stops. The fish swim on under it in their own colours, read through ice less frosted over the deep: as it freezes they
-  turn for the deep, and each spot they make for there is the deepest of its tries, so they overwinter where the ice is
-  clearest rather than passing under its frosted patches. Seeds thrown on it bring none up to feed. Pads stay, frozen
+  hurry to one spot, the pond's deepest water clear of its pads, and school within `Fish.SCHOOL` of it, so a pond's
+  fish overwinter together where the ice is clearest, not scattered under its frosted patches or its frozen pads. Seeds thrown on it bring none up to feed. Pads stay, frozen
   in.
 - **Bare trees:** an oak, poplar, birch or copper beech sheds its foliage (`FloraLayout.SHED` in a blob's colour
   alpha, folded away by the leaf shader) and its shade blob with it, and stands as its trunk under boughs

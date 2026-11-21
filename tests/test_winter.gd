@@ -281,11 +281,19 @@ func _a_pond_floats_pads_and_freezes() -> void:
 	var fed := [false]
 	var swam := true
 	var start := fish.swimming.map(func(f: Fish.One) -> Vector3: return f.at)
+	var school := fish._school(pond)
 	var deepest := 0.0
+	var bottom := Vector2.ZERO
 	for g: Vector2i in pond.pond.cells:
 		var c := Terrain.grid_xz(g)
-		deepest = maxf(deepest, pond.pond.level - world.terrain.height_at(c.x, c.y))
+		if pond.pond.level - world.terrain.height_at(c.x, c.y) > deepest:
+			deepest = pond.pond.level - world.terrain.height_at(c.x, c.y)
+			bottom = c
+	var wintering := pond.pond.level - world.terrain.height_at(school.x, school.y)
+	check(wintering > deepest * 0.5, "the fish overwinter in the deep, %.2f m of water of the deepest %.2f m" % [wintering, deepest])
 	var under := [0.0, 0]
+	var spread := [0.0]
+	var hidden := [0]
 	for i in int(20.0 / STEP):
 		feed.tick(STEP)
 		wildlife.tick(STEP)
@@ -293,6 +301,11 @@ func _a_pond_floats_pads_and_freezes() -> void:
 			for f: Fish.One in fish.swimming:
 				under[0] += pond.pond.level - world.terrain.height_at(f.at.x, f.at.z)
 				under[1] += 1
+				for o: Fish.One in fish.swimming:
+					spread[0] = maxf(spread[0], f.at.distance_to(o.at))
+				for k in pads.count():
+					if pads.pad(k).at.distance_to(Vector2(f.at.x, f.at.z)) < pads.pad(k).radius:
+						hidden[0] += 1
 		fed[0] = fed[0] or fish.swimming.any(func(f: Fish.One) -> bool: return f.feeding)
 		swam = swam and fish.swimming.all(func(f: Fish.One) -> bool:
 			var p := water.pond_at(f.at.x, f.at.z)
@@ -302,8 +315,18 @@ func _a_pond_floats_pads_and_freezes() -> void:
 	for i in mini(start.size(), fish.swimming.size()):
 		moved += fish.swimming[i].at.distance_to(start[i])
 	check(swam and not fish.swimming.is_empty() and moved / fish.swimming.size() > 0.1, "which swim on under the ice, %.2f m on average" % (moved / maxi(fish.swimming.size(), 1)))
-	var overwinter: float = under[0] / maxi(under[1], 1) / deepest
-	check(overwinter > 0.75, "in the deep, where the ice is clearest: %.2f of the deepest water on average" % overwinter)
+	var overwinter: float = under[0] / maxi(under[1], 1) / wintering
+	check(overwinter > 0.75, "schooled where they overwinter: %.2f of its water under them on average" % overwinter)
+	check(fish.swimming.size() > 1 and spread[0] < Fish.SCHOOL * 2.0 + Fish.LENGTH, "schooled together, at most %.2f m apart" % spread[0])
+	var over := PadLayout.Leaf.new()
+	over.at = bottom
+	over.radius = PadLayout.RADIUS.y
+	pads._laid.append(over)
+	fish._schools.clear()
+	check(fish._school(pond).distance_to(bottom) > over.radius + Fish.SCHOOL, "a pad over the deepest water moves the school off it")
+	pads._laid.pop_back()
+	fish._schools.clear()
+	check(hidden[0] == 0, "clear of the pads frozen into the ice, %d glimpses under one" % hidden[0])
 	await GladeBase.dig(tool, -6, 5)
 	check(not water.ponds[-1]._lap.playing, "a pond dug in winter freezes too")
 
