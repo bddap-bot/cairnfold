@@ -407,11 +407,16 @@ func view(eye: Vector3, at: Vector3) -> void:
 	if flat:
 		rig.global_position += eye - rig.head.global_position
 		flat.face(at)
-	elif metrics.info.xr:
+		return
+	if metrics.info.xr:
 		rig.global_transform = want * rig.head.transform.affine_inverse()
 		rig.view_eye = eye
 	else:
 		rig.head.global_transform = want
+	# The body is posed in the frame's process, which may already have run, so a cut's first frame would draw it posed
+	# for the old view.
+	if rig.body != null:
+		rig.pose_body()
 
 
 ## `screen`: the camera screen's view from the eyes, as a tracked hand points anywhere; `lens`: that lens's view, as
