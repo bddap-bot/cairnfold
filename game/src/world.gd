@@ -1072,13 +1072,18 @@ func _wet_m2(g: Vector2i) -> int:
 	return was[1].cells.size() if not was.is_empty() and was[1] != null else 0
 
 
-## So a pond never hides a tree or bush that still stands.
+## So a pond never hides a tree or bush that still stands. One planted outside the garden (a script's `fill_flora`) has
+## no group to take it out by, so it is only hidden.
 func _drown() -> Dictionary:
 	var by_group := {}
 	for parts in flora.solids():
 		if Water.drowned(terrain, parts[0].anchor):
 			for p: Flora.Plant in parts:
-				by_group.get_or_add(p.group, []).append(p.index)
+				if p.group < 0:
+					p.set_shown(false)
+					flora.changes += 1
+				else:
+					by_group.get_or_add(p.group, []).append(p.index)
 	if by_group.is_empty():
 		return {}
 	for g in by_group:

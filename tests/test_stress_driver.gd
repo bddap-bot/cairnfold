@@ -20,6 +20,7 @@ func _run() -> void:
 	var step := {"from": [-4, 0.7, 2], "at": [-4, 0.7, -3]}
 	var target: Dictionary = main.palette_tool.aim_style(driver._dial_from(step), driver._dial_dir(step))
 	check(target.get("restyle") == PaletteTool.Restyle.FOUNDATION, "the stress style ray hits the foundation")
+	await _filled_bushes_drown(driver)
 	finish()
 
 
@@ -57,3 +58,14 @@ func _charcoal_from_tray() -> void:
 	var strokes: Array = main.world.state.easels.values()[-1].strokes
 	check(strokes.size() == 1 and Brushwork.count(strokes[0]) >= 2,
 		"the long stick clears the sheet coming off the tray and lays its first stroke")
+
+
+func _filled_bushes_drown(driver: Driver) -> void:
+	var flora: Flora = main.flora_tool.flora
+	driver._fill_flora({"pools": ["bushes"], "radius": 20})
+	var filled := flora.solids().filter(func(parts: Array) -> bool: return parts[0].group < 0)
+	await driver._dig({"x": 14.0, "z": 0.0, "seconds": 1.5})
+	await until(func() -> bool: return main.world.idle(), "the pond fills")
+	var wet := filled.filter(func(parts: Array) -> bool: return Water.drowned(main.world.terrain, parts[0].anchor))
+	check(not wet.is_empty() and wet.size() < filled.size(), "the pond covers %d of the %d filled bushes" % [wet.size(), filled.size()])
+	check(filled.all(func(parts: Array) -> bool: return parts[0].shown() != (parts in wet)), "it takes out the ones its water covers and leaves the rest standing")

@@ -435,7 +435,8 @@ density, and no build the player can make may bring the frame rate down.
   below are against that then line.
 - `demo/stress.json` is the worst case: the bare meadow, then every flora pool full, the painted pools and
   bushes over a 20 m disc at its centre and the planted trees in a 20 m grove of their own beside it, ahead of the
-  ground views and clear of the aerial ones,
+  ground views and clear of the aerial ones (filled outside the garden, so a pond dug over them later hides the
+  bushes its water covers, which no command can take out),
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
   two storeys high, every other one turned a quarter, each crossed by a wing, tiled and then thatched, eight ponds, and the most ducks there can be at them (`bench.sh`
