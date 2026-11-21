@@ -44,6 +44,7 @@ var _want := {}
 var _came := {}
 var _due := {}
 var _layouts := []
+var _wintry := false
 
 
 class One:
@@ -122,6 +123,10 @@ func tick(delta: float) -> void:
 	if layouts != _layouts:
 		_layouts = layouts
 		_rehome()
+	if Palette.wintry() != _wintry:
+		_wintry = Palette.wintry()
+		for f in swimming:
+			f.goal = Vector2.INF
 	var food := _food()
 	var startling: Array[Vector3] = []
 	if not wildlife._calm:
@@ -281,14 +286,21 @@ func _spawn(p: PondWater) -> One:
 	return f
 
 
-## Vector2.INF if none is found.
+## In winter the deepest of the tries, where fish overwinter and the ice over them is clearest; Vector2.INF if none is found.
 func _deep_spot(p: PondWater, from: Vector3) -> Vector2:
 	var cells := p.pond.cells
+	var best := Vector2.INF
+	var best_depth := -INF
 	for attempt in 8:
 		var xz := Terrain.grid_xz(cells[rng.randi() % cells.size()]) + Vector2(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.3, 0.3))
 		if _deep(p, xz) and wildlife._swims_clear(from, xz, p):
-			return xz
-	return Vector2.INF
+			if not _wintry:
+				return xz
+			var depth := p.pond.level - wildlife.terrain.height_at(xz.x, xz.y)
+			if depth > best_depth:
+				best = xz
+				best_depth = depth
+	return best
 
 
 func _deep(p: PondWater, xz: Vector2, under: PondWater = null) -> bool:
