@@ -4572,8 +4572,12 @@ the winter roof and wall top](winter.jpg)).
   `winter/ground` looks across the pond the summer `fish-frenzy/ground` looks into, from its far side; `winter/aerial`
   looks down over the ponds with the grove at its side, its firs and bushes snowed and the meadow's trees bare; `winter/village-aerial`
   looks down on the plaster village, past the build budget like its summer phases. On the Steam Frame, governed, all three hold 72 Hz with no late frame
-  ([record](../perf/frame/stress/20261120T192303Z-efda6f5.json)): `winter/ground` 6.1 ms of GPU time a frame,
-  `winter/aerial` 5.5 and `winter/village-aerial` 4.6. Across
+  ([record](../perf/frame/stress/20261120T232248Z-a6da621.json)): `winter/ground` 6.0 ms of GPU time a frame,
+  `winter/aerial` 5.4 and `winter/village-aerial` 6.0. With no crown over them, the aerial views of the walls and
+  villages draw what they look at: `village/aerial` 8.3 ms against 4.0 under the crowns, the `r15` to `r25` and other
+  village aerials 1.3 to 4.3 ms more; the ground views of the flora, the ponds' animals, the deer and the fox, the grove
+  ahead of them rather than around them, 0.5 to 1.2 ms less, and those of the walls and villages 0.4 less to 1.2 more, against
+  the [record](../perf/frame/stress/20261120T192303Z-efda6f5.json) of the grove over them. Across
   the scene's phases on a Quest 2 the median change against the build without this stage was +0.06 ms. The phases past the
   build budget that look down on a dense village cost more: `doors/aerial` 47.6 ms against 39.8, `windows/aerial` 37.5
   against 35.2, one run each.
