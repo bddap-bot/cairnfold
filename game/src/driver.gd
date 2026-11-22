@@ -2624,16 +2624,17 @@ func _befriend(s: Dictionary) -> void:
 	print("conure: feeding earned trust, grip carries bird")
 
 
-## Comes up beside the settled sheep nearest the eye, on its side away from the rest of the flock, strokes its back
-## with an empty hand for `seconds`, lifts the hand and steps `back` metres away, looking at it as it follows.
+## Comes up beside the settled sheep nearest the eye, on the side away from the rest of the flock with a clear way to
+## follow, strokes its back with an empty hand for `seconds`, lifts the hand and steps `back` metres away, looking at
+## it as it follows.
 func _pet(s: Dictionary) -> void:
-	var herds: Herds = main.wildlife.herds
-	var sheep: Sheep = null
+	var herds := main.wildlife.herds
+	var sheep: Node3D = null
 	var elapsed := 0.0
 	while elapsed < 120.0:
-		var settled := herds.all().filter(func(a: Sheep) -> bool: return a.state in [Grazers.State.GRAZE, Grazers.State.STAND] and a.upright() > 0.99)
+		var settled := herds.all().filter(func(a: Node3D) -> bool: return a.state in [Grazers.State.GRAZE, Grazers.State.STAND] and a.upright() > 0.99)
 		if not settled.is_empty():
-			settled.sort_custom(func(a: Sheep, b: Sheep) -> bool: return a.position.distance_to(_eye) < b.position.distance_to(_eye))
+			settled.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.position.distance_to(_eye) < b.position.distance_to(_eye))
 			sheep = settled[0]
 			break
 		elapsed += await _tick()
@@ -2642,11 +2643,18 @@ func _pet(s: Dictionary) -> void:
 		return
 	var flock := herds.all().size()
 	var middle := Vector3.ZERO
-	for a: Sheep in herds.all():
+	for a in herds.all():
 		middle += a.position / flock
-	var side := sheep.global_basis.x.normalized()
-	if (sheep.position + side - middle).length() < (sheep.position - side - middle).length():
-		side = -side
+	var across := sheep.global_basis.x.normalized()
+	var ways: Array[Vector3] = [across, -across, -across.cross(Vector3.UP), across.cross(Vector3.UP)]
+	ways.sort_custom(func(a: Vector3, b: Vector3) -> bool: return (sheep.position + a - middle).length() > (sheep.position + b - middle).length())
+	var away: float = s.get("back", 2.5)
+	var side := ways[0]
+	for w in ways:
+		var to: Vector3 = sheep.position + w * (away + 1.0)
+		if main.wildlife.standable(to) and main.wildlife.clear_way(sheep.position, to):
+			side = w
+			break
 	var watch := func() -> Vector3: return sheep.position + Vector3.UP * 0.45 * sheep.size
 	await _pick({"hand": s.get("hand", "right"), "tool": "none"})
 	var hand := _hand(s)
@@ -2660,8 +2668,8 @@ func _pet(s: Dictionary) -> void:
 	# The view and the hand put beside it are one cut: no animal takes them for a move.
 	main.rig.jumped.emit()
 	await get_tree().create_timer(0.5).timeout
-	var near_side := Vector3(signf(side.dot(sheep.global_basis.x)), 1, 1)
-	var on_back := func() -> Vector3: return sheep.global_transform * (Sheep.BACK * near_side)
+	var near_side := Vector3(1.0 if side.dot(sheep.global_basis.x) >= 0.0 else -1.0, 1, 1)
+	var on_back := func() -> Vector3: return sheep.global_transform * (sheep.BACK * near_side)
 	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void: hand.global_position = rest.lerp(on_back.call(), smoothstep(0.0, 1.0, k)))
 	var stroke: float = s.get("seconds", 3.0)
 	var leant := [0.0]
@@ -2679,10 +2687,9 @@ func _pet(s: Dictionary) -> void:
 	var lifted := hand.global_position
 	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void: hand.global_position = lifted.lerp(rest, smoothstep(0.0, 1.0, k)))
 	var from := sheep.position
-	var away: float = s.get("back", 2.5)
 	var eye := _eye
 	var followed := [false]
-	await _over({"seconds": away / 0.4 + Herds.PET_WAIT}, away / 0.4 + Herds.PET_WAIT, func(k: float) -> void:
+	await _over({"seconds": away / 0.4 + herds.PET_WAIT}, away / 0.4 + herds.PET_WAIT, func(k: float) -> void:
 		_eye = eye + side * away * k
 		_at = watch.call()
 		main.view(_eye, _at)
