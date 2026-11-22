@@ -2662,15 +2662,14 @@ func _pet(s: Dictionary) -> void:
 	_eye = sheep.position + side * 1.0 + Vector3.UP * 1.3
 	_at = watch.call()
 	main.view(_eye, _at)
-	var beside := Vector3(0.2 if hand == main.rig.right else -0.2, -0.4, -0.25)
-	var rest := main.rig.head.global_transform * beside
-	hand.global_position = rest
-	# The view and the hand put beside it are one cut: no animal takes them for a move.
-	main.rig.jumped.emit()
-	await get_tree().create_timer(0.5).timeout
 	var near_side := Vector3(1.0 if side.dot(sheep.global_basis.x) >= 0.0 else -1.0, 1, 1)
 	var on_back := func() -> Vector3: return sheep.global_transform * (sheep.BACK * near_side)
-	print("pet: head %.2f m from the view's eye, hand %.2f m from the back" % [main.rig.head.global_position.distance_to(_eye), rest.distance_to(on_back.call())])
+	var beside := main.rig.head.global_transform * Vector3(0.2 if hand == main.rig.right else -0.2, -0.4, -0.25)
+	var start: Vector3 = on_back.call() + (beside - on_back.call()).normalized() * 0.35
+	hand.global_position = start
+	# The view and the hand put just off its back are one cut: no animal takes them for a move.
+	main.rig.jumped.emit()
+	await get_tree().create_timer(0.5).timeout
 	var fright := [""]
 	var watch_fright := func() -> void:
 		if fright[0] == "" and sheep.state == Grazers.State.FLEE:
@@ -2680,7 +2679,7 @@ func _pet(s: Dictionary) -> void:
 				seen.append("%s %.2f m/s %.2f m" % [n.name, main.wildlife._speed.get(n, 0.0), near.distance_to(n.global_position)])
 			fright[0] = ", ".join(seen)
 	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void:
-		hand.global_position = rest.lerp(on_back.call(), smoothstep(0.0, 1.0, k))
+		hand.global_position = start.lerp(on_back.call(), smoothstep(0.0, 1.0, k))
 		watch_fright.call())
 	var stroke: float = s.get("seconds", 3.0)
 	var leant := [0.0]
@@ -2697,7 +2696,11 @@ func _pet(s: Dictionary) -> void:
 		_fail("pet: stroked, the sheep is %s; as it fled: %s" % [Grazers.State.keys()[sheep.state], fright[0]])
 		return
 	var lifted := hand.global_position
-	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void: hand.global_position = lifted.lerp(rest, smoothstep(0.0, 1.0, k)))
+	var off := lifted + (beside - lifted).normalized() * 0.35
+	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void:
+		hand.global_position = lifted.lerp(off, smoothstep(0.0, 1.0, k))
+		watch_fright.call())
+	var held := main.rig.head.global_transform.affine_inverse() * off
 	var from := sheep.position
 	var eye := _eye
 	var followed := [false]
@@ -2705,14 +2708,15 @@ func _pet(s: Dictionary) -> void:
 		_eye = eye + side * away * k
 		_at = watch.call()
 		main.view(_eye, _at)
-		hand.global_position = main.rig.head.global_transform * beside
-		followed[0] = followed[0] or sheep.state == Grazers.State.FOLLOW)
+		hand.global_position = main.rig.head.global_transform * held
+		followed[0] = followed[0] or sheep.state == Grazers.State.FOLLOW
+		watch_fright.call())
 	var walked := Vector2(sheep.position.x - from.x, sheep.position.z - from.z).length()
 	if s.has("capture"):
 		await main.capture(s.capture + "-follow")
 	hand.held_still = false
 	if not followed[0] or walked < 0.5:
-		_fail("pet: the sheep did not follow, %.1f m" % walked)
+		_fail("pet: the sheep did not follow, %.1f m%s" % [walked, "" if fright[0] == "" else "; it fled: " + fright[0]])
 		return
 	print("sheep: petted for %.1f s, leant %.1f degrees, followed %.1f m, %d sheep about" % [sheep.petted, leant[0], walked, flock])
 
