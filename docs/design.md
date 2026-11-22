@@ -5433,7 +5433,7 @@ turned to whichever style it draws, so turning the dial compiles nothing; a came
 lets go of its copy of the view (`PhotoStyle.dress`), so plain costs nothing. The sculpture is a camera's cull-mask bit, `Quality.SCULPTURE_LAYER`, past the 20 layers a node can stand on,
 which every shader of the garden reads (`CAMERA_VISIBLE_LAYERS`): one camera draws white while the eyes see colour.
 Pieces drawn with Godot's own materials, the built-in figures and the easel with its kit, run none of those shaders;
-while a camera draws the sculpture each opaque surface among them takes a white pass of its own (`PhotoStyle.carve`, `sculpture_shell.gdshader`)
+while a camera draws the sculpture each opaque surface among them takes a white pass of its own (`PhotoStyle.carve`, `sculpture_shell.gdshader`, lit by the garden as the rest is)
 that every other camera drops in its vertex stage, and at other times none, since they hold over a hundred surfaces,
 each a draw more.
 

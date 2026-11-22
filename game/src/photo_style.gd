@@ -22,8 +22,7 @@ const TONES := {
 }
 
 
-## Cull mode -> the white pass, culled as the surface it covers is.
-static var _shells: Array[ShaderMaterial] = []
+static var _shell: ShaderMaterial
 ## Instance id -> a WeakRef to one of Godot's own materials in the garden (`carve`), so a figure's go with it.
 static var _carved := {}
 ## Instance ids of the cameras drawing the sculpture.
@@ -34,13 +33,8 @@ static var _lock := Mutex.new()
 
 static func _static_init() -> void:
 	RenderingServer.global_shader_parameter_set(&"sculpture_layer", Quality.SCULPTURE_LAYER)
-	var code := (preload("res://src/sculpture_shell.gdshader") as Shader).code
-	for cull in ["cull_back", "cull_front", "cull_disabled"]:
-		var shell := ShaderMaterial.new()
-		shell.shader = Shader.new()
-		shell.shader.code = code.replace("render_mode depth_draw_never", "render_mode depth_draw_never, " + cull)
-		assert(shell.shader.code != code, "sculpture_shell.gdshader's render_mode takes the cull mode")
-		_shells.append(shell)
+	_shell = ShaderMaterial.new()
+	_shell.shader = preload("res://src/sculpture_shell.gdshader")
 
 
 ## Godot's own materials run no shader of the garden's, so while a camera carves, each under `n` takes the sculpture's
@@ -56,7 +50,7 @@ static func carve(n: Node) -> void:
 			var m := mi.get_active_material(i)
 			if m is BaseMaterial3D and _carvable(m) and not _carved.has(m.get_instance_id()):
 				_carved[m.get_instance_id()] = weakref(m)
-				m.next_pass = _shells[(m as BaseMaterial3D).cull_mode] if _carves_now() else null
+				m.next_pass = _shell if _carves_now() else null
 	_lock.unlock()
 
 
@@ -64,7 +58,7 @@ static func carve(n: Node) -> void:
 ## through would hide what lies behind it.
 static func _carvable(m: BaseMaterial3D) -> bool:
 	return m.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED and m.billboard_mode == BaseMaterial3D.BILLBOARD_DISABLED \
-		and not m.has_meta("hull") and (m.next_pass == null or m.next_pass in _shells)
+		and not m.has_meta("hull") and (m.next_pass == null or m.next_pass == _shell)
 
 
 static func _carves(cam: Camera3D, on: bool) -> void:
@@ -84,7 +78,7 @@ static func _carves(cam: Camera3D, on: bool) -> void:
 			if m == null:
 				_carved.erase(id)
 			else:
-				m.next_pass = _shells[m.cull_mode] if now else null
+				m.next_pass = _shell if now else null
 	_lock.unlock()
 
 

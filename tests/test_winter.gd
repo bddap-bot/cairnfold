@@ -60,8 +60,8 @@ func _snow_lies_on_what_faces_the_open_sky() -> void:
 		check(str(load(path).get("code")).contains("EMISSION += ALBEDO * snowy * (1.0 - bounce.a) * sky_ambient * mix(sky_horizon, sky_zenith, 0.8);"), "a snowed face of %s takes the whole sky's light" % path.get_file())
 	var frozen := {
 		"res://src/water.gdshader": ["slope *= 1.0 - season_winter;", "if (rippling && season_winter < 0.5) {", "col = mix(col, sheet, season_winter);", "foam *= 1.0 - season_winter;"],
-		"res://src/fish.gdshader": ["ALBEDO = mix(mix(c, tint, 0.25), ICE, season_winter * 0.12);"],
-		"res://src/lilypad.gdshader": ["* 0.03 * (1.0 - season_winter);", "ALBEDO = mix(leaf, SNOW, season_winter * "],
+		"res://src/fish.gdshader": ["mix(mix(c, tint, 0.25), ICE, season_winter * 0.12);"],
+		"res://src/lilypad.gdshader": ["* 0.03 * (1.0 - season_winter);", "mix(leaf, SNOW, season_winter * "],
 		"res://src/grass.gdshader": ["float buried = 1.0 - season_winter * (1.0 - weed);", "* stretch, wide) * buried;", "hand_right)) * size * buried, tip);", "VERTEX.y = mix(VERTEX.y, min(VERTEX.y, root.y + max(depth - under_ice, depth * 0.5)), season_winter * weed);"],
 	}
 	for path: String in frozen:
