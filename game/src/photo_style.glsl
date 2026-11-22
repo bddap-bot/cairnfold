@@ -30,12 +30,13 @@ layout(push_constant, std430) uniform Style {
 } style;
 
 // Kuwahara's four quadrants, each sampled on a fixed grid whatever the reach, so a photo's strokes cost what a
-// preview's do a pixel.
+// preview's do a pixel. The quadrants blend by how evenly each is lit, the evenest all but alone, rather than the
+// evenest taken outright, whose hard switches drew blocks and streaks along edges.
 vec3 painted() {
 	int n = int(style.brush.z);
 	vec2 stride = style.brush.xy / float(n);
-	vec3 best = vec3(0.0);
-	float least = 1e30;
+	vec3 blended = vec3(0.0);
+	float weights = 0.0;
 	for (int q = 0; q < 4; q++) {
 		vec2 dir = vec2((q & 1) == 0 ? -1.0 : 1.0, (q & 2) == 0 ? -1.0 : 1.0);
 		vec3 sum = vec3(0.0);
@@ -49,14 +50,13 @@ vec3 painted() {
 		}
 		float count = float((n + 1) * (n + 1));
 		vec3 mean = sum / count;
-		vec3 spread = squares / count - mean * mean;
+		vec3 spread = max(squares / count - mean * mean, vec3(0.0));
 		float v = spread.r + spread.g + spread.b;
-		if (v < least) {
-			least = v;
-			best = mean;
-		}
+		float w = 1.0 / pow(1e-5 + v, 4.0);
+		blended += mean * w;
+		weights += w;
 	}
-	return best;
+	return blended / weights;
 }
 
 void main() {

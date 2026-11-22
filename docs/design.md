@@ -3892,7 +3892,7 @@ whole day, through the night and past midnight. The clouds stay put: they are we
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 | Stand a mirror | Trigger of a hand holding the mirror, at the ground: it stands there facing the player; at its glass, it is put away |
 | Record a video | Hold the trigger of a hand holding the camera: its shutter button glows red while it records; let go to stop |
-| Choose a photo style | Grip of the other hand at a held camera's body: twist to turn a dial of styles, let go to keep the one at the top; let go raised over the camera to lay it over the whole view as well, level with it to take it off (see "Photo styles") |
+| Choose a photo style | Grip of the other hand at a held camera's body: twist to turn a dial of styles, let go to keep the one at the top; let go raised over the camera to lay it over the whole view as well, lower to leave it on the lens alone (see "Photo styles") |
 | Set up an easel | Trigger of a hand holding the easel, pointing at open ground with no easel near the hand: it stands there facing the player |
 | Move an easel | Grip pointing at an easel's legs or tray, whatever the hand holds, with no brush, palette or canvas within the hand's reach: it moves along the ground with the hand and turns about the vertical as the hand turns, the gain growing with distance, its painting and kit with it; let go to set it there, one undo step, unless that is within 1.4 m of another easel, when it goes back. The other hand's grip on it does nothing: an easel has one size |
 | Paint | At an easel: grip at the pot for a small round, big round or flat brush, at the sticks for charcoal, at the watercolour box or the oil palette to carry it in that hand; dip the brush in a pan or an oil colour for that medium, in the glass to wet it; touch the canvas and push in to press harder (see "Painting") |
@@ -4037,7 +4037,7 @@ the quality ladder held to the display's pace ("The flat screen").
 | Take a photo, throw a handful of seeds or stand the mirror | Left button | Right trigger or A |
 | Record a video with the camera up | Hold the left button | Hold the right trigger or A |
 | Turn the camera's style on a step, with the camera up | C | B |
-| Lay the style over the whole view, or take it off | V | Right shoulder |
+| Lay the style over the whole view, or take it off, with the camera up | V | Right shoulder |
 
 With empty hands, F or gamepad X plays the human-recorded wave. Taking up a tool
 ends it. In VR, wave with the tracked hand.
@@ -5412,14 +5412,15 @@ a sky in its colours (`PhotoTool.card`, seen by the eyes alone on `Quality.EYES_
 every camera's screen showing the style at the top live on the lens's own view, and letting go keeps it. Let go with the
 hand raised over the camera (`PhotoTool.OVER_VIEW`, 18 cm), where the dial grows, and the style lies over the whole view
 as well, staying there while building with the camera put away; let go lower and it is on the lens alone. The eyes
-change only at the let-go, never as the wrist turns, so the whole view never flickers through the styles. Both cameras,
+change only at the let-go, never as the wrist turns, so the whole view never flickers through the styles; putting the
+camera away with the dial open chooses nothing. Both cameras,
 selfie included, and videos draw through the one style, and a photo records it (`style` in its metadata).
 
 | Style | What it draws |
 | --- | --- |
 | Plain | The view as it is |
-| Painterly | The view laid in strokes (Kuwahara's filter: each pixel takes the mean of whichever of its four quadrants varies least, about `PhotoStyle.STROKES` of the view's height across), its colours 1.3 times as saturated |
-| Sculpture | The garden carved from one white stone (`sculpture.gdshaderinc`): its shapes, light and shadows, none of its colours, the light bounced off the meadow still tinting its shade. The sky, the sun and moon, flames, fireflies and glows, the mirror's glass and the player's own tools keep theirs |
+| Painterly | The view laid in flat daubs that keep its edges (Kuwahara's filter: each pixel takes the means of its four quadrants, each `PhotoStyle.STROKES` of the view's height on a side, weighted toward the evenest), its colours 1.3 times as saturated |
+| Sculpture | The garden carved from one white stone (`sculpture.gdshaderinc`): its shapes, light and shadows, none of its colours, the light bounced off the meadow still tinting its shade. The sky, the sun and moon, flames, fireflies and glows, falling snow, smoke, the motes under water, avatars' particles, the mirror's glass, see-through pieces drawn with Godot's own materials, and the interface and most held tools keep theirs |
 | Mono, sepia, cyanotype | The view's light alone, through a grey, brown or blue tint |
 
 A pass (`StylePass`, `photo_style.glsl`) is a `CompositorEffect` on the camera that draws the view, run after its
@@ -5432,12 +5433,12 @@ turned to whichever style it draws, so turning the dial compiles nothing; a came
 lets go of its copy of the view (`PhotoStyle.dress`), so plain costs nothing. The sculpture is a camera's cull-mask bit, `Quality.SCULPTURE_LAYER`, past the 20 layers a node can stand on,
 which every shader of the garden reads (`CAMERA_VISIBLE_LAYERS`): one camera draws white while the eyes see colour.
 Pieces drawn with Godot's own materials, the built-in figures and the easel with its kit, run none of those shaders;
-while a camera draws the sculpture each takes a white pass of its own (`PhotoStyle.carve`, `sculpture_shell.gdshader`)
+while a camera draws the sculpture each opaque surface among them takes a white pass of its own (`PhotoStyle.carve`, `sculpture_shell.gdshader`)
 that every other camera drops in its vertex stage, and at other times none, since they hold over a hundred surfaces,
 each a draw more.
 
 `tests/gpu_photo_styles.gd` draws one view of a garden in each and holds it against plain: painterly under 0.8 of
-plain's edge energy, more saturated, as bright (one run read 0.58 and 1.4 times); mono grey on 99% of the view or more;
+plain's edge energy, more saturated, as bright (one run read 0.49 and 1.4 times); mono grey on 99% of the view or more;
 sepia and cyanotype ordering their channels on as much, their red to blue within a quarter of their tones'; the
 sculpture under 0.35 of plain's saturation (0.21 in that run) with its shading kept; the camera's screen and a
 photo's own pass at 3200×2400 in style, and a shot taken in sepia saying so in its metadata. `demo/photo.json` takes a photo in each and lays painterly and the sculpture over the

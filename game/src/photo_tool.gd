@@ -183,7 +183,7 @@ func _process(delta: float) -> void:
 				_show(screen(h, t), null, DARK)
 		if not held.has(h):
 			if _previews.has(h):
-				_aim(_previews[h], lens(h), FOV, Quality.VIEW_MASK)
+				PhotoStyle.dress((_previews[h] as SubViewport).get_child(0), PhotoStyle.Kind.PLAIN, Quality.VIEW_MASK)
 			continue
 		var left: float = _shots.get(h, 0.0)
 		if left > 0.0 and _photo != null and h != _clip_hand:
@@ -241,6 +241,7 @@ func _turn_dial(held: Array[Hand]) -> void:
 	if _turner != null:
 		var raised := _turner.global_position.y - body(_turned).y > OVER_VIEW
 		if not held.has(_turned) or not _turner.tracked():
+			style = _dial.start as PhotoStyle.Kind
 			_close_dial()
 		elif not _turner.buttons.held("grab"):
 			_close_dial()

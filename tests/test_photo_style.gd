@@ -152,11 +152,16 @@ func _the_other_hand_turns_the_cameras_dial() -> void:
 	rig.left.global_position = tool.body(rig.right)
 	Buttons.injected[grip] = true
 	await frames(2)
+	from = rig.left.global_basis
+	for f in 6:
+		rig.left.global_basis = Basis(-from.z, deg_to_rad(Dial.step(PhotoStyle.Kind.size()) * (f + 1) / 6.0)) * from
+		await process_frame
+	check(tool.style == PhotoStyle.Kind.MONO, "turned on to mono")
 	rig.left.global_position = tool.body(rig.right) + Vector3.UP * (PhotoTool.OVER_VIEW + 0.02)
 	await frames(2)
 	rig.right.tool = Hand.Tool.WALLS
 	await frames(2)
-	check(tool._dial == null and not tool.over_view, "putting the camera away closes its dial and lays nothing over the view")
+	check(tool._dial == null and not tool.over_view and tool.style == PhotoStyle.Kind.SCULPTURE, "putting the camera away closes its dial unchosen, the style as it was and nothing over the view")
 	Buttons.injected.erase(grip)
 	await frames(2)
 	for i in PhotoTool.PREVIEW_EVERY + 1:

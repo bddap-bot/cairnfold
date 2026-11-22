@@ -39,6 +39,7 @@ static func _static_init() -> void:
 		var shell := ShaderMaterial.new()
 		shell.shader = Shader.new()
 		shell.shader.code = code.replace("render_mode depth_draw_never", "render_mode depth_draw_never, " + cull)
+		assert(shell.shader.code != code, "sculpture_shell.gdshader's render_mode takes the cull mode")
 		_shells.append(shell)
 
 
