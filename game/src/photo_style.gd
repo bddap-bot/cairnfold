@@ -2,20 +2,22 @@ class_name PhotoStyle
 extends RefCounted
 
 ## A look the camera's lens draws through, and the eyes too while one stays on the whole view: a pass over the drawn
-## view (StylePass) or, for the sculpture, the garden drawn white (Quality.SCULPTURE_LAYER).
+## view (StylePass), for the sculpture over the garden drawn white (Quality.SCULPTURE_LAYER).
 
 enum Kind { PLAIN, PAINTERLY, SCULPTURE, MONO, SEPIA, CYANOTYPE }
 
 const LUMA := Vector3(0.2126, 0.7152, 0.0722)
-## Of the view's height: strokes about 17 px long on a photo, a texel or two on a camera's screen.
+## Of the view's height: strokes about 17 px long on a photo.
 const STROKES := 0.007
 const SATURATED := 1.3
+## The sculpture's pass lifts its light toward white (StylePass.lift), so the stone reads white in shadow too.
+const LIFT := 0.2
 
 ## Kind -> its pass's tone, rows mapping linear rgb to rgb, or null for no pass.
 const TONES := {
 	Kind.PLAIN: null,
 	Kind.PAINTERLY: Basis(LUMA * (1.0 - SATURATED) + Vector3(SATURATED, 0, 0), LUMA * (1.0 - SATURATED) + Vector3(0, SATURATED, 0), LUMA * (1.0 - SATURATED) + Vector3(0, 0, SATURATED)),
-	Kind.SCULPTURE: null,
+	Kind.SCULPTURE: Basis(LUMA, LUMA, LUMA),
 	Kind.MONO: Basis(LUMA, LUMA, LUMA),
 	Kind.SEPIA: Basis(LUMA * 1.15, LUMA * 0.92, LUMA * 0.66),
 	Kind.CYANOTYPE: Basis(LUMA * 0.35, LUMA * 0.62, LUMA * 1.1),
@@ -123,6 +125,7 @@ static func dress(cam: Camera3D, kind: Kind, seen: int) -> void:
 	var p: StylePass = c.compositor_effects[0]
 	p.tone = tone
 	p.reach = STROKES if kind == Kind.PAINTERLY else 0.0
+	p.lift = LIFT if kind == Kind.SCULPTURE else 0.0
 	cam.compositor = c
 
 

@@ -33,8 +33,10 @@ func _each_style_has_its_pass() -> void:
 	PhotoStyle.dress(cam, PhotoStyle.Kind.PAINTERLY, Quality.VIEW_MASK)
 	var strokes: StylePass = cam.compositor.compositor_effects[0]
 	check(strokes.reach > 0.0 and strokes.effect_callback_type == CompositorEffect.EFFECT_CALLBACK_TYPE_POST_TRANSPARENT, "painterly lays strokes over the finished view")
+	PhotoStyle.dress(cam, PhotoStyle.Kind.SCULPTURE, Quality.VIEW_MASK)
+	check(strokes.lift > 0.0 and strokes.reach == 0.0, "the sculpture lifts its light toward white")
 	PhotoStyle.dress(cam, PhotoStyle.Kind.SEPIA, Quality.VIEW_MASK)
-	check(cam.compositor.compositor_effects[0] == strokes and strokes.reach == 0.0 and strokes.tone == PhotoStyle.TONES[PhotoStyle.Kind.SEPIA], "a camera turns its one pass to each style, building none anew")
+	check(cam.compositor.compositor_effects[0] == strokes and strokes.reach == 0.0 and strokes.lift == 0.0 and strokes.tone == PhotoStyle.TONES[PhotoStyle.Kind.SEPIA], "a camera turns its one pass to each style, building none anew")
 	cam.free()
 	check(Quality.SCULPTURE_LAYER > 0xFFFFF and not (Quality.VIEW_MASK | Quality.PHOTO_MASK) & Quality.SCULPTURE_LAYER, "no node can stand on the sculpture's layer, and no view sees it by default")
 	check(PhotoStyle.mask(PhotoStyle.Kind.SCULPTURE, Quality.VIEW_MASK) == Quality.VIEW_MASK | Quality.SCULPTURE_LAYER and PhotoStyle.mask(PhotoStyle.Kind.MONO, Quality.VIEW_MASK | Quality.SCULPTURE_LAYER) == Quality.VIEW_MASK, "the sculpture alone carves its view white")
@@ -44,7 +46,9 @@ func _each_style_has_its_pass() -> void:
 	PhotoStyle.dress(cam, PhotoStyle.Kind.SEPIA, Quality.PHOTO_MASK)
 	check(kept != null and cam.compositor == kept and cam.cull_mask == Quality.PHOTO_MASK, "a camera keeps its pass while its style stays")
 	PhotoStyle.dress(cam, PhotoStyle.Kind.SCULPTURE, Quality.VIEW_MASK)
-	check(cam.compositor == null and cam.cull_mask & Quality.SCULPTURE_LAYER, "and drops it for the sculpture")
+	check(cam.compositor == kept and cam.cull_mask & Quality.SCULPTURE_LAYER, "and turns it to the sculpture, whose view it carves")
+	PhotoStyle.dress(cam, PhotoStyle.Kind.PLAIN, Quality.VIEW_MASK)
+	check(cam.compositor == null and not cam.cull_mask & Quality.SCULPTURE_LAYER, "and drops it for plain")
 	cam.free()
 
 

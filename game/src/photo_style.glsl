@@ -21,7 +21,8 @@ vec3 light(vec2 at) {
 	return c * c;
 }
 
-// `tone` rows map linear rgb to rgb; `brush`: the strokes' reach in texels (x, y), samples a side (z), 1 to copy.
+// `tone` rows map linear rgb to rgb; `brush`: the strokes' reach in texels (x, y), samples a side (z), the lift (w); 1
+// to copy.
 layout(push_constant, std430) uniform Style {
 	vec4 r;
 	vec4 g;
@@ -61,5 +62,10 @@ vec3 painted() {
 
 void main() {
 	vec3 c = style.brush.z > 0.0 ? painted() : light(uv);
-	colour = vec4(sqrt(max(vec3(dot(style.r.rgb, c), dot(style.g.rgb, c), dot(style.b.rgb, c)), vec3(0.0))), texture(seen, uv).a);
+	vec3 toned = max(vec3(dot(style.r.rgb, c), dot(style.g.rgb, c), dot(style.b.rgb, c)), vec3(0.0));
+	float lift = style.brush.w;
+	if (lift > 0.0) {
+		toned = toned * (1.0 + lift) / (toned + lift);
+	}
+	colour = vec4(sqrt(toned), texture(seen, uv).a);
 }

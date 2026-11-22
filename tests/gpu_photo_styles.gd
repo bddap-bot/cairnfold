@@ -27,7 +27,7 @@ func _run() -> void:
 	var painted: Dictionary = seen[PhotoStyle.Kind.PAINTERLY]
 	check(painted.edges < plain.edges * 0.8 and painted.saturation > plain.saturation and absf(painted.luma - plain.luma) < plain.luma * 0.15, "painterly lays the view in strokes: %.4f of plain's edges %.4f, saturation %.3f over %.3f, as bright" % [painted.edges, plain.edges, painted.saturation, plain.saturation])
 	var mono: Dictionary = seen[PhotoStyle.Kind.MONO]
-	check(mono.grey > 0.99 and absf(mono.luma - plain.luma) < 0.03, "mono is grey on %.1f%% of the view, its light plain's (%.3f, %.3f)" % [mono.grey * 100.0, mono.luma, plain.luma])
+	check(mono.grey > 0.99 and absf(mono.luma - plain.luma) < 0.03 and mono.edges > plain.edges * 0.8, "mono is grey on %.1f%% of the view, its light and edges plain's (%.3f, %.3f; %.4f, %.4f)" % [mono.grey * 100.0, mono.luma, plain.luma, mono.edges, plain.edges])
 	for kind: PhotoStyle.Kind in [PhotoStyle.Kind.SEPIA, PhotoStyle.Kind.CYANOTYPE]:
 		var tinted: Dictionary = seen[kind]
 		var tone: Basis = PhotoStyle.TONES[kind]
@@ -36,13 +36,27 @@ func _run() -> void:
 		var ordered: float = tinted.warm if kind == PhotoStyle.Kind.SEPIA else tinted.cool
 		check(ordered > 0.99 and absf(ratio / meant - 1.0) < 0.25, "%s orders its channels on %.1f%% of the view, its light's red to blue %.2f as its tone's %.2f" % [PhotoStyle.named(kind), ordered * 100.0, ratio, meant])
 	var carved: Dictionary = seen[PhotoStyle.Kind.SCULPTURE]
-	check(carved.saturation < plain.saturation * 0.35 and carved.spread > 0.03, "sculpture is white, saturation %.3f against plain's %.3f, its shading kept (luma spread %.3f)" % [carved.saturation, plain.saturation, carved.spread])
-	tool.wear(PhotoStyle.Kind.MONO, false)
-	var screen := _stats(await tool.render_screen(at))
-	check(screen.grey > 0.99, "the camera's screen draws in its style: grey on %.1f%% of it" % (screen.grey * 100.0))
+	check(carved.grey > 0.99 and carved.luma > plain.luma * 2.0 and carved.spread > 0.03, "sculpture is white, grey on %.1f%%, luma %.3f against plain's %.3f, its shading kept (luma spread %.3f)" % [carved.grey * 100.0, carved.luma, plain.luma, carved.spread])
+	await _screens(tool, at)
 	await _photos(tool, at, plain)
 	await _shot_in_style(tool)
 	finish()
+
+
+## The camera's screen, a few eye pixels to its texels, still tells each style apart.
+func _screens(tool: PhotoTool, at: Transform3D) -> void:
+	var screens := {}
+	for kind: PhotoStyle.Kind in [PhotoStyle.Kind.PLAIN, PhotoStyle.Kind.PAINTERLY, PhotoStyle.Kind.SCULPTURE, PhotoStyle.Kind.MONO]:
+		tool.wear(kind, false)
+		screens[kind] = _stats(await tool.render_screen(at))
+	tool.wear(PhotoStyle.Kind.PLAIN, false)
+	var plain: Dictionary = screens[PhotoStyle.Kind.PLAIN]
+	var painted: Dictionary = screens[PhotoStyle.Kind.PAINTERLY]
+	var carved: Dictionary = screens[PhotoStyle.Kind.SCULPTURE]
+	print("screen: plain edges %.4f saturation %.3f luma %.3f, painterly edges %.4f, sculpture saturation %.3f luma %.3f" % [plain.edges, plain.saturation, plain.luma, painted.edges, carved.saturation, carved.luma])
+	check(screens[PhotoStyle.Kind.MONO].grey > 0.99, "the camera's screen draws in its style: grey on %.1f%% of it" % (screens[PhotoStyle.Kind.MONO].grey * 100.0))
+	check(painted.edges < plain.edges * 0.7, "the screen lays painterly in strokes: edges %.4f of plain's %.4f" % [painted.edges, plain.edges])
+	check(carved.grey > 0.99 and carved.luma > plain.luma * 2.0, "the screen shows the sculpture white: grey on %.1f%%, luma %.3f against plain's %.3f" % [carved.grey * 100.0, carved.luma, plain.luma])
 
 
 func _shot_in_style(tool: PhotoTool) -> void:

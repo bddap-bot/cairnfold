@@ -292,7 +292,7 @@ static func card(kind: PhotoStyle.Kind) -> MeshInstance3D:
 	var tone: Variant = PhotoStyle.TONES[kind]
 	mat.set_shader_parameter(&"tone", tone if tone != null else Basis.IDENTITY)
 	mat.set_shader_parameter(&"strokes", kind == PhotoStyle.Kind.PAINTERLY)
-	mat.set_shader_parameter(&"white", kind == PhotoStyle.Kind.SCULPTURE)
+	mat.set_shader_parameter(&"lift", PhotoStyle.LIFT if kind == PhotoStyle.Kind.SCULPTURE else 0.0)
 	var m := MeshInstance3D.new()
 	m.mesh = quad
 	m.material_override = mat

@@ -7,11 +7,15 @@ extends CompositorEffect
 
 ## Steps along a quadrant's side; it takes one sample more than this, whatever the reach.
 const STEPS := 3
+## The shortest stroke, so a camera's screen, a few eye pixels to its texels, still shows strokes.
+const STROKE_TEXELS := 8.0
 
 ## `tone[i]` weighs linear rgb into output channel i.
 var tone := Basis.IDENTITY
-## Of the view's height, the strokes' length.
+## Of the view's height, the strokes' length, never under STROKE_TEXELS.
 var reach := 0.0
+## Above zero, the toned light `t` is lifted toward white, drawn as t(1 + lift)/(t + lift): the smaller, the stronger.
+var lift := 0.0
 
 ## Its own, sized to its camera's view.
 var _copy: RID
@@ -91,8 +95,8 @@ func _render_callback(_type: int, data: RenderData) -> void:
 	for row in 3:
 		var v: Vector3 = tone[row]
 		styled.append_array([v.x, v.y, v.z, 0.0])
-	var texels := maxf(reach * size.y, 1.0)
-	styled.append_array([texels / size.x, texels / size.y, float(STEPS) if reach > 0.0 else 0.0, 0.0])
+	var texels := maxf(reach * size.y, STROKE_TEXELS)
+	styled.append_array([texels / size.x, texels / size.y, float(STEPS) if reach > 0.0 else 0.0, lift])
 	var copied := PackedFloat32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
 	for view in buffers.get_view_count():
 		var colour := buffers.get_color_layer(view)
