@@ -144,6 +144,10 @@ sky_ambient={
 "type": "float",
 "value": 0.7
 }
+fog_veil={
+"type": "float",
+"value": 0.0
+}
 world_reflects={
 "type": "bool",
 "value": true

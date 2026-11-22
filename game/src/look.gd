@@ -18,7 +18,7 @@ const STANDING := 2.0
 const FOG_BEGIN := 18.0
 const FOG_END := 140.0
 const AIR_FOG := {"fog_depth_curve": 1.6, "fog_density": 0.55, "fog_aerial_perspective": 0.8, "fog_sun_scatter": 0.35, "fog_sky_affect": 0.15}
-const WATER_FOG := {"fog_depth_begin": 0.0, "fog_depth_end": 7.0, "fog_depth_curve": 0.6, "fog_density": 1.0, "fog_aerial_perspective": 0.0, "fog_sun_scatter": 0.0, "fog_sky_affect": 1.0}
+const WATER_FOG := {"fog_depth_begin": 0.0, "fog_depth_end": 7.0, "fog_depth_curve": 0.6, "fog_density": 1.0, "fog_aerial_perspective": 0.0, "fog_sun_scatter": 0.0, "fog_sky_affect": 1.0, "fog_height_density": 0.0}
 const UNDER_FOG := Color(0.07, 0.25, 0.27)
 ## Water takes red first, then green: what reaches the eye through it keeps this much of each.
 const UNDER_KEEPS := Color(0.55, 0.92, 1.0)
@@ -50,6 +50,8 @@ var _since_sky := INF
 var _adapt := 1.0
 var _exposure := 1.0
 var under := false
+var weather := Weather.CLEAR.duplicate()
+var snow := Snowfall.new()
 
 
 static func build(parent: Node, ground: Terrain) -> Look:
@@ -107,12 +109,12 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	look.photo_sun.directional_shadow_blend_splits = true
 	sun.add_child(look.photo_sun)
 	look.env = env
-	look._set_fog(AIR_FOG)
 	look.sky_mat = sky_mat
 	look.disc = _disc(SUN_DISC, 0.0)
 	look.moon_disc = _disc(MOON_DISC, 1.0)
 	look.add_child(look.disc)
 	look.add_child(look.moon_disc)
+	look.add_child(look.snow)
 	for m in Mountains.build():
 		look.add_child(m)
 	look.bounce.install()
@@ -123,6 +125,7 @@ static func build(parent: Node, ground: Terrain) -> Look:
 	detail.fractal_octaves = 4
 	RenderingServer.global_shader_parameter_set(&"detail", Meshes.noise_texture(detail, 256))
 	look.lift_to(0.0)
+	look.show_weather(Weather.CLEAR)
 	look.set_time(Daylight.DEFAULT)
 	look._paint_sky()
 	return look
@@ -207,7 +210,7 @@ func submerge(on: bool) -> void:
 		g.set_color(1, UNDER_KEEPS)
 		_absorb = GradientTexture1D.new()
 		_absorb.gradient = g
-	_set_fog(WATER_FOG if on else AIR_FOG.merged(fog_at_height(_lift)))
+	_set_fog(WATER_FOG if on else _air_fog())
 	env.adjustment_color_correction = _absorb if on else null
 	_tint_fog(Daylight.light(time))
 
@@ -222,7 +225,19 @@ func lift_to(lift: float) -> void:
 		return
 	_lift = lift
 	if not under:
-		_set_fog(fog_at_height(lift))
+		_set_fog(_air_fog())
+
+
+## Shows `w` on this machine alone: the garden's weather, or the one a hand is shaping.
+func show_weather(w: Dictionary) -> void:
+	weather = w.duplicate()
+	RenderingServer.global_shader_parameter_set(&"fog_veil", Weather.veil(weather))
+	if not under:
+		_set_fog(_air_fog())
+
+
+func _air_fog() -> Dictionary:
+	return AIR_FOG.merged(Weather.fog(weather, fog_at_height(_lift)), true)
 
 
 func _set_fog(fog: Dictionary) -> void:
@@ -255,7 +270,9 @@ func _process(delta: float) -> void:
 		disc.global_position = at + Daylight.toward_sun(time) * DISC_DISTANCE
 		moon_disc.global_position = at + Daylight.toward_moon(time) * DISC_DISTANCE
 		lift_to(at.y - terrain.shown_at(at.x, at.z))
-		adapt(bounce.sky_at(at), delta)
+		var open := bounce.sky_at(at)
+		adapt(open, delta)
+		snow.fall(at, weather.snow if Palette.wintry() and not under else 0.0, open)
 	bounce.update()
 	interior.update()
 	_since_sky += delta

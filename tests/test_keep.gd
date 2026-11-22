@@ -183,7 +183,7 @@ func _a_garden_of_another_format_is_moved_aside() -> void:
 
 func _a_format_keeps_what_its_numbers_mean() -> void:
 	var name := func(entry: Dictionary) -> String: return entry.name
-	var format := 11
+	var format := 12
 	var held := {
 		"WallLayout.Top": [WallLayout.Top, ["CRENEL", "CAP", "COPE", "RAIL"]],
 		"WallLayout.Finish": [WallLayout.Finish, ["BARE", "PLASTER", "TIMBER", "BOARDS_ACROSS", "BOARDS_UPRIGHT"]],

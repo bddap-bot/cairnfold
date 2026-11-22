@@ -15,7 +15,9 @@ const COMMAND_BYTES := 4096
 const LAID := ["stairs", "paths", "easels", "boulders"]
 const WIPED := "*"
 const DROWNING := ["heights", "ponds", "plant", "tree"]
-const FORMAT := 11
+const FORMAT := 12
+## Of a day: a minute.
+const RUN_STEP := 1.0 / 1440.0
 ## Seconds: each keep copies the whole garden on the frame.
 const KEEP_EVERY := 5.0
 const OVER := "over the frame budget"
@@ -48,7 +50,12 @@ var terrain := Terrain.new()
 var marks := Ground.new()
 var palette := Palette.new()
 var time := Daylight.DEFAULT
+## Of a day a second, the way the sky runs on its own; 0 when it stands.
+var pace := 0.0
+var weather := Weather.CLEAR.duplicate()
 var look: Look
+## Where the running sky has got to; it is shown a RUN_STEP at a time.
+var _running := Daylight.DEFAULT
 ## `ponds` holds each pond's level by the grid point it fills from.
 var state := blank()
 var seq := 0
@@ -591,8 +598,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 	_commit.rpc(cmd)
 	if play_log != null:
 		play_log.heard(0, by, "ordered", [cmd])
-	# Turning the sky is not an edit, so undo leaves it be.
-	if cmd.op == "sky":
+	if cmd.op in ["sky", "weather"]:
 		return
 	var keys := _keys(cmd)
 	for k in _keys(inverse) if inverse.has("op") else []:
@@ -881,7 +887,7 @@ static func _meadow_key(at: Vector3) -> String:
 ## The author's ghost settles first, so a hump is not counted twice under walls on the new ground; a paint stroke's,
 ## sky's and path's settle last, so the ghost stands until its plants have grown, its sky is set, its arches relaid.
 func _apply(cmd: Dictionary) -> Dictionary:
-	var last: bool = cmd.op in ["sky", "path"] or cmd.op == "plant" and not cmd.kind in Flora.PLACED
+	var last: bool = cmd.op in ["sky", "weather", "path"] or cmd.op == "plant" and not cmd.kind in Flora.PLACED
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
 	# An undo or redo carries its own token but no walls in hand.
 	var sent: Dictionary = _sent.get(cmd.token, {}) if mine else {}
@@ -1012,17 +1018,25 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			palette.season = cmd.index
 			palette.apply()
 		"sky":
-			inverse = {"op": "sky", "time": time}
+			inverse = {"op": "sky", "time": time, "pace": pace}
 			_show_sky(cmd.time)
+			pace = cmd.pace
+		"weather":
+			inverse = {"op": "weather"}.merged(weather)
+			_show_weather(cmd)
 		"wipe":
 			inverse = {"op": "garden", "cmds": snapshot().cmds}
 			var season := palette.season
 			var sun := time
+			var running := pace
+			var air := weather
 			_hushed(func() -> void:
 				_clear()
 				palette.season = season
 				palette.apply()
 				_show_sky(sun)
+				pace = running
+				_show_weather(air)
 				_bare_meadow())
 		"batch":
 			var back := []
@@ -1035,9 +1049,15 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			inverse = {"op": "batch", "cmds": back}
 		"garden":
 			inverse = {"op": "wipe"}
+			var sun := time
+			var running := pace
+			var air := weather
 			_hushed(func() -> void:
 				_clear()
-				_rebuild(cmd.cmds))
+				_rebuild(cmd.cmds)
+				_show_sky(sun)
+				pace = running
+				_show_weather(air))
 		"paint":
 			state.easels[cmd.easel][Commands.surface(cmd)].append(cmd.stroke)
 			if easels != null:
@@ -1202,8 +1222,26 @@ func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground
 
 func _show_sky(t: float) -> void:
 	time = t
+	_running = t
 	if look != null:
 		look.set_time(t)
+
+
+## The light moves in RUN_STEP steps: each move of the sun relights the probe volume (Bounce) and repaints the sky.
+func run_sky(delta: float) -> void:
+	if pace == 0.0:
+		return
+	_running = fposmod(_running + pace * delta, 1.0)
+	if absf(wrapf(_running - time, -0.5, 0.5)) >= RUN_STEP:
+		_show_sky(_running)
+
+
+func _show_weather(w: Dictionary) -> void:
+	weather = {}
+	for k in Weather.KEYS:
+		weather[k] = w[k]
+	if look != null:
+		look.show_weather(weather)
 
 
 func welcome(id: int) -> void:
@@ -1262,8 +1300,10 @@ func snapshot() -> Dictionary:
 			cmds.append(c)
 	if palette.season != Palette.SUMMER:
 		cmds.append({"op": "season", "index": palette.season})
-	if time != Daylight.DEFAULT:
-		cmds.append({"op": "sky", "time": time})
+	if time != Daylight.DEFAULT or pace != 0.0:
+		cmds.append({"op": "sky", "time": time, "pace": pace})
+	if weather != Weather.CLEAR:
+		cmds.append({"op": "weather"}.merged(weather))
 	for c in cmds:
 		c.seq = seq
 		c.by = 1
@@ -1339,6 +1379,8 @@ func _clear() -> void:
 	palette.season = Palette.SUMMER
 	palette.apply()
 	_show_sky(Daylight.DEFAULT)
+	pace = 0.0
+	_show_weather(Weather.CLEAR)
 	_grow_meadow()
 	if sculpted:
 		ground_grab.restore(Terrain.ALL, Terrain.base_heights())
@@ -1399,6 +1441,8 @@ func digest() -> Dictionary:
 	out.marks = marks.replayed()
 	out.ponds = water.ponds.size() if water != null else 0
 	out.season = palette.season
+	out.weather = weather.duplicate()
+	out.pace = pace
 	out.easels = {}
 	for id in state.easels:
 		var e: Dictionary = state.easels[id]

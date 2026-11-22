@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Every machine runs `clean` on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "wall", "take", "reshape", "path", "ground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "paint", "unpaint", "sheet", "restone", "boulder", "decoration"]
+const OPS := ["stairs", "wall", "take", "reshape", "path", "ground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "weather", "wipe", "garden", "batch", "easel", "paint", "unpaint", "sheet", "restone", "boulder", "decoration"]
 ## A player's batch carries BATCHED; the host's also PUTS and HOST_BATCHED, undoing takings and what water drowned.
 const BATCHED := ["take", "reshape", "show"]
 const HOST_BATCHED := ["heights", "ponds", "tree"]
@@ -172,8 +172,16 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool, ground: T
 			out.index = i
 		"sky":
 			var t: Variant = cmd.get("time")
-			ok = typeof(t) == TYPE_FLOAT and t >= 0.0 and t <= 1.0
+			var pace: Variant = cmd.get("pace")
+			ok = typeof(t) == TYPE_FLOAT and t >= 0.0 and t <= 1.0 and typeof(pace) == TYPE_FLOAT and absf(pace) <= SkyTool.FASTEST
 			out.time = t
+			out.pace = pace
+		"weather":
+			var w := {}
+			for k in Weather.KEYS:
+				w[k] = cmd.get(k)
+			ok = Weather.valid(w)
+			out.merge(w)
 		"wipe":
 			ok = true
 		"garden":

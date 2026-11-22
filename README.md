@@ -31,6 +31,9 @@ also holds the people: avatars to wear, and nearby gardens to join.
 - Holding colour: hold the trigger on a wall, roof, gable, fence, window or door, or
   the meadow, and twist your wrist to turn a wheel of swatches for that material, or
   of seasons for the meadow; let go to keep the one at the top.
+- Holding the weather (the cloud): hold the trigger and twist your wrist clockwise for
+  thicker fog, back for thinner; raise the hand to lift a layer of fog off the ground, lower
+  it to let the fog cling to the ground. In winter, aim at the sky and twist to set how hard it snows.
 - Holding style: the same, with a little model of each style of what you point
   at: a gable end's, a roof's covering (tile or thatch on a pitched roof, stone or boards on a flat one), a wall's top, along
   a wall stone or plaster (a house's timber framings too), or a tree's species.
@@ -53,7 +56,7 @@ also holds the people: avatars to wear, and nearby gardens to join.
   ground (a pond's bed too) and raise the hand to pull a hill or lower it to press
   a hollow; grab a wall, fence, house, tower, boulder or stairs to carry and turn it, a
   house rising onto a plinth as the hand rises; grab open sky, or the sun or the moon, to turn
-  it by aiming, round the whole day: the moon trails the sun by 100°, lights the evening and sets after midnight, leaving the hours before dawn dark. Two hands size: grip a house with both and spread them for
+  it by aiming, round the whole day: the moon trails the sun by 100°, lights the evening and sets after midnight, leaving the hours before dawn dark. Let go while turning it and the day runs on by itself that way, faster the harder it was flung; let go still and it stands. Two hands size: grip a house with both and spread them for
   width or depth, a wall for its length, stairs for their width; draw them apart upright for
   taller walls; both on a roof raise the ridge upright and bow it across; both on its eaves
   pull them out. Grip never builds anything.

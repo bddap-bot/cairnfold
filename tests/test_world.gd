@@ -250,7 +250,7 @@ func _hill(at: Rect2i, lift: float) -> Dictionary:
 
 
 func _commands_cost_by_size() -> void:
-	var small := World.cost({"op": "sky", "time": 0.5})
+	var small := World.cost({"op": "sky", "time": 0.5, "pace": 0.0})
 	var whole := World.cost({"op": "heights", "cells": Terrain.ALL, "values": main.world.terrain.read(Terrain.ALL)})
 	check(small >= 1.0 and small < 1.1, "a small command costs one (%.2f)" % small)
 	check(whole > 20.0 and whole <= World.BURST, "the whole ground costs as much as it carries, within a burst (%.1f)" % whole)
@@ -476,7 +476,7 @@ func _a_stroke_painted_out_of_step_stays_shown() -> void:
 	cmd.merge({"id": home.seq + 1, "seq": home.seq + 1, "by": world.me()})
 	cmds.append(cmd)
 	world._welcome({"seq": home.seq + 1, "cmds": cmds})
-	world._commit({"op": "sky", "time": 0.6, "seq": home.seq + 2, "by": 1})
+	world._commit({"op": "sky", "time": 0.6, "pace": 0.0, "seq": home.seq + 2, "by": 1})
 	for frame in 30:
 		if world.seq == home.seq + 2:
 			break

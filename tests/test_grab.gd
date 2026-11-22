@@ -425,8 +425,8 @@ func _run() -> void:
 			# The last release's sky command may still wait behind a water refill, then set the time.
 			while not main.world.idle():
 				await process_frame
-			main.world.time = t
-			main.look.set_time(t)
+			main.world.pace = 0.0
+			main.world._show_sky(t)
 			var toward: Vector3 = Daylight.toward_sun(t) if side > 0.0 else Daylight.toward_moon(t)
 			var body := "sun" if side > 0.0 else "moon"
 			hand.global_basis = Basis.looking_at(toward)

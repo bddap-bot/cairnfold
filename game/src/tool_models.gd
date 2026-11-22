@@ -121,6 +121,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_camera(root, true)
 		Hand.Tool.SEEDS:
 			_seeds(root)
+		Hand.Tool.WEATHER:
+			_cloud(root)
 		Hand.Tool.EASEL:
 			_easel(root)
 		Hand.Tool.BOOK:
@@ -1079,6 +1081,18 @@ static func _seeds(root: Node3D) -> void:
 			Meshes.ellipsoid(st, 0, at, Vector3(0.0022, 0.0055, 0.0014), dark, 3, 6, Callable(), turn)
 			Meshes.ellipsoid(st, 0, at + turn * Vector3(0, 0, 0.0009), Vector3(0.0007, 0.0052, 0.0007), Color(0.86, 0.84, 0.78), 2, 4, Callable(), turn)
 	piece(root, st.commit(), Transform3D(), seed_material())
+
+
+## Lit from above, its underside greyer, so it reads as a cloud and not a heap of snow.
+static func _cloud(root: Node3D) -> void:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for puff: Array in [[Vector3(0, 0.016, 0), 0.011], [Vector3(-0.012, 0.011, 0.002), 0.008], [Vector3(0.013, 0.011, -0.001), 0.0085], [Vector3(-0.004, 0.012, -0.009), 0.0075], [Vector3(0.005, 0.01, 0.009), 0.0075], [Vector3(-0.02, 0.008, 0), 0.005], [Vector3(0.021, 0.008, 0.001), 0.0055]]:
+		var at: Vector3 = puff[0]
+		var r: float = puff[1]
+		var shade := lerpf(0.72, 0.98, clampf((at.y + r * 0.4 - 0.008) / 0.02, 0.0, 1.0))
+		Meshes.ellipsoid(st, 0, at, Vector3(r, r * 0.8, r), Color(shade, shade, shade * 1.03), 6, 10)
+	piece(root, st.commit(), Transform3D(), _vertex_mat("cloud", 1.0, false))
 
 
 static func seed_material() -> StandardMaterial3D:

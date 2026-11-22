@@ -19,6 +19,7 @@ var water_tool: WaterTool
 var wildlife: Wildlife
 var look: Look
 var sky_tool: SkyTool
+var weather_tool: WeatherTool
 var palette_tool: PaletteTool
 var photo_tool: PhotoTool
 var mirror_tool: MirrorTool
@@ -133,7 +134,9 @@ func _ready() -> void:
 		h.body.add_child(BudgetBar.new(world, h))
 	palette_tool = PaletteTool.new(rig, tool, world)
 	add_child(palette_tool)
-	_editors = [tool, stair_tool, flora_tool, delete_tool, easel_tool, ground_grab, palette_tool]
+	weather_tool = WeatherTool.new(rig, look, world)
+	add_child(weather_tool)
+	_editors = [tool, stair_tool, flora_tool, delete_tool, easel_tool, ground_grab, palette_tool, weather_tool]
 	sky_tool = SkyTool.new(rig, look, world, _editing)
 	add_child(sky_tool)
 	photo_tool = PhotoTool.new(rig)

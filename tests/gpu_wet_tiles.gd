@@ -28,7 +28,7 @@ func _run() -> void:
 	root.mesh_lod_threshold = 0.0
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
-	main.world.submit({"op": "sky", "time": 0.35})
+	main.world.submit({"op": "sky", "time": 0.35, "pace": 0.0})
 	await until(func() -> bool: return main.look._sky_time == 0.35, "the sky is painted for the hour")
 	main.look.bounce.finish()
 	main.look.set_process(false)

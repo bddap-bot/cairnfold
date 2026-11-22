@@ -1653,7 +1653,8 @@ func _toss(s: Dictionary) -> void:
 	main.feed_tool.throw(main.feed_tool.dish(hand), main.feed_tool.launch(hand, v))
 
 
-## `time` is a share of the day, 0 midnight and 0.5 noon, reached the short way round.
+## `time` is a share of the day, 0 midnight and 0.5 noon, reached the short way round. With `pace`, of a day a minute
+## and negative to run it back, the pointer turns on from there and lets go turning, so the sky runs on that way.
 func _sun(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var was := hand.global_transform
@@ -1676,14 +1677,22 @@ func _sun(s: Dictionary) -> void:
 	while t < seconds:
 		t += minf(await _tick(), seconds / 8.0)
 		hand.global_basis = Basis.looking_at(grab.rotated(axis, turn * smoothstep(0.0, 1.0, minf(t / seconds, 1.0))))
-	await _frames(2)
+	var pace: float = s.get("pace", 0.0) / 60.0
+	var rate := SkyTool.rate_for(pace)
+	t = 0.0
+	while t < SkyTool.WINDOW * 1.5:
+		t += await _tick()
+		hand.global_basis = Basis.looking_at(grab.rotated(axis, turn + rate * t))
+	var let_go := main.look.time
 	Buttons.injected.erase(grip)
 	await _frames(2)
 	hand.global_transform = was
 	hand.held_still = still
-	var missed := absf(wrapf(main.look.time - s.time, -0.5, 0.5))
-	if missed > SUN_MISS:
-		_fail("sun turned to %.4f, not %.4f" % [main.look.time, s.time])
+	var missed := absf(wrapf(let_go - s.time, -0.5, 0.5))
+	if pace == 0.0 and missed > SUN_MISS:
+		_fail("sun turned to %.4f, not %.4f" % [let_go, s.time])
+	if absf(main.world.pace - pace) > absf(pace) * 0.02:
+		_fail("the sky runs at %.5f of a day a second, not %.5f" % [main.world.pace, pace])
 
 
 func _open_sky(hand: Hand, axis: Vector3) -> Variant:
@@ -1697,6 +1706,40 @@ func _open_sky(hand: Hand, axis: Vector3) -> Variant:
 				if main.sky_tool.opens(at, dir) and main.tool.grip_hits(at, dir, INF).is_empty():
 					return Transform3D(Basis.looking_at(dir), at)
 	return null
+
+
+## Shapes the weather with a hand holding it, the trigger held: `thick` and `high` from 0 to 1 by the wrist's
+## turn and the hand's rise, aimed at the ground, or in a winter `snow` by the turn, aimed at the sky.
+func _weather(s: Dictionary) -> void:
+	var hand := _holding(s, Hand.Tool.WEATHER)
+	var was := hand.global_transform
+	var still := hand.held_still
+	hand.held_still = true
+	var up := s.has("snow")
+	var head: Transform3D = main.rig.head.global_transform
+	var ahead := (head.basis.z * Vector3(-1, 0, -1)).normalized()
+	var side := 1.0 if hand == main.rig.right else -1.0
+	var from := Transform3D(Basis.looking_at((ahead + Vector3.UP * (0.6 if up else -0.6)).normalized()), head * Vector3(0.2 * side, -0.3, -0.35))
+	hand.global_transform = from
+	await _frames(2)
+	var start: Dictionary = main.world.weather.duplicate()
+	var want := start.merged({"thick": s.get("thick", start.thick), "high": s.get("high", start.high), "snow": s.get("snow", start.snow)}, true)
+	var turn: float = (want.snow - start.snow if up else want.thick - start.thick) * WeatherTool.FULL_TURN
+	var rise: float = 0.0 if up else (want.high - start.high) * WeatherTool.FULL_RISE
+	var key := Controls.key("tool", hand.tracker)
+	Buttons.injected[key] = true
+	await _frames(2)
+	await _over(s, 1.0, func(k: float) -> void:
+		hand.global_transform = Transform3D(Basis(-from.basis.z, deg_to_rad(turn * k)) * from.basis, from.origin + Vector3.UP * rise * k))
+	await _frames(2)
+	Buttons.injected.erase(key)
+	await _frames(2)
+	hand.global_transform = was
+	hand.held_still = still
+	for k in Weather.KEYS:
+		if absf(main.world.weather[k] - want[k]) > 0.02:
+			_fail("the weather shaped to %s, not %s" % [main.world.weather, want])
+			return
 
 
 func _colour(s: Dictionary) -> void:

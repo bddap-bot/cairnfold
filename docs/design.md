@@ -3039,9 +3039,10 @@ Stage numbers refer to the build order at the end.
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, and a one-metre probe volume of sky seen and sunlight bounced off sunlit stone, solved again on a worker when a build settles or the sun moves (see "Bounce light") | 2 (done) |
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | One stabilized shadow map across the garden; occlusion darkening at wall feet and corners from the probe volume | 1 (done), 2 (done) |
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds; zenith, horizon, sun and moon glow, stars, cloud light, fog colour, exposure and saturation follow the sun's elevation through one timeline of keys (`Daylight`), night included | 1 (done), 8 (done) |
-| Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts | 1 (done), 2 (done) |
+| Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts; the weather tool thickens or thins it and lays a layer on the ground, clinging to it or standing high (see "Weather") | 1 (done), 2 (done), 25 (done) |
+| Snowfall | Falling snow in winter | In a winter the weather tool, aimed at the sky, sets how hard it snows: flakes fall through the world round the head (see "Weather") | 25 (done) |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); no glow on any headset (see "Grading"). No depth of field: in a headset your eyes focus for themselves | 1 (done) |
-| Time of day | Continuous, lockable, sun-angle slider | A full 24-hour cycle. Grip any hand on open sky, over the mountains, which stand in front of it, or pointed at the sun or the moon wherever they stand, under the ground too, to grab the sky, and aim to turn it about the sun's arc, round the whole day: the sun rises on the left, stands high in front at noon and sets on the right; below the horizon it is night, and the moon, riding the same arc 100° behind the sun, stands high in front at dusk, a soft full disc with faint seas in a gentle halo, lighting the garden cool and dim but bright enough to build by while it is up; it sets soon after midnight, and the hours before dawn, with neither up, are dark but for lanterns and stars, the eye adapting so builds still read; a garden kept in those hours starts again at dusk; the point grabbed stays under the pointer, and moving the hand without turning its aim leaves the sky be; a soft click in the hand each hour. The light's colour and strength, sky, fog, ambient and exposure follow. Letting go turns every player's sky to it. Not an edit: undo leaves it be | 8 (done) |
+| Time of day | Continuous, lockable, sun-angle slider | A full 24-hour cycle. Grip any hand on open sky, over the mountains, which stand in front of it, or pointed at the sun or the moon wherever they stand, under the ground too, to grab the sky, and aim to turn it about the sun's arc, round the whole day: the sun rises on the left, stands high in front at noon and sets on the right; below the horizon it is night, and the moon, riding the same arc 100° behind the sun, stands high in front at dusk, a soft full disc with faint seas in a gentle halo, lighting the garden cool and dim but bright enough to build by while it is up; it sets soon after midnight, and the hours before dawn, with neither up, are dark but for lanterns and stars, the eye adapting so builds still read; a garden kept in those hours starts again at dusk; the point grabbed stays under the pointer, and moving the hand without turning its aim leaves the sky be; a soft click in the hand each hour. The light's colour and strength, sky, fog, ambient and exposure follow. Letting go turns every player's sky to it; let go while turning, the sky runs on that way by itself, a day and night at a pace the fling chose (see "Weather"). Not an edit: undo leaves it be | 8 (done), 25 (done) |
 | Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette held in the hand): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. The style tool (a wand held with a star at its tip) works the same way with a miniature of each style of what it points at (see "Styles"). On a build its stone, roof tiles, thatch, woodwork (fences, window frames, doors) or plaster (plaster walls and their gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; the meadow's wind and grass turning with the head, birds placed in the world by day, owls and crickets by night; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
@@ -3582,12 +3583,12 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, arches, houses, towers, stairs, decorations, paths, stone, flowers, grass, moss, trees, bushes, boulders, ponds, colour, style, camera, selfie camera, mirror, seeds, easel, the picture book and delete. A hand
+windows, arches, houses, towers, stairs, decorations, paths, stone, flowers, grass, moss, trees, bushes, boulders, ponds, colour, style, weather, camera, selfie camera, mirror, seeds, easel, the picture book and delete. A hand
 holding a tool is drawn as that tool alone, with no controller, built from the same generators as the full-size
 thing (see "Held tools and aiming"): a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of dirt, a disc of stone ground
 fraying into meadow, three flowers, a grass tuft, a tree, three bushes, a pond in a
-sandy dish, a painter's palette with dabs of colour, a small camera (for the selfie camera, its lens beside the screen on the back), a hand mirror, a clay dish heaped with bird seed, a paintbrush reaching past the hand for the easel, and a spade held blade ahead for delete. A new tool
+sandy dish, a painter's palette with dabs of colour, a small cloud for the weather, a small camera (for the selfie camera, its lens beside the screen on the back), a hand mirror, a clay dish heaped with bird seed, a paintbrush reaching past the hand for the easel, and a spade held blade ahead for delete. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. There is no text anywhere.
 
 A hand can also hold nothing, for when the building is done and the player just wants to be in the garden.
@@ -3635,7 +3636,7 @@ it. The split, by how each aims:
 | --- | --- | --- |
 | Style | The wand, star ahead, hand-long | Sight past the star |
 | Delete | The spade, blade ahead, hand-long | Sight past the blade |
-| Walls, fences, windows, arches, house, tower, decorations, boulders, stairs, paths, stone, flowers, grass, moss, trees, bushes, ponds, colour, mirror | Its miniature | Sight just ahead of it: these aim at the ground or a build, and their own previews mark the target |
+| Walls, fences, windows, arches, house, tower, decorations, boulders, stairs, paths, stone, flowers, grass, moss, trees, bushes, ponds, colour, weather, mirror | Its miniature | Sight just ahead of it: these aim at the ground or a build, and their own previews mark the target |
 | Camera, selfie camera | The camera | Its lens and screen, unchanged: it never had a ray |
 | Seeds, easel, picture book | The dish, the brush or palette, the book | Unchanged: they work by reach and touch, not by aim |
 | Nothing | The controller | Sight at its front, only while it grabs the sky |
@@ -3884,7 +3885,8 @@ whole day, through the night and past midnight. The clouds stay put: they are we
 | Cut an arch | Trigger of a hand holding the arch, pointing at a wall: an archway through it where it points, shown on the wall before the press; on one of the wall's own arches, the press fills it. A path's arches and gates stay the path's |
 | Hang a string | Trigger held on a hand holding decorations, from one point to another 1.5 m or more across: let go, a string of lanterns or flags hangs between them, on a pole where an end is the ground |
 | Decorate | Trigger of a hand holding decorations, let go where it went down: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; a present at a house's foot, on open ground, on a house's floor or on a flat roof, its lid drawn with the Style tool's own wand and turned to face the hand; the preview is the present a press places. Style turns it into any decoration on any of those surfaces (planter, bench, rain barrel, woodpile, steps, gatepost lantern, standing torch, campfire, chair, table, settle, bed, shelf, rug, stool, chest, potted plant, candle stand, table and chairs, garden bench, trough planter, parasol, string lights, lantern, lamp post); on one already there it takes it away |
-| Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun round the day and the moon 100° behind it |
+| Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun round the day and the moon 100° behind it. Let go while turning and it runs on that way by itself; let go still and it stands |
+| Shape the weather | Trigger held on a hand holding the weather: twist the wrist clockwise for thicker fog, back for thinner, and raise the hand to lift a layer of fog off the ground, lower it to let the fog cling to the ground and then lie on it no more; in a winter, aimed above the horizon, the twist sets how hard it snows. Let go to keep it |
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window, door or lantern, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Copy a look | Tap the trigger of a hand holding the colour tool on a wall, house, tower or fence: the beam takes its colour. Each tap on another build lays that look there, one undo step; a tap on the meadow lets it go (see "Moving and copying") |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
@@ -4259,6 +4261,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 22. Clutter: houses, walls and paths gathering benches, barrels, crates, market stalls, anvils, flower boxes, carved pumpkins and bird nests that a hand moves, turns, copies or takes away; birds perching on nests, lanterns and flags. (Done.)
 23. Move and copy: a grip carries and turns a wall, house, tower, fence or tree with its fittings and ivy; the colour tool copies one structure's look onto another. (Done.)
 24. Water life and winter: fish and lilypads in ponds; in winter frozen ponds, snow on roofs, wall tops and the ground, and bare trees. (Done.)
+25. Weather and the day's turning: a hand shapes the fog, thick or thin, high or low, clinging to the ground, and in winter the snowfall; the sky let go turning runs its own day and night. (Done.)
 
 ## Water
 
@@ -4587,6 +4590,49 @@ the winter roof and wall top](winter.jpg)).
   the scene's phases on a Quest 2 the median change against the build without this stage was +0.06 ms. The phases past the
   build budget that look down on a dense village cost more: `doors/aerial` 47.6 ms against 39.8, `windows/aerial` 37.5
   against 35.2, one run each.
+
+## Weather
+
+The weather tool, a small cloud beside the seeds and the easel on the wheel, shapes the garden's fog and, in a winter, its
+snowfall; a sky let go while it turns runs its own day and night. `demo/weather.json` looks at a glade clear, in thick and
+thin fog, in fog clinging to the ground and standing high, in light and heavy snow, and through a running afternoon
+([clear, thick, thin, clinging, high; light and heavy snow; the day running](weather.jpg)).
+
+- **One state:** `Weather` holds three shares, 0 to 1: how thick the fog is, how high its layer on the ground stands, and
+  how hard it snows. The clear weather (`Weather.CLEAR`) is the fog the lighting pass tuned, unchanged, with no layer and
+  no snow. It is one command (`weather`) to every player, kept with the garden, and like turning the sky no edit: undo
+  leaves it be, and a wipe keeps it.
+- **The tool:** its trigger held, the wrist turned clockwise thickens the fog, half a turn from thinnest to thickest
+  (`WeatherTool.FULL_TURN`), and the hand raised lifts the layer, half a metre from none to highest
+  (`FULL_RISE`); in a winter, aimed above the horizon, the turn sets the snowfall instead. The weather shows on the
+  holder's machine as it is shaped, a soft click each tenth, and goes to every player on release.
+- **Fog:** thicker fog begins and ends nearer, sixteen times nearer for each step of thickness
+  (`Weather.NEARER`), denser and taking more of the sky; at the thickest it closes in within 20 m and veils the far
+  hills and the lake whole (`fog_veil`), and at the thinnest the eye sees twice as far as clear. The layer is the
+  engine's height fog under one top, from 0.4 m, clinging to the ground, to 14 m (`Weather.LAYER`), denser with the
+  fog, up to 0.6 a metre under its top, gathering from nothing over the first twentieth of its rise (`SETTLE`), so none
+  and clinging are no step apart; it follows the world's height, so it pools in hollows and the hills and
+  treetops stand out of it. The thickest fog with its layer at its highest is a whiteout from the ground. Under water the water's fog
+  takes over and no layer lies on it.
+- **Snow:** 24000 flakes, each 4.2 cm across, in a 20 m box that wraps round the head (`Snowfall`): each flake falls and drifts through the
+  world, so the head moves through still snow, and the box is anchored once for both eyes. A share of them falls,
+  as hard as it snows, chosen by each flake's rank, so a light snow fills the box as evenly as a heavy one. A far flake
+  grows and dims rather than draw under 2.5 mrad, so none flickers in and out of a pixel as the head moves, and one
+  within half a metre fades so none covers an eye. They take the sky's light and their own haze rather than the fog, which would hide even the flakes at the face
+  inside a deep layer; none fall while the eye sees no
+  sky, under a roof, or under water, and none at all outside a winter, which keeps the snowfall for the next one. Drawn
+  only while it snows, it is one mesh in one draw, its fall run in the shader: the CPU writes nothing a frame.
+- **The running day:** let go while the pointer turns the sky, the sky runs on the same way, at a pace set by how fast
+  it turned over the last 0.15 s (`SkyTool.WINDOW`). Under 15° a second (`STILL`) it stands, so a hand's tremor or the
+  jolt of opening the grip sets nothing running; past that the pace grows with the square of the turn, from days that
+  take many hours to a day a minute at 180° a second (`FLUNG`, `FASTEST`), so slow days are as easy to choose as fast
+  ones. A grip on the sky stops it under the holder's hand, and its release sets every player's sky again. The garden
+  keeps the pace with the hour; every machine runs its own sky on at it and nothing is sent while it runs. The light moves
+  a minute of the day at a time (`World.RUN_STEP`), since each move relights the probe volume and repaints the sky: at
+  the fastest four times a second, not every frame.
+- **Stress:** `weather/ground` and `weather/aerial` look across the ponds in winter, at the thickest fog with its layer
+  at its highest and the heaviest snow, from the ground and from above, with the sky running a day in four minutes; the
+  weather is cleared and the sky stopped again before the scene goes on.
 
 ## Ground materials
 
@@ -5710,7 +5756,7 @@ at a perched one from in front and from the side;
 `demo/horizon.json` looks at the mountains from the meadow, the rim and the air, at morning, dusk and dawn;
 `demo/daylight.json` drags the sun from dawn to dusk and on to midnight, looks at the moon high at dusk, the moonlit midnight and the dark before dawn, opens the colour wheel, recolours a roof, a wall's stone,
 a fence and a gable, and walks the meadow through the seasons; `demo/winter.json` looks at a pond with its fish and
-lilypads, a house, a wall and trees in summer and then frozen, snowed on and bare in winter; `demo/paint.json` paints two walls and two houses
+lilypads, a house, a wall and trees in summer and then frozen, snowed on and bare in winter; `demo/weather.json` thickens and thins the fog, lays it clinging to the ground and then high, snows lightly and then hard in winter, and lets the sky go turning to watch the day run on; `demo/paint.json` paints two walls and two houses
 each in colours of their own; `demo/stroke.json` takes two trees, a wall stretch, a path and meadow in one held delete stroke and puts them back with one undo; `demo/ruins.json` erases stretches of walls into
 ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`
 run with the same `--garden FILE` loads it back and writes a digest equal to the first run's `redone`.

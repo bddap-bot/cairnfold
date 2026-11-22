@@ -77,7 +77,7 @@ static func pixels_apart(a: Image, b: Image, by := 0.0) -> int:
 
 
 func light_settled(time: float) -> void:
-	main.world.submit({"op": "sky", "time": time})
+	main.world.submit({"op": "sky", "time": time, "pace": 0.0})
 	main.look.set_process(true)
 	await create_timer(1.0).timeout
 	main.look.bounce.finish()

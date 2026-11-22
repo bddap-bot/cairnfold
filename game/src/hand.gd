@@ -1,12 +1,12 @@
 class_name Hand
 extends XRController3D
 
-enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, COLOUR, CAMERA, HOUSE, NONE, SEEDS, PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS, MIRROR }
+enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, COLOUR, CAMERA, HOUSE, NONE, SEEDS, PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS, MIRROR, WEATHER }
 
 ## Clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every pick is a learnable motion.
 const TREE := [
 	[Tool.COLOUR, Tool.STYLE],
-	[[Tool.CAMERA, Tool.SELFIE, Tool.MIRROR], Tool.SEEDS, Tool.EASEL],
+	[[Tool.CAMERA, Tool.SELFIE, Tool.MIRROR], Tool.SEEDS, Tool.EASEL, Tool.WEATHER],
 	[Tool.FLOWERS, [Tool.GRASS, Tool.MOSS], [Tool.TREES, Tool.BUSHES], Tool.POND],
 	["avatars", "friends", Tool.BOOK],
 	Tool.DELETE,

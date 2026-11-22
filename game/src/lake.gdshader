@@ -48,5 +48,5 @@ void fragment() {
 	vec3 body = deep * (sun_light * max(sun_toward.y, 0.0) * 0.5 + mix(sky_horizon, sky_zenith, 0.6) * sky_ambient * 0.6);
 	vec3 col = mix(body, seen * 0.85, fresnel);
 	col += sun_light * pow(max(dot(r, sun_toward), 0.0), 400.0) * 3.0;
-	ALBEDO = mix(col, sky_haze, 0.2 * smoothstep(0.0, radii.x - 300.0, dist));
+	ALBEDO = mix(col, sky_haze, mix(0.2 * smoothstep(0.0, radii.x - 300.0, dist), 1.0, fog_veil));
 }
