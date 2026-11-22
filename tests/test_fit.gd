@@ -23,6 +23,7 @@ func _finish(rig: Rig) -> void:
 	check(short < 1.1 and absf(short - tall) < 0.01, "Crimsom's arm reaches as far whoever wears it: the forearm %.2f and %.2f times its length at a wearer's full reach" % [short, tall])
 	for scene: PackedScene in [godette, Avatar.built_in(2)]:
 		_one_avatar_fits_any_wearer(rig, scene, "Godette" if scene == godette else "the hood", 1.7)
+	_shoulders_stand_where_the_wearers_do(rig, crimsom)
 	_a_refit_waits_for_a_fade(rig, crimsom)
 	finish()
 
@@ -79,6 +80,24 @@ func _one_avatar_fits_any_wearer(rig: Rig, scene: PackedScene, name: String, eye
 	var stretch := a._get_joint(arm.end).origin.distance_to(a._get_joint(arm.lower).origin) / arm.lower_length
 	rig.left.transform = Transform3D.IDENTITY
 	return stretch
+
+
+## A file may put the eyes well ahead of the face, as a helmet's visor does: the body then stands forward under the
+## view, so the shoulders stand behind the wearer's eyes as far as a person's do.
+func _shoulders_stand_where_the_wearers_do(rig: Rig, scene: PackedScene) -> void:
+	var model := scene.instantiate()
+	model.set_meta("eyes", (model.get_meta("eyes") as Vector3) + (model.get_meta("forward") as Vector3) * 0.25)
+	var forward := PackedScene.new()
+	forward.pack(model)
+	model.free()
+	for which: Array in [[scene, "Crimsom", false], [forward, "Crimsom with its eyes 25 cm ahead", true]]:
+		var a := _wear(rig, which[0], 1.7)
+		var ahead := -rig.head.global_basis.z * Vector3(1, 0, 1)
+		var behind := -ahead.normalized().dot(a.to_global(a.bone("rightUpperArm").origin) - rig.head.global_position)
+		var person := Avatar.SHOULDERS_BEHIND * a.eye_height
+		check(absf(behind - person) < 0.005 if which[2] else behind < person + 0.005, "%s stands its shoulders %.3f m behind the view, as a person's are %.3f" % [which[1], behind, person])
+		var stretch := _one_avatar_fits_any_wearer(rig, which[0], which[1], 1.7)
+		check(stretch < 1.1, "%s reaches the wearer's hand at full reach: the forearm %.2f times its length" % [which[1], stretch])
 
 
 func _a_refit_waits_for_a_fade(rig: Rig, scene: PackedScene) -> void:

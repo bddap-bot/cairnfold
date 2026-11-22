@@ -70,6 +70,10 @@ const CROUCH_BEND := 1.2
 const MAX_BEND := 1.2
 ## In leg lengths: a leg straight at rest has no slack, so the shin's skin stretches to keep a foot down before it lifts.
 const STRETCH := 0.06
+## Over eye height: a person's eyes stand this far ahead of their shoulders. An avatar whose eyes stand farther ahead
+## carries its body forward under the wearer's eyes until its shoulders are where the wearer's are, or arms reaching out
+## from shoulders set back would fall short of the wearer's hands.
+const SHOULDERS_BEHIND := 0.055
 const CENTER := 0.3
 ## So an arm a recording held straight still bends one way.
 const ELBOW_HINT := 0.3
@@ -1086,7 +1090,6 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	# Both VRM versions give the eyes from the head bone in the model's axes, as a head bone turned at rest does not.
 	var eye_at := a._head.rest.origin + (a._model.get_meta("eyes") as Vector3)
 	a.eye_height = eye_at.y
-	a._eye_to_head = Transform3D(a._facing, eye_at).affine_inverse() * a._head.rest
 	var look: Dictionary = a._model.get_meta("look")
 	a._look_type = look.type
 	a._ranges.assign(look.ranges)
@@ -1122,6 +1125,7 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 			a._find_base(j, [])
 			a._tops.append(j)
 	placed.append_array(a._tops)
+	var behind := 0.0
 	for s in 2:
 		var side: String = ["left", "right"][s]
 		var hand: Joint = a._joints[side + "Hand"]
@@ -1141,6 +1145,8 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 			placed.append_array([arm.upper, arm.lower])
 		placed.append(hand)
 		a._arms.append(arm)
+		if limbed:
+			behind = maxf(behind, (a._facing * (arm.upper.rest.origin - eye_at)).z - SHOULDERS_BEHIND * a.eye_height)
 		var leg_bones: Array = [side + "UpperLeg", side + "LowerLeg", side + "Foot"].map(func(n: String) -> Joint: return a._joints.get(n))
 		if not leg_bones.has(null):
 			var leg := Leg.new(leg_bones[0], leg_bones[1], leg_bones[2], a._facing, Vector3.FORWARD)
@@ -1148,6 +1154,9 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 			leg.ankle = leg.end.rest.origin.y
 			placed.append_array(leg_bones)
 			a._legs.append(leg)
+	a._eye_to_head = Transform3D(a._facing, eye_at + a._facing.inverse() * Vector3(0, 0, behind)).affine_inverse() * a._head.rest
+	if behind > 0.0:
+		Metrics.note("avatar: shoulders %.0f mm behind the eyes, the body stood %.0f mm forward" % [1000.0 * (behind + SHOULDERS_BEHIND * a.eye_height), 1000.0 * behind])
 	for s in 2:
 		a._fingers[s] = a._finger_bones(["left", "right"][s])
 	if a._legs.size() == 2:
