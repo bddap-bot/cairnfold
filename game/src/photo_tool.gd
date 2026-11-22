@@ -36,9 +36,10 @@ const SUBJECT := 0.25
 const VIDEO_QUEUE := 6
 ## Metres from a camera's body within which the other hand's grip takes its style dial.
 const DIAL_REACH := 0.1
-## Metres over the camera's body the gripping hand lays the style over the whole view, and under which it takes it off.
+## Metres over the camera's body a grip let go lays the style over the whole view; lower, it leaves the lens alone.
 const OVER_VIEW := 0.18
-const UNDER_VIEW := 0.1
+## The dial grows this much while a grip let go would lay its style over the whole view.
+const OVER_SIZE := 1.4
 const CARD := Vector2(0.04, 0.03)
 
 var rig: Rig
@@ -181,6 +182,8 @@ func _process(delta: float) -> void:
 			if not held.has(h) or t != h.tool:
 				_show(screen(h, t), null, DARK)
 		if not held.has(h):
+			if _previews.has(h):
+				_aim(_previews[h], lens(h), FOV, Quality.VIEW_MASK)
 			continue
 		var left: float = _shots.get(h, 0.0)
 		if left > 0.0 and _photo != null and h != _clip_hand:
@@ -216,7 +219,8 @@ func _process(delta: float) -> void:
 			_pressed_for[i] = -1.0
 
 
-## The eyes draw through `kind` too while `view`.
+## The eyes draw through `kind` too while `view`, switched only as a choice is let go: a view changing as the wrist
+## turns would flash.
 func wear(kind: PhotoStyle.Kind, view: bool) -> void:
 	style = kind
 	over_view = view
@@ -232,19 +236,21 @@ func body(camera: Hand) -> Vector3:
 
 
 ## The other hand's grip at a held camera takes its dial: twisting turns the style, live on every lens, and letting go
-## raised over the camera leaves it on the whole view.
+## raised over the camera lays it over the whole view as well, lower takes it off.
 func _turn_dial(held: Array[Hand]) -> void:
 	if _turner != null:
-		if not _turner.buttons.held("grab") or not _turner.tracked() or not held.has(_turned):
+		var raised := _turner.global_position.y - body(_turned).y > OVER_VIEW
+		if not held.has(_turned) or not _turner.tracked():
 			_close_dial()
-			return
-		_turner.hold()
-		if _dial.twist(_turner, _dial.wrist(_turner)):
-			wear(_dial.pick as PhotoStyle.Kind, over_view)
-		var risen := _turner.global_position.y - body(_turned).y
-		if risen > OVER_VIEW and not over_view or risen < UNDER_VIEW and over_view:
-			wear(style, not over_view)
-		_dial.follow(_turner)
+		elif not _turner.buttons.held("grab"):
+			_close_dial()
+			wear(style, raised)
+		else:
+			_turner.hold()
+			if _dial.twist(_turner, _dial.wrist(_turner)):
+				style = _dial.pick as PhotoStyle.Kind
+			_dial.size = OVER_SIZE if raised else 1.0
+			_dial.follow(_turner)
 		return
 	for h in rig.hands:
 		if held.has(h) or not h.buttons.pressed("grab") or h.taken() or h.picking or not h.tracked():
@@ -262,9 +268,8 @@ func _open_dial(hand: Hand, camera: Hand) -> void:
 	_dial = Dial.new()
 	add_child(_dial)
 	var cards: Array[Node3D] = []
-	var preview: SubViewport = _previews.get(camera)
 	for kind: PhotoStyle.Kind in PhotoStyle.Kind.values():
-		cards.append(card(kind, preview.get_texture() if preview != null else null))
+		cards.append(card(kind))
 	_dial.open(hand, cards, style)
 
 
@@ -276,13 +281,13 @@ func _close_dial() -> void:
 	_turned = null
 
 
-## A small print of the lens's view in `kind`'s colours, for the eyes alone: a lens drawing it would read its own view.
-static func card(kind: PhotoStyle.Kind, lens_view: Texture2D) -> MeshInstance3D:
+## A small print of a meadow under a sky in `kind`'s colours, for the eyes alone: the camera's screen shows the style
+## at the top on the lens's own view.
+static func card(kind: PhotoStyle.Kind) -> MeshInstance3D:
 	var quad := QuadMesh.new()
 	quad.size = CARD
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/style_card.gdshader")
-	mat.set_shader_parameter(&"lens", lens_view)
 	var tone: Variant = PhotoStyle.TONES[kind]
 	mat.set_shader_parameter(&"tone", tone if tone != null else Basis.IDENTITY)
 	mat.set_shader_parameter(&"strokes", kind == PhotoStyle.Kind.PAINTERLY)
@@ -621,6 +626,8 @@ func render(at: Transform3D, fov: float, mask: int, kind := PhotoStyle.Kind.PLAI
 		_aim(view, at, fov, mask, kind)
 		await _draw_complete(view)
 		var seen: Image = (await _read([view])).pop_front()
+		# Idle, it carves nothing (PhotoStyle.carve).
+		_aim(view, at, fov, mask)
 		_busy = false
 		return seen
 	if _photo == null:

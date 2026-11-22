@@ -227,7 +227,7 @@ func _teleport_is_no_motion() -> void:
 	var toward := rig.right.global_position + rig.global_basis * Vector3(0, 0, -5)
 	check(wildlife.sudden(rig.right) and wildlife.approaching(rig.right, toward), "a hand swung out still does, at %.2f m/s" % wildlife._speed[rig.right])
 	_run(wildlife, 1.0)
-	var flat := Flat.new(rig)
+	var flat := Flat.new(rig, null)
 	var deer := rig.head.global_position + Vector3(0, 0, -8)
 	for i in int(1.0 / STEP):
 		var to := deer - rig.head.global_position

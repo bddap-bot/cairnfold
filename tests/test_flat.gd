@@ -9,7 +9,7 @@ func _initialize() -> void:
 	_only_a_game_without_a_headset_comes_up_flat()
 	boot_main()
 	await process_frame
-	flat = Flat.new(main.rig)
+	flat = Flat.new(main.rig, main.photo_tool)
 	main.add_child(flat)
 	await frames(2)
 	var sent := main.world._next_token
@@ -18,6 +18,7 @@ func _initialize() -> void:
 	await _the_flat_wheel_selects_an_avatar()
 	await _the_trigger_reaches_only_a_raised_tool()
 	await _wave_plays_recorded_hands()
+	await _the_camera_keys_turn_its_style()
 	await _the_seed_dish_is_held_out_level_and_low_looking_down()
 	await _every_control_on_every_tool_sends_no_edit(sent)
 	finish()
@@ -229,6 +230,25 @@ func _the_seed_dish_is_held_out_level_and_low_looking_down() -> void:
 	check(flat.stoop == 0.0 and absf(rig.head.position.y - Rig.EYE) < 1e-4, "put away, the player stands again")
 	flat.pitch = 0.0
 	await frames(1)
+
+
+func _the_camera_keys_turn_its_style() -> void:
+	var tool := main.photo_tool
+	main.rig.right.tool = Hand.Tool.NONE
+	await _tap(_key.bind(KEY_C), 1)
+	check(tool.style == PhotoStyle.Kind.PLAIN, "the style key does nothing with the camera down")
+	main.rig.right.tool = Hand.Tool.CAMERA
+	await frames(2)
+	await _tap(_key.bind(KEY_C), 1)
+	await _tap(_button.bind(JOY_BUTTON_B), 1)
+	check(tool.style == PhotoStyle.Kind.SCULPTURE and not tool.over_view, "C and gamepad B each turn the camera's style a step: %s" % PhotoStyle.named(tool.style))
+	await _tap(_key.bind(KEY_V), 1)
+	check(tool.over_view and main.rig.head.cull_mask & Quality.SCULPTURE_LAYER, "V lays it over the whole view")
+	await _tap(_button.bind(JOY_BUTTON_RIGHT_SHOULDER), 1)
+	check(not tool.over_view and not main.rig.head.cull_mask & Quality.SCULPTURE_LAYER, "and the right shoulder takes it off")
+	tool.wear(PhotoStyle.Kind.PLAIN, false)
+	main.rig.right.tool = Hand.Tool.NONE
+	await frames(2)
 
 
 func _wave_plays_recorded_hands() -> void:

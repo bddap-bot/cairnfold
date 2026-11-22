@@ -5407,13 +5407,13 @@ without one opens nothing.
 ### Photo styles
 
 The camera draws through a style, chosen on the camera itself. The other hand's grip at the camera's body (within
-`PhotoTool.DIAL_REACH`, 10 cm) opens a dial of the styles over that hand (`Dial`), each a small print of the lens's view
-in its colours (`PhotoTool.card`, on `Quality.EYES_LAYER`, since a lens drawing the print would read its own view);
-twisting the hand turns it, every camera's screen showing the style at the top live, and letting go keeps it. Let go
-with the hand raised over the camera (`PhotoTool.OVER_VIEW`, 18 cm) and the style lies over the whole view as well,
-staying there while building with the camera put away; below `PhotoTool.UNDER_VIEW` (10 cm) it is on the lens alone,
-so a grip level with the camera takes it off the view. Both cameras, selfie included, and videos draw through the one
-style, and a photo records it (`style` in its metadata).
+`PhotoTool.DIAL_REACH`, 10 cm) opens a dial of the styles over that hand (`Dial`), each a small print of a meadow under
+a sky in its colours (`PhotoTool.card`, seen by the eyes alone on `Quality.EYES_LAYER`); twisting the hand turns it,
+every camera's screen showing the style at the top live on the lens's own view, and letting go keeps it. Let go with the
+hand raised over the camera (`PhotoTool.OVER_VIEW`, 18 cm), where the dial grows, and the style lies over the whole view
+as well, staying there while building with the camera put away; let go lower and it is on the lens alone. The eyes
+change only at the let-go, never as the wrist turns, so the whole view never flickers through the styles. Both cameras,
+selfie included, and videos draw through the one style, and a photo records it (`style` in its metadata).
 
 | Style | What it draws |
 | --- | --- |
@@ -5427,18 +5427,20 @@ transparent objects and before tonemapping, so water, smoke and fog take the sty
 gives effects no storage images, so it draws the view into a copy and back, two full-screen triangles; the scene's
 colour is held as the square root of its light (`scripts/engine.patch`), which the pass squares to work on light and
 roots again. Kuwahara's quadrants are each sampled on a fixed 4×4 grid however long the strokes, so a pixel costs the
-same on a photo as on the screen. A camera with no pass has no compositor (`PhotoStyle.dress`), so plain costs
-nothing. The sculpture is a camera's cull-mask bit, `Quality.SCULPTURE_LAYER`, past the 20 layers a node can stand on,
+same on a photo as on the screen. Every pass shares one shader and its pipelines, and each camera keeps one pass,
+turned to whichever style it draws, so turning the dial compiles nothing; a camera drawing plain has no compositor and
+lets go of its copy of the view (`PhotoStyle.dress`), so plain costs nothing. The sculpture is a camera's cull-mask bit, `Quality.SCULPTURE_LAYER`, past the 20 layers a node can stand on,
 which every shader of the garden reads (`CAMERA_VISIBLE_LAYERS`): one camera draws white while the eyes see colour.
 Pieces drawn with Godot's own materials, the built-in figures and the easel with its kit, run none of those shaders;
 while a camera draws the sculpture each takes a white pass of its own (`PhotoStyle.carve`, `sculpture_shell.gdshader`)
 that every other camera drops in its vertex stage, and at other times none, since they hold over a hundred surfaces,
 each a draw more.
 
-`tests/gpu_photo_styles.gd` draws one view of a garden in each and holds it against plain: painterly 0.58 of plain's
-edge energy at 1.4 times its saturation, the same light; mono grey on every pixel; sepia and cyanotype running red
-over blue and blue over red on every pixel; the sculpture a fifth of plain's saturation, its shading kept; and a
-photo's own pass at 3200×2400. `demo/photo.json` takes a photo in each and lays painterly and the sculpture over the
+`tests/gpu_photo_styles.gd` draws one view of a garden in each and holds it against plain: painterly under 0.8 of
+plain's edge energy, more saturated, as bright (one run read 0.58 and 1.4 times); mono grey on 99% of the view or more;
+sepia and cyanotype ordering their channels on as much, their red to blue within a quarter of their tones'; the
+sculpture under 0.35 of plain's saturation (0.21 in that run) with its shading kept; the camera's screen and a
+photo's own pass at 3200×2400 in style, and a shot taken in sepia saying so in its metadata. `demo/photo.json` takes a photo in each and lays painterly and the sculpture over the
 whole view. The stress scene's `camera/*` phases run in painterly, the costliest, the only pass sampling the view
 more than once a pixel, and `camera/whole-view` lays it over the eyes too.
 

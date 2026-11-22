@@ -44,9 +44,10 @@ var _wave_time := -1.0
 var stoop := 0.0
 
 
-func _init(player: Rig) -> void:
+func _init(player: Rig, camera: PhotoTool) -> void:
 	name = "Flat"
 	rig = player
+	photo_tool = camera
 	process_priority = -20
 	_wheel_button = Controls.key("wheel", rig.right.tracker)
 	_trigger = Controls.key("tool", rig.right.tracker)
@@ -169,7 +170,7 @@ func _process(delta: float) -> void:
 		_walk(rig.global_basis * level * Vector3(move.x, 0.0, move.y) * WALK * delta)
 	if Input.is_action_just_pressed("flat_next_tool") and not _taking_click and not wheel:
 		rig.right.tool = TOOLS[(TOOLS.find(rig.right.tool) + 1) % TOOLS.size()]
-	if photo_tool != null and rig.right.tool in PhotoTool.CAMERAS and not wheel:
+	if rig.right.tool in PhotoTool.CAMERAS and not wheel:
 		if Input.is_action_just_pressed("flat_style"):
 			photo_tool.wear(((photo_tool.style + 1) % PhotoStyle.Kind.size()) as PhotoStyle.Kind, photo_tool.over_view)
 		if Input.is_action_just_pressed("flat_style_view"):

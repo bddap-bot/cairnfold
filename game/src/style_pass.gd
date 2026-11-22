@@ -5,33 +5,37 @@ extends CompositorEffect
 ## first where `reach` is above zero. The mobile renderer gives effects no storage images, so the view is drawn into a
 ## copy and back.
 
-## Samples a quadrant's side takes, whatever the reach.
-const SAMPLES := 3
+## Steps along a quadrant's side; it takes one sample more than this, whatever the reach.
+const STEPS := 3
 
-## Rows map linear rgb to rgb.
+## `tone[i]` weighs linear rgb into output channel i.
 var tone := Basis.IDENTITY
 ## Of the view's height, the strokes' length.
 var reach := 0.0
 
-var _rd: RenderingDevice
-var _shader: RID
-var _sampler: RID
-## Framebuffer format -> pipeline.
-var _pipelines := {}
+## Its own, sized to its camera's view.
 var _copy: RID
 var _copy_size := Vector2i.ZERO
 var _copy_format := -1
 
+## Shared by every pass, so turning a dial compiles nothing: built with the first pass, freed with the last.
+static var _users := 0
+static var _rd: RenderingDevice
+static var _shader: RID
+static var _sampler: RID
+## Framebuffer format -> pipeline.
+static var _pipelines := {}
 
-func _init(row_tone := Basis.IDENTITY, row_reach := 0.0) -> void:
-	tone = row_tone
-	reach = row_reach
+
+func _init() -> void:
 	effect_callback_type = EFFECT_CALLBACK_TYPE_POST_TRANSPARENT
 	access_resolved_color = true
-	RenderingServer.call_on_render_thread(_start)
+	_users += 1
+	if _users == 1:
+		RenderingServer.call_on_render_thread(_start)
 
 
-func _start() -> void:
+static func _start() -> void:
 	_rd = RenderingServer.get_rendering_device()
 	if _rd == null:
 		return
@@ -45,14 +49,33 @@ func _start() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_PREDELETE and _rd != null:
-		RenderingServer.call_on_render_thread(_free.bind(_rd, _pipelines.values() + [_copy, _sampler, _shader]))
+	if what != NOTIFICATION_PREDELETE:
+		return
+	_users -= 1
+	RenderingServer.call_on_render_thread(_free.bind(_copy, _users == 0))
 
 
-static func _free(rd: RenderingDevice, rids: Array) -> void:
-	for rid: RID in rids:
+static func _free(copy: RID, last: bool) -> void:
+	if _rd == null:
+		return
+	var rids: Array[RID] = [copy]
+	if last:
+		rids.append_array(_pipelines.values())
+		rids.append_array([_sampler, _shader])
+		_pipelines.clear()
+		_sampler = RID()
+		_shader = RID()
+	for rid in rids:
 		if rid.is_valid():
-			rd.free_rid(rid)
+			_rd.free_rid(rid)
+
+
+## Lets go of its copy of the view while its camera draws plain.
+func rest() -> void:
+	var copy := _copy
+	_copy = RID()
+	_copy_size = Vector2i.ZERO
+	RenderingServer.call_on_render_thread(_free.bind(copy, false))
 
 
 func _render_callback(_type: int, data: RenderData) -> void:
@@ -69,7 +92,7 @@ func _render_callback(_type: int, data: RenderData) -> void:
 		var v: Vector3 = tone[row]
 		styled.append_array([v.x, v.y, v.z, 0.0])
 	var texels := maxf(reach * size.y, 1.0)
-	styled.append_array([texels / size.x, texels / size.y, float(SAMPLES) if reach > 0.0 else 0.0, 0.0])
+	styled.append_array([texels / size.x, texels / size.y, float(STEPS) if reach > 0.0 else 0.0, 0.0])
 	var copied := PackedFloat32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
 	for view in buffers.get_view_count():
 		var colour := buffers.get_color_layer(view)

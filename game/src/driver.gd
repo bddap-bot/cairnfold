@@ -201,10 +201,14 @@ func _pick(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Flat poses the hand every frame, so there the mouse turns the twist.
 func _twist_dial(hand: Hand, to: int) -> void:
-	var n := hand.dial.choices.size()
-	var steps := posmod(to - hand.dial.start, n)
+	await _twist(hand, to - hand.dial.start, hand.dial.choices.size())
+
+
+## Turns `hand` the shorter way round a dial of `n` choices to `steps` on. Flat poses the hand every frame, so there the
+## mouse turns the twist.
+func _twist(hand: Hand, steps: int, n: int) -> void:
+	steps = posmod(steps, n)
 	if steps > n / 2:
 		steps -= n
 	var from := hand.global_basis
@@ -1649,14 +1653,7 @@ func _lens(s: Dictionary) -> void:
 	var grip := Controls.key("grab", turner.tracker)
 	Buttons.injected[grip] = true
 	await _frames(2)
-	var n := PhotoStyle.Kind.size()
-	var steps := posmod(to - tool.style, n)
-	if steps > n / 2:
-		steps -= n
-	var from := turner.global_basis
-	for f in 12:
-		turner.global_basis = Basis(-from.z, deg_to_rad(steps * Dial.step(n) * (f + 1) / 12.0)) * from
-		await _frames(1)
+	await _twist(turner, to - tool.style, PhotoStyle.Kind.size())
 	if view:
 		turner.global_position += Vector3.UP * (PhotoTool.OVER_VIEW + 0.04)
 	await _frames(3)

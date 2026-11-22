@@ -22,7 +22,8 @@ const TONES := {
 }
 
 
-static var _shell: ShaderMaterial
+## Cull mode -> the white pass, culled as the surface it covers is.
+static var _shells: Array[ShaderMaterial] = []
 ## Instance id -> a WeakRef to one of Godot's own materials in the garden (`carve`), so a figure's go with it.
 static var _carved := {}
 ## Instance ids of the cameras drawing the sculpture.
@@ -33,8 +34,12 @@ static var _lock := Mutex.new()
 
 static func _static_init() -> void:
 	RenderingServer.global_shader_parameter_set(&"sculpture_layer", Quality.SCULPTURE_LAYER)
-	_shell = ShaderMaterial.new()
-	_shell.shader = preload("res://src/sculpture_shell.gdshader")
+	var code := (preload("res://src/sculpture_shell.gdshader") as Shader).code
+	for cull in ["cull_back", "cull_front", "cull_disabled"]:
+		var shell := ShaderMaterial.new()
+		shell.shader = Shader.new()
+		shell.shader.code = code.replace("render_mode depth_draw_never", "render_mode depth_draw_never, " + cull)
+		_shells.append(shell)
 
 
 ## Godot's own materials run no shader of the garden's, so while a camera carves, each under `n` takes the sculpture's
@@ -48,10 +53,17 @@ static func carve(n: Node) -> void:
 	for mi: MeshInstance3D in meshes:
 		for i in mi.get_surface_override_material_count():
 			var m := mi.get_active_material(i)
-			if m is BaseMaterial3D and not _carved.has(m.get_instance_id()) and (m.next_pass == null or m.next_pass == _shell):
+			if m is BaseMaterial3D and _carvable(m) and not _carved.has(m.get_instance_id()):
 				_carved[m.get_instance_id()] = weakref(m)
-				m.next_pass = _shell if _carves_now() else null
+				m.next_pass = _shells[(m as BaseMaterial3D).cull_mode] if _carves_now() else null
 	_lock.unlock()
+
+
+## An opaque surface whose next pass nothing else owns (Avatar's outline hulls do): a white pass over anything seen
+## through would hide what lies behind it.
+static func _carvable(m: BaseMaterial3D) -> bool:
+	return m.transparency == BaseMaterial3D.TRANSPARENCY_DISABLED and m.billboard_mode == BaseMaterial3D.BILLBOARD_DISABLED \
+		and not m.has_meta("hull") and (m.next_pass == null or m.next_pass in _shells)
 
 
 static func _carves(cam: Camera3D, on: bool) -> void:
@@ -71,7 +83,7 @@ static func _carves(cam: Camera3D, on: bool) -> void:
 			if m == null:
 				_carved.erase(id)
 			else:
-				m.next_pass = _shell if now else null
+				m.next_pass = _shells[m.cull_mode] if now else null
 	_lock.unlock()
 
 
@@ -95,21 +107,31 @@ static func mask(kind: Kind, seen: int) -> int:
 	return seen | Quality.SCULPTURE_LAYER if kind == Kind.SCULPTURE else seen & ~Quality.SCULPTURE_LAYER
 
 
-## A camera's own pass, since a pass keeps a copy of the view it draws over, sized to it.
-static func compositor(kind: Kind) -> Compositor:
-	if TONES[kind] == null:
-		return null
-	var c := Compositor.new()
-	c.compositor_effects = [StylePass.new(TONES[kind], STROKES if kind == Kind.PAINTERLY else 0.0)]
-	return c
-
-
-## Sets `cam` to draw `seen` through `kind`, building its pass only when its kind changes.
+## Sets `cam` to draw `seen` through `kind`. A camera keeps one pass, holding a copy of its view, and turns it to each
+## style it draws.
 static func dress(cam: Camera3D, kind: Kind, seen: int) -> void:
 	cam.cull_mask = mask(kind, seen)
 	var was: Kind = cam.get_meta(&"style", Kind.PLAIN)
-	if was != kind:
-		cam.set_meta(&"style", kind)
-		cam.compositor = compositor(kind)
-		if (was == Kind.SCULPTURE) != (kind == Kind.SCULPTURE):
-			_carves(cam, kind == Kind.SCULPTURE)
+	if was == kind:
+		return
+	cam.set_meta(&"style", kind)
+	if (was == Kind.SCULPTURE) != (kind == Kind.SCULPTURE):
+		_carves(cam, kind == Kind.SCULPTURE)
+	var tone: Variant = TONES[kind]
+	if tone == null:
+		if cam.compositor != null:
+			(cam.compositor.compositor_effects[0] as StylePass).rest()
+		cam.compositor = null
+		return
+	var c: Compositor = cam.get_meta(&"pass") if cam.has_meta(&"pass") else _pass()
+	cam.set_meta(&"pass", c)
+	var p: StylePass = c.compositor_effects[0]
+	p.tone = tone
+	p.reach = STROKES if kind == Kind.PAINTERLY else 0.0
+	cam.compositor = c
+
+
+static func _pass() -> Compositor:
+	var c := Compositor.new()
+	c.compositor_effects = [StylePass.new()]
+	return c

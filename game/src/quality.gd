@@ -94,7 +94,8 @@ const EYES_LAYER := 1 << 19
 const PEOPLE_LAYER := 1 << 14
 ## A mirror's own light, which lights only the people it reflects.
 const MIRROR_LAYER := 1 << 13
-## Past the 20 layers a node can be on, so only a camera holds it: that camera draws the garden white (sculpture.gdshaderinc).
+## Past the 20 layers a node is ever put on, so only a camera holds it: that camera draws the garden white
+## (sculpture.gdshaderinc).
 const SCULPTURE_LAYER := 1 << 20
 const VIEW_MASK := 0xFFFFF & ~FULL_LAYER & ~MIRROR_LAYER & ~EYES_LAYER
 const PHOTO_MASK := 0xFFFFF & ~LADDER_LAYER & ~MIRROR_LAYER & ~EYES_LAYER

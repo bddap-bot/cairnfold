@@ -28,15 +28,39 @@ func _run() -> void:
 	check(painted.edges < plain.edges * 0.8 and painted.saturation > plain.saturation and absf(painted.luma - plain.luma) < plain.luma * 0.15, "painterly lays the view in strokes: %.4f of plain's edges %.4f, saturation %.3f over %.3f, as bright" % [painted.edges, plain.edges, painted.saturation, plain.saturation])
 	var mono: Dictionary = seen[PhotoStyle.Kind.MONO]
 	check(mono.grey > 0.99 and absf(mono.luma - plain.luma) < 0.03, "mono is grey on %.1f%% of the view, its light plain's (%.3f, %.3f)" % [mono.grey * 100.0, mono.luma, plain.luma])
-	var sepia: Dictionary = seen[PhotoStyle.Kind.SEPIA]
-	check(sepia.warm > 0.99 and sepia.red > sepia.blue * 1.4, "sepia runs red over green over blue on %.1f%% of the view" % (sepia.warm * 100.0))
-	var cyan: Dictionary = seen[PhotoStyle.Kind.CYANOTYPE]
-	check(cyan.cool > 0.99 and cyan.blue > cyan.red * 2.0, "cyanotype runs blue over green over red on %.1f%% of the view" % (cyan.cool * 100.0))
+	for kind: PhotoStyle.Kind in [PhotoStyle.Kind.SEPIA, PhotoStyle.Kind.CYANOTYPE]:
+		var tinted: Dictionary = seen[kind]
+		var tone: Basis = PhotoStyle.TONES[kind]
+		var ratio: float = tinted.red / tinted.blue
+		var meant := tone[0].x / tone[2].x
+		var ordered: float = tinted.warm if kind == PhotoStyle.Kind.SEPIA else tinted.cool
+		check(ordered > 0.99 and absf(ratio / meant - 1.0) < 0.25, "%s orders its channels on %.1f%% of the view, its light's red to blue %.2f as its tone's %.2f" % [PhotoStyle.named(kind), ordered * 100.0, ratio, meant])
 	var carved: Dictionary = seen[PhotoStyle.Kind.SCULPTURE]
 	check(carved.saturation < plain.saturation * 0.35 and carved.spread > 0.03, "sculpture is white, saturation %.3f against plain's %.3f, its shading kept (luma spread %.3f)" % [carved.saturation, plain.saturation, carved.spread])
-	check((await tool.render_screen(at)) != null, "the camera's screen draws in its style")
+	tool.wear(PhotoStyle.Kind.MONO, false)
+	var screen := _stats(await tool.render_screen(at))
+	check(screen.grey > 0.99, "the camera's screen draws in its style: grey on %.1f%% of it" % (screen.grey * 100.0))
 	await _photos(tool, at, plain)
+	await _shot_in_style(tool)
 	finish()
+
+
+func _shot_in_style(tool: PhotoTool) -> void:
+	var hand := main.rig.right
+	hand.tool = Hand.Tool.CAMERA
+	hand.held_still = true
+	hand.global_transform = Transform3D(Basis.looking_at(Vector3(-5, -2, -13).normalized()), Vector3(5, 3 + main.world.terrain.height_at(5, 13), 13))
+	tool.wear(PhotoStyle.Kind.SEPIA, false)
+	await frames(2)
+	var path := await tool.shoot(hand)
+	var png := FileAccess.get_file_as_bytes(path)
+	var img := Image.new()
+	var loaded := img.load_png_from_buffer(png)
+	var about: Dictionary = PhotoMeta.read(png).get("about", {})
+	var shot := _stats(img) if loaded == OK else {"warm": 0.0}
+	check(about.get("style") == "sepia" and shot.warm > 0.99, "a photo taken in sepia is sepia and says so: %s, ordered on %.1f%%" % [about.get("style"), shot.warm * 100.0])
+	tool.wear(PhotoStyle.Kind.PLAIN, false)
+	hand.tool = Hand.Tool.NONE
 
 
 ## A photo is drawn by its own pass at its own size: the strokes scale with it.

@@ -200,8 +200,7 @@ func _ready() -> void:
 		metrics.info.replayed = replayer.record.session
 	metrics.info.flat = Main.flat_wanted(args, metrics.info.xr, played)
 	if metrics.info.flat:
-		flat = Flat.new(rig)
-		flat.photo_tool = photo_tool
+		flat = Flat.new(rig, photo_tool)
 		add_child(flat)
 	var pace := Callable()
 	if metrics.info.xr:

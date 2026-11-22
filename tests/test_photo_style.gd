@@ -25,16 +25,20 @@ func _each_style_has_its_pass() -> void:
 	var s: Vector3 = through.call(sepia, white)
 	var c: Vector3 = through.call(cyan, white)
 	check(s.x > s.y and s.y > s.z and c.z > c.y and c.y > c.x, "sepia tints toward brown, cyanotype toward blue: %s, %s" % [s, c])
+	var cam := Camera3D.new()
 	for kind: PhotoStyle.Kind in PhotoStyle.Kind.values():
-		var made := PhotoStyle.compositor(kind)
-		var passes := made != null and made.compositor_effects.size() == 1
-		check(passes == (PhotoStyle.TONES[kind] != null), "%s draws a pass over the view only if it has a tone" % PhotoStyle.named(kind))
+		PhotoStyle.dress(cam, kind, Quality.VIEW_MASK)
+		check((cam.compositor != null) == (PhotoStyle.TONES[kind] != null), "%s draws a pass over the view only if it has a tone" % PhotoStyle.named(kind))
 		check(PhotoStyle.of(PhotoStyle.named(kind)) == kind, "%s is named by its kind" % PhotoStyle.named(kind))
-	var strokes: StylePass = PhotoStyle.compositor(PhotoStyle.Kind.PAINTERLY).compositor_effects[0]
+	PhotoStyle.dress(cam, PhotoStyle.Kind.PAINTERLY, Quality.VIEW_MASK)
+	var strokes: StylePass = cam.compositor.compositor_effects[0]
 	check(strokes.reach > 0.0 and strokes.effect_callback_type == CompositorEffect.EFFECT_CALLBACK_TYPE_POST_TRANSPARENT, "painterly lays strokes over the finished view")
+	PhotoStyle.dress(cam, PhotoStyle.Kind.SEPIA, Quality.VIEW_MASK)
+	check(cam.compositor.compositor_effects[0] == strokes and strokes.reach == 0.0 and strokes.tone == PhotoStyle.TONES[PhotoStyle.Kind.SEPIA], "a camera turns its one pass to each style, building none anew")
+	cam.free()
 	check(Quality.SCULPTURE_LAYER > 0xFFFFF and not (Quality.VIEW_MASK | Quality.PHOTO_MASK) & Quality.SCULPTURE_LAYER, "no node can stand on the sculpture's layer, and no view sees it by default")
 	check(PhotoStyle.mask(PhotoStyle.Kind.SCULPTURE, Quality.VIEW_MASK) == Quality.VIEW_MASK | Quality.SCULPTURE_LAYER and PhotoStyle.mask(PhotoStyle.Kind.MONO, Quality.VIEW_MASK | Quality.SCULPTURE_LAYER) == Quality.VIEW_MASK, "the sculpture alone carves its view white")
-	var cam := Camera3D.new()
+	cam = Camera3D.new()
 	PhotoStyle.dress(cam, PhotoStyle.Kind.SEPIA, Quality.VIEW_MASK)
 	var kept := cam.compositor
 	PhotoStyle.dress(cam, PhotoStyle.Kind.SEPIA, Quality.PHOTO_MASK)
@@ -55,6 +59,21 @@ func _godots_own_materials_carve_only_while_a_camera_does() -> void:
 	root.add_child(carver)
 	PhotoStyle.dress(carver, PhotoStyle.Kind.SCULPTURE, Quality.VIEW_MASK)
 	check(mat.next_pass is ShaderMaterial, "and takes one while a camera does")
+	var later := MeshInstance3D.new()
+	later.mesh = BoxMesh.new()
+	var late := StandardMaterial3D.new()
+	later.material_override = late
+	PhotoStyle.carve(later)
+	check(late.next_pass is ShaderMaterial, "as does one carved while a camera already carves")
+	later.free()
+	var glass := StandardMaterial3D.new()
+	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var pane := MeshInstance3D.new()
+	pane.mesh = BoxMesh.new()
+	pane.material_override = glass
+	PhotoStyle.carve(pane)
+	check(glass.next_pass == null, "but not one seen through")
+	pane.free()
 	PhotoStyle.dress(carver, PhotoStyle.Kind.MONO, Quality.VIEW_MASK)
 	check(mat.next_pass == null, "dropping it when that camera turns to another style")
 	PhotoStyle.dress(carver, PhotoStyle.Kind.SCULPTURE, Quality.VIEW_MASK)
@@ -103,10 +122,10 @@ func _the_other_hand_turns_the_cameras_dial() -> void:
 	check(_preview_style(tool, rig.right) == PhotoStyle.Kind.PAINTERLY and rig.head.compositor == null, "the screen shows it live; the eyes do not")
 	rig.left.global_position = tool.body(rig.right) + Vector3.UP * (PhotoTool.OVER_VIEW + 0.02)
 	await frames(2)
-	check(tool.over_view and rig.head.compositor != null, "raised over the camera, the style lies on the whole view")
+	check(not tool.over_view and rig.head.compositor == null and tool._dial.size > 1.0, "raised over the camera, the dial grows and the eyes wait for the let-go")
 	Buttons.injected.erase(grip)
 	await frames(2)
-	check(tool._dial == null and tool.style == PhotoStyle.Kind.PAINTERLY and tool.over_view and rig.head.compositor != null, "and stays there once let go")
+	check(tool._dial == null and tool.style == PhotoStyle.Kind.PAINTERLY and tool.over_view and rig.head.compositor != null, "let go there, the style lies on the whole view")
 	rig.right.tool = Hand.Tool.WALLS
 	await frames(2)
 	check(tool.over_view and rig.head.compositor != null, "while building with the camera put away")
@@ -115,19 +134,34 @@ func _the_other_hand_turns_the_cameras_dial() -> void:
 	rig.left.global_position = tool.body(rig.right)
 	Buttons.injected[grip] = true
 	await frames(2)
-	check(tool._dial != null and not tool.over_view and rig.head.compositor == null, "a grip level with the camera takes it off the view")
+	check(tool._dial != null and tool.over_view and rig.head.compositor != null, "a grip at the camera leaves the view as it is")
 	from = rig.left.global_basis
 	for f in 6:
 		rig.left.global_basis = Basis(-from.z, deg_to_rad(Dial.step(PhotoStyle.Kind.size()) * (f + 1) / 6.0)) * from
 		await process_frame
-	check(tool.style == PhotoStyle.Kind.SCULPTURE, "the next step is the sculpture")
+	check(tool.style == PhotoStyle.Kind.SCULPTURE and not rig.head.cull_mask & Quality.SCULPTURE_LAYER, "the next step is the sculpture, on the lens while the grip holds")
+	Buttons.injected.erase(grip)
+	await frames(2)
+	check(not tool.over_view and rig.head.compositor == null and not rig.head.cull_mask & Quality.SCULPTURE_LAYER, "let go level with the camera, the view is plain again")
+	rig.left.global_position = tool.body(rig.right) + Vector3.UP * (PhotoTool.OVER_VIEW + 0.02)
+	Buttons.injected[grip] = true
+	await frames(2)
+	check(tool._dial == null, "a grip out of reach above the camera opens nothing")
+	Buttons.injected.erase(grip)
+	await frames(2)
+	rig.left.global_position = tool.body(rig.right)
+	Buttons.injected[grip] = true
+	await frames(2)
 	rig.left.global_position = tool.body(rig.right) + Vector3.UP * (PhotoTool.OVER_VIEW + 0.02)
 	await frames(2)
-	check(rig.head.cull_mask & Quality.SCULPTURE_LAYER, "which carves the whole view white when raised")
 	rig.right.tool = Hand.Tool.WALLS
 	await frames(2)
-	check(tool._dial == null, "putting the camera away closes its dial")
+	check(tool._dial == null and not tool.over_view, "putting the camera away closes its dial and lays nothing over the view")
 	Buttons.injected.erase(grip)
+	await frames(2)
+	for i in PhotoTool.PREVIEW_EVERY + 1:
+		await process_frame
+	check(_preview_style(tool, rig.right) == PhotoStyle.Kind.PLAIN, "and its idle lens carves nothing")
 	tool.wear(PhotoStyle.Kind.PLAIN, false)
 	check(not rig.head.cull_mask & Quality.SCULPTURE_LAYER and rig.head.compositor == null, "and plain takes it all off")
 	tool.queue_free()
