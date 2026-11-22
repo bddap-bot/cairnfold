@@ -36,9 +36,10 @@ birds come, and the player teleports to a wall's foot. Replayed with nothing els
 the wildlife holds.
 
 The garden is the record's: every build command replays as the host ordered it (`ordered` in a host's record,
-`_commit` in a visitor's; multiplayer.md), applied when the record says it came, and a proposal a host received is only
-the order that follows it. The tools still see the replayed input, draw their ghosts and submit what they make of it,
-but in a replay (`World.replayed`) a submitted command goes nowhere.
+`_commit` in a visitor's; multiplayer.md), applied when the record says it came (an order does not wait again for the
+water the host waited for before ordering it), and a proposal a host received is only the order that follows it. The
+tools still see the replayed input, draw their ghosts and submit what they make of it, but in a replay
+(`World.replayed`) a submitted command goes nowhere.
 
 The player is the record's too. How tall they stand in the world is their avatar's eye height over their own
 (`Rig.fit`), so the replay wears what they wore: the look they began in and each they put on (`look`, `Session.put_on`),

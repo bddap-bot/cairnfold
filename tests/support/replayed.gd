@@ -11,11 +11,24 @@ class Probe:
 	var deltas: Array[float] = []
 	var heads: Array[Transform3D] = []
 	var ids: Array[int] = []
+	## Garden seq -> the frame its command came into the garden.
+	var applied_at := {}
+	## The ops of this machine's own commands that waited for a refill ahead of them.
+	var waited := []
 
 	func _process(delta: float) -> void:
+		var w := main.world
+		if not w.applied.is_connected(_applied):
+			w.applied.connect(_applied)
 		deltas.append(delta)
 		heads.append(main.rig.head.global_transform)
 		ids.append(main.multiplayer.get_unique_id())
+		if w._ahead_task >= 0 and w._queue[0].by == w.me() and not w._queue[0].cmd in waited:
+			waited.append(w._queue[0].cmd)
+
+	func _applied(cmd: Dictionary) -> void:
+		if cmd.get("seq") == main.world.seq and not applied_at.has(cmd.seq):
+			applied_at[cmd.seq] = heads.size()
 
 
 ## Reads the head after every node has moved it.
@@ -52,7 +65,7 @@ func _initialize() -> void:
 	await main.replayer.finished
 	main.world.settle()
 	var out := FileAccess.open(main.args.out, FileAccess.WRITE)
-	out.store_var({"deltas": probe.deltas.duplicate(), "heads": probe.heads.duplicate(), "garden": main.world.snapshot(), "ids": probe.ids.duplicate(), "diverged": main.replayer.diverged})
+	out.store_var({"deltas": probe.deltas.duplicate(), "heads": probe.heads.duplicate(), "garden": main.world.snapshot(), "ids": probe.ids.duplicate(), "applied_at": probe.applied_at.duplicate(), "diverged": main.replayer.diverged})
 	out.close()
 	main.queue_free()
 	await process_frame

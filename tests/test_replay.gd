@@ -67,6 +67,8 @@ func _initialize() -> void:
 		{"op": "view", "eye": [0, 1.65, 6], "at": [0, 1.2, 0]},
 		{"op": "aim", "dir": [0, -0.3, -1], "seconds": 0.5, "settle": 1.0},
 		hill.merged({"op": "gesture"}),
+		{"op": "pond", "x": -6, "z": -12},
+		{"op": "sculpt", "x": -6, "z": -12, "lift": -0.5, "radius": 2.0, "seconds": 0.3},
 	])
 	# Losing focus mid-aim ends the aim, so the stick let go meanwhile teleports nowhere.
 	main.rig.left.global_transform = Driver.aim_pose(main.rig.head.global_transform, [0, -0.3, -1])
@@ -103,6 +105,8 @@ func _initialize() -> void:
 	main.world.settle()
 	var garden := main.world.snapshot()
 	var heads := probe.heads.slice(0, recorded)
+	var waited: Array = probe.waited.map(func(c: Dictionary) -> String: return c.op)
+	check("heights" in waited and "ponds" in waited, "the host's own reshaping and filling of a pond waited for its water: %s" % [waited])
 	check(garden.cmds.any(func(c: Dictionary) -> bool: return c.op == "heights") and garden.cmds.any(func(c: Dictionary) -> bool: return c.op == "plant"),
 		"the session raised a hill and took a tree: %s" % [garden.cmds.map(func(c: Dictionary) -> String: return c.op)])
 
@@ -146,6 +150,9 @@ func _initialize() -> void:
 		check(off.is_empty(), "the replayed head is where the recorded one was every frame: %d of %d differ, first %s" % [off.size(), recorded, off.slice(0, 5)])
 		check(late.is_empty() and probe.deltas.slice(0, recorded).any(func(d: float) -> bool: return d < 1.0 / 60.0),
 			"every replayed frame takes the recorded delta, the slowed ones too: %d differ, first %s" % [late.size(), late.slice(0, 5).map(func(i: int) -> String: return "%d %.20f %.20f" % [i, probe.deltas[i], replayed.deltas[i]])])
+		var moved_on := probe.applied_at.keys().filter(func(q: int) -> bool: return probe.applied_at[q] < recorded and replayed.applied_at.get(q) != probe.applied_at[q])
+		check(moved_on.is_empty() and probe.applied_at.size() == garden.seq, "every command of the %d comes into the replayed garden at the frame it came into the session's: %s" % [probe.applied_at.size(),
+			moved_on.map(func(q: int) -> String: return "%d at %d, replayed at %s" % [q, probe.applied_at[q], replayed.applied_at.get(q)])])
 		check(moved > 60, "the head moved in %d frames, the teleport and the glide among them" % moved)
 		var differ := range(maxi(garden.cmds.size(), replayed.garden.cmds.size())).filter(func(i: int) -> bool:
 			return i >= garden.cmds.size() or i >= replayed.garden.cmds.size() or garden.cmds[i] != replayed.garden.cmds[i])

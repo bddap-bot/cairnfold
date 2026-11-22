@@ -265,7 +265,7 @@ func _drain(block := false) -> void:
 			_ready_refill = null
 			Water.know([])
 			continue
-		var r := _refill_ahead(_queue[0])
+		var r := _refill_ahead(_queue[0]) if not _queue[0].get("recorded", false) else null
 		if r == null:
 			_queue.pop_front().run.call()
 			continue
@@ -670,6 +670,12 @@ func cap(hand: XRController3D) -> void:
 func _commit(sent: Dictionary) -> void:
 	hear("_commit", [sent], sent.get("by") if sent.get("by") is int else -1)
 	_enqueue(sent, -1, _apply_sent.bind(sent))
+
+
+## A host's record holds what it ordered once its water was in, so the replay applies it at that frame.
+func replay_order(sent: Dictionary) -> void:
+	_queue.append({"cmd": sent, "by": -1, "recorded": true, "run": _apply_sent.bind(sent)})
+	_drain()
 
 
 func _apply_sent(sent: Dictionary) -> void:

@@ -209,7 +209,7 @@ static func events() -> int:
 
 
 func _deliver_ordered(m: Array) -> void:
-	_main.world._commit(m[4][0])
+	_main.world.replay_order(m[4][0])
 
 
 func _deliver__commit(m: Array) -> void:
