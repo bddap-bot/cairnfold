@@ -2670,19 +2670,31 @@ func _pet(s: Dictionary) -> void:
 	await get_tree().create_timer(0.5).timeout
 	var near_side := Vector3(1.0 if side.dot(sheep.global_basis.x) >= 0.0 else -1.0, 1, 1)
 	var on_back := func() -> Vector3: return sheep.global_transform * (sheep.BACK * near_side)
-	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void: hand.global_position = rest.lerp(on_back.call(), smoothstep(0.0, 1.0, k)))
+	print("pet: head %.2f m from the view's eye, hand %.2f m from the back" % [main.rig.head.global_position.distance_to(_eye), rest.distance_to(on_back.call())])
+	var fright := [""]
+	var watch_fright := func() -> void:
+		if fright[0] == "" and sheep.state == Grazers.State.FLEE:
+			var near: Vector3 = sheep.position + Vector3.UP * 0.55 * sheep.size
+			var seen := PackedStringArray()
+			for n in main.wildlife._watched():
+				seen.append("%s %.2f m/s %.2f m" % [n.name, main.wildlife._speed.get(n, 0.0), near.distance_to(n.global_position)])
+			fright[0] = ", ".join(seen)
+	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void:
+		hand.global_position = rest.lerp(on_back.call(), smoothstep(0.0, 1.0, k))
+		watch_fright.call())
 	var stroke: float = s.get("seconds", 3.0)
 	var leant := [0.0]
 	var shot := [not s.has("capture")]
 	await _over({"seconds": stroke}, stroke, func(k: float) -> void:
 		hand.global_position = on_back.call() + sheep.global_basis.z.normalized() * 0.07 * sin(k * stroke * TAU * 0.5)
 		leant[0] = maxf(leant[0], rad_to_deg(sheep.lean.length()))
+		watch_fright.call()
 		if not shot[0] and k > 0.6:
 			shot[0] = true
 			await main.capture(s.capture + "-lean"))
 	if sheep.state != Grazers.State.PET:
 		hand.held_still = false
-		_fail("pet: stroked, the sheep is %s" % Grazers.State.keys()[sheep.state])
+		_fail("pet: stroked, the sheep is %s; as it fled: %s" % [Grazers.State.keys()[sheep.state], fright[0]])
 		return
 	var lifted := hand.global_position
 	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void: hand.global_position = lifted.lerp(rest, smoothstep(0.0, 1.0, k)))
