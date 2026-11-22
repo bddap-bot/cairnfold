@@ -440,7 +440,7 @@ density, and no build the player can make may bring the frame rate down.
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
   two storeys high, every other one turned a quarter, each crossed by a wing, tiled and then thatched, eight ponds, and the most ducks there can be at them (`bench.sh`
-  fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), the deer and the fox each seen from a person's height, with every butterfly there can be
+  fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence, where one is petted and follows), the deer and the fox each seen from a person's height, with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under the walls the build budget
   leaves room for beside a path, each seen from the air and standing among them, then both hands pushed into the walls
@@ -5052,7 +5052,12 @@ or thrown only draw those already there (see "Feeding").
   sight and grazes the grass along one side of it, 1 to 7 m out. They crop with heads down,
   drifting a step at a time, look about with an ear flick, walk on to fresh grass and now and
   then lie down for a while; a sudden move within a metre sends one trotting a few metres off before
-  it settles, and a slow hand may come right up to it. They never stand in water, on a path or paving, in a wall, house or tower or against a
+  it settles, and a slow hand may come right up to it. A calm, empty hand on a standing, grazing or walking sheep's
+  fleece pets it (within `Herds.TOUCH` of the ellipsoid the hand stops against; a hand holding seeds out feeds it
+  instead): it stops, stands with its head up and leans its body over its planted legs toward the hand (`Herds.LEAN`,
+  eased in and out in its vertex shader), and while stroked it stays. Stroked for `Herds.PET_FOR` and then left a
+  moment (`Herds.PET_WAIT`), it follows the player for `Herds.FOLLOW_FOR`, a few metres at its walk, stopping
+  `Herds.FOLLOW_GAP` short of them, then stands and goes back to its grass; a brief touch leads none away. They never stand in water, on a path or paving, in a wall, house or tower or against a
   trunk, keep a little apart, and never walk through a wall or into water. A pond dug, a wall drawn
   or ground pulled under them sends them, within a second, to grass they can reach; one that ends up
   beyond its flock's grass walks back. When their fence is erased or broken too short, or no grass
@@ -5752,7 +5757,7 @@ walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
 `demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep, throws handfuls to the sheep and onto the pond and watches the uneaten ones sink away;
-`demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);
+`demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views), then comes up beside one, strokes its back and steps away as it follows (`pet`);
 `demo/horizon.json` looks at the mountains from the meadow, the rim and the air, at morning, dusk and dawn;
 `demo/daylight.json` drags the sun from dawn to dusk and on to midnight, looks at the moon high at dusk, the moonlit midnight and the dark before dawn, opens the colour wheel, recolours a roof, a wall's stone,
 a fence and a gable, and walks the meadow through the seasons; `demo/winter.json` looks at a pond with its fish and

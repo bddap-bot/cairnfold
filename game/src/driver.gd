@@ -2624,6 +2624,80 @@ func _befriend(s: Dictionary) -> void:
 	print("conure: feeding earned trust, grip carries bird")
 
 
+## Comes up beside the settled sheep nearest the eye, on its side away from the rest of the flock, strokes its back
+## with an empty hand for `seconds`, lifts the hand and steps `back` metres away, looking at it as it follows.
+func _pet(s: Dictionary) -> void:
+	var herds: Herds = main.wildlife.herds
+	var sheep: Sheep = null
+	var elapsed := 0.0
+	while elapsed < 120.0:
+		var settled := herds.all().filter(func(a: Sheep) -> bool: return a.state in [Grazers.State.GRAZE, Grazers.State.STAND] and a.upright() > 0.99)
+		if not settled.is_empty():
+			settled.sort_custom(func(a: Sheep, b: Sheep) -> bool: return a.position.distance_to(_eye) < b.position.distance_to(_eye))
+			sheep = settled[0]
+			break
+		elapsed += await _tick()
+	if sheep == null:
+		_fail("pet: no sheep settled to pet")
+		return
+	var flock := herds.all().size()
+	var middle := Vector3.ZERO
+	for a: Sheep in herds.all():
+		middle += a.position / flock
+	var side := sheep.global_basis.x.normalized()
+	if (sheep.position + side - middle).length() < (sheep.position - side - middle).length():
+		side = -side
+	var watch := func() -> Vector3: return sheep.position + Vector3.UP * 0.45 * sheep.size
+	await _pick({"hand": s.get("hand", "right"), "tool": "none"})
+	var hand := _hand(s)
+	hand.held_still = true
+	_eye = sheep.position + side * 1.0 + Vector3.UP * 1.3
+	_at = watch.call()
+	main.view(_eye, _at)
+	var beside := Vector3(0.2 if hand == main.rig.right else -0.2, -0.4, -0.25)
+	var rest := main.rig.head.global_transform * beside
+	hand.global_position = rest
+	# The view and the hand put beside it are one cut: no animal takes them for a move.
+	main.rig.jumped.emit()
+	await get_tree().create_timer(0.5).timeout
+	var near_side := Vector3(signf(side.dot(sheep.global_basis.x)), 1, 1)
+	var on_back := func() -> Vector3: return sheep.global_transform * (Sheep.BACK * near_side)
+	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void: hand.global_position = rest.lerp(on_back.call(), smoothstep(0.0, 1.0, k)))
+	var stroke: float = s.get("seconds", 3.0)
+	var leant := [0.0]
+	var shot := [not s.has("capture")]
+	await _over({"seconds": stroke}, stroke, func(k: float) -> void:
+		hand.global_position = on_back.call() + sheep.global_basis.z.normalized() * 0.07 * sin(k * stroke * TAU * 0.5)
+		leant[0] = maxf(leant[0], rad_to_deg(sheep.lean.length()))
+		if not shot[0] and k > 0.6:
+			shot[0] = true
+			await main.capture(s.capture + "-lean"))
+	if sheep.state != Grazers.State.PET:
+		hand.held_still = false
+		_fail("pet: stroked, the sheep is %s" % Grazers.State.keys()[sheep.state])
+		return
+	var lifted := hand.global_position
+	await _over({"seconds": 2.5}, 2.5, func(k: float) -> void: hand.global_position = lifted.lerp(rest, smoothstep(0.0, 1.0, k)))
+	var from := sheep.position
+	var away: float = s.get("back", 2.5)
+	var eye := _eye
+	var followed := [false]
+	await _over({"seconds": away / 0.4 + Herds.PET_WAIT}, away / 0.4 + Herds.PET_WAIT, func(k: float) -> void:
+		_eye = eye + side * away * k
+		_at = watch.call()
+		main.view(_eye, _at)
+		hand.global_position = main.rig.head.global_transform * beside
+		followed[0] = followed[0] or sheep.state == Grazers.State.FOLLOW)
+	var walked := Vector2(sheep.position.x - from.x, sheep.position.z - from.z).length()
+	if s.has("capture"):
+		await main.capture(s.capture + "-follow")
+	hand.held_still = false
+	if not followed[0] or walked < 0.5:
+		_fail("pet: the sheep did not follow, %.1f m" % walked)
+		return
+	print("sheep: petted for %.1f s, leant %.1f degrees, followed %.1f m, %d sheep about" % [sheep.petted, leant[0], walked, flock])
+
+
 func _shoulder_bird(s: Dictionary) -> void:
 	var flock: Birds = main.wildlife.birds
 	var elapsed := 0.0

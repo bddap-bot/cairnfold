@@ -10,6 +10,8 @@ instance uniform float phase = 0.0;
 // The legs' cycle angle, advanced on the CPU by the ground walked so hooves stay planted.
 instance uniform float gait = 0.0;
 instance uniform vec3 wool = vec3(1.0);
+// Radians the body leans toward its right side (x) and its rump (y), pivoting over the hips so the legs stay planted.
+instance uniform vec2 lean = vec2(0.0);
 
 varying float fleece;
 
@@ -74,6 +76,7 @@ void vertex() {
 		turn(VERTEX, NORMAL, hip, rot(vec3(1.0, 0.0, 0.0), walk * 0.42 * sin(g) + lie * (front ? -1.5 : 1.5)));
 	} else {
 		VERTEX.y += walk * 0.018 * cos(2.0 * gait);
+		turn(VERTEX, NORMAL, vec3(0.0, 0.32, 0.0), rot(vec3(1.0, 0.0, 0.0), lean.y) * rot(vec3(0.0, 0.0, 1.0), -lean.x));
 	}
 	VERTEX.y -= lie * 0.2;
 	GIVE_HERE;

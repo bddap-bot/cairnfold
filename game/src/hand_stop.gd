@@ -93,6 +93,11 @@ func _process(delta: float) -> void:
 	_rig.inside = not seen in [Surface.NONE, Surface.LEAVES, Surface.WATER]
 
 
+## `p` in the ellipsoid inscribed in `box`, grown by `margin`, both in `inv`'s space: inside where shorter than 1.
+static func in_box(inv: Transform3D, box: AABB, p: Vector3, margin := Vector3.ZERO) -> Vector3:
+	return (inv * p - box.get_center()) / (box.size * 0.5 + margin)
+
+
 ## `i` past the hands is the eyes. A wall laid anywhere is checked against the region only once, so a stroke laying
 ## walls elsewhere costs no gathering.
 func _near_for(i: int, box: AABB) -> Near:
@@ -344,7 +349,7 @@ class Near:
 			var inv: Transform3D = t[0]
 			var box: AABB = t[1]
 			var half := box.size * 0.5
-			var q := (inv * p - box.get_center()) / half
+			var q := HandStop.in_box(inv, box, p)
 			if q.length_squared() < 1.0:
 				if with_facing:
 					facing = (inv.basis.transposed() * (q / half)).normalized()

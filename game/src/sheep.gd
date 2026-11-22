@@ -28,6 +28,10 @@ const RADIUS := 0.42
 ## sheep.gdshader repeats this number.
 const HIP := 0.32
 const FACE_AT := Vector3(0, 0.7, -0.47)
+## On the right of its back, where a hand strokes it.
+const BACK := Vector3(0.12, 0.74, 0.02)
+## Per second, how fast it sways into a hand and back upright.
+const LEAN_EASE := 5.0
 
 var size := 1.0
 var gait := 0.0
@@ -38,6 +42,10 @@ var goal := Vector3.ZERO
 var full := 0.0
 ## Seconds until, cornered, it looks again for a way to run.
 var retry := 0.0
+## Radians it leans toward its right side (x) and its rump (y); sheep.gdshader pivots the body by it.
+var lean := Vector2.ZERO
+## Seconds stroked in this pet.
+var petted := 0.0
 
 
 static func prepare() -> void:
@@ -68,6 +76,20 @@ func walked(m: Grazers.Motion, distance: float, delta: float) -> void:
 func eat(height: float, delta: float) -> void:
 	var muzzle := FACE_AT.y * size
 	blend(IDLE.lerp(GRAZE, clampf((muzzle - height) / muzzle, 0.0, 1.0)), delta)
+
+
+func lean_to(target: Vector2, delta: float) -> void:
+	if lean == target:
+		return
+	lean = lean.lerp(target, 1.0 - exp(-delta * LEAN_EASE))
+	if lean.distance_to(target) < 1e-3:
+		lean = target
+	set_instance_shader_parameter("lean", lean)
+
+
+## Whether `p` lies within `margin` metres of the ellipsoid the hand stops against.
+func touches(p: Vector3, margin: float) -> bool:
+	return HandStop.in_box(global_transform.affine_inverse(), mesh.get_aabb(), p, Vector3.ONE * margin / size).length_squared() < 1.0
 
 
 func upright() -> float:

@@ -3,7 +3,7 @@ extends Node3D
 
 ## Base of `Herds` and `Roamers`: bands that walk in and leave out of sight.
 
-enum State { ENTER, GRAZE, STAND, WALK, LIE, WARY, FLEE, LEAVE, FEED }
+enum State { ENTER, GRAZE, STAND, WALK, LIE, WARY, FLEE, LEAVE, FEED, PET, FOLLOW }
 enum Motion { IDLE, GRAZE, STEP, WALK, RUN, LIE }
 
 const TURN := 3.0
@@ -64,7 +64,7 @@ func look() -> void:
 		if _leaving(b):
 			continue
 		for a in b.animals:
-			var moving: bool = a.state in [State.ENTER, State.WALK, State.FLEE] or (a.state == State.GRAZE and _off_goal(a))
+			var moving: bool = a.state in [State.ENTER, State.WALK, State.FLEE, State.FOLLOW] or (a.state == State.GRAZE and _off_goal(a))
 			if moving and not _walkable(a, a.goal) or not moving and not wildlife.standable(a.position):
 				_walk_on(b, a)
 			if _leaving(b):

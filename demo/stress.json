@@ -356,6 +356,7 @@
   {"op": "wait", "seconds": 30},
   {"op": "label", "name": "sheep/ground"},
   {"op": "wait", "seconds": 6},
+  {"op": "pet", "hand": "right", "seconds": 3, "back": 2.5},
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "sheep-ground"},
   {"op": "view", "ground": true, "eye": [11.2, 1.65, 0], "at": [14, 0.2, 0]},

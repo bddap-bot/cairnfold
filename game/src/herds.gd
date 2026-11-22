@@ -15,6 +15,18 @@ const LIE_FOR := Vector2(20.0, 45.0)
 const SCARE := 1.0
 static var appetite := Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, 4.0, 0.9, 0.55, Vector2(6.0, 12.0), Vector2(10.0, 25.0), 0.4)
 const BLEAT_EVERY_SECONDS := 75.0
+## Metres past its fleece a calm hand counts as touching it.
+const TOUCH := 0.05
+## Seconds stroked before, once the hand lifts, it follows.
+const PET_FOR := 1.0
+## Seconds a lifted hand is waited for before it follows or goes on.
+const PET_WAIT := 1.2
+## Radians it leans into the hand.
+const LEAN := 0.14
+## Metres short of the player it stops.
+const FOLLOW_GAP := 1.1
+## Seconds it follows, which at its walk is a few metres.
+const FOLLOW_FOR := 7.0
 
 ## As of the last `look`.
 var pastures: Array[Wall] = []
@@ -96,17 +108,87 @@ func _alarm(b: Band, a: Node3D, _delta: float) -> void:
 		_flee(b, a, fright.global_position)
 
 
+## The calm hand touching `a`'s fleece, or null; one holding seeds out is feeding it, not petting it.
+func _petting(a: Sheep) -> Hand:
+	for h in wildlife.hands:
+		if h is Hand and h.is_inside_tree() and h.tracked() and not h.holds_seeds() and not wildlife.sudden(h):
+			var p := h.global_transform * HandStop.CENTRE
+			if p.distance_to(a.global_position) < 1.2 * a.size and a.touches(p, TOUCH):
+				return h as Hand
+	return null
+
+
+func _think(b: Band, a: Node3D, delta: float) -> void:
+	super(b, a, delta)
+	if a.state in [State.GRAZE, State.STAND, State.WALK, State.FOLLOW] and _petting(a as Sheep) != null:
+		a.state = State.PET
+		a.timer = PET_WAIT
+		a.petted = 0.0
+		a.goal = a.position
+	if a.state != State.PET:
+		a.lean_to(Vector2.ZERO, delta)
+
+
 func _settled_tick(a: Node3D, delta: float) -> void:
 	wildlife.calls.now_and_then("bleat", a.position, BLEAT_EVERY_SECONDS, delta)
 
 
 func _other(_b: Band, a: Node3D, delta: float) -> void:
-	if a.state != State.LIE:
+	match a.state:
+		State.LIE:
+			a.pose(Motion.LIE, delta)
+			a.timer -= delta
+			if a.timer <= 0.0:
+				_stand(a)
+		State.PET:
+			_stroked(a as Sheep, delta)
+		State.FOLLOW:
+			_after_player(a as Sheep, delta)
+
+
+## Stroked, it stands and leans toward the hand; the hand lifted a while, it follows the player if stroked long enough.
+func _stroked(a: Sheep, delta: float) -> void:
+	a.pose(Motion.IDLE, delta)
+	var h := _petting(a)
+	if h == null:
+		a.lean_to(Vector2.ZERO, delta)
+		a.timer -= delta
+		if a.timer > 0.0:
+			return
+		if a.petted >= PET_FOR:
+			a.state = State.FOLLOW
+			a.timer = FOLLOW_FOR
+			a.goal = a.position
+		else:
+			_stand(a)
 		return
-	a.pose(Motion.LIE, delta)
+	a.timer = PET_WAIT
+	a.petted += delta
+	var at := a.global_transform.affine_inverse() * (h.global_transform * HandStop.CENTRE)
+	a.lean_to(Vector2(at.x, at.z).limit_length(0.15) / 0.15 * LEAN, delta)
+
+
+## A little way after the player, stopping short of them, then it stands.
+func _after_player(a: Sheep, delta: float) -> void:
 	a.timer -= delta
-	if a.timer <= 0.0:
+	var me: Node3D = wildlife.viewer
+	if me == null or a.timer <= 0.0:
 		_stand(a)
+		return
+	var at := me.global_position
+	var to := Vector3(at.x - a.position.x, 0, at.z - a.position.z)
+	if to.length() > FOLLOW_GAP + 0.05:
+		var spot := at - to.normalized() * FOLLOW_GAP
+		if Vector2(spot.x - a.goal.x, spot.z - a.goal.z).length() > 0.25:
+			if not _walkable(a, spot):
+				_stand(a)
+				return
+			a.goal = wildlife.terrain.ground(spot.x, spot.z)
+	if _off_goal(a):
+		_go(a, a.goal, _speed(a, State.WALK), delta)
+	else:
+		a.pose(Motion.IDLE, delta)
+		Wildlife._face(a, to, delta * TURN)
 
 
 func _lie(a: Node3D) -> void:

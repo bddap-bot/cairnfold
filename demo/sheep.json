@@ -28,5 +28,7 @@
   {"op": "view", "eye": [0, 12, 20], "at": [0, 0, 0]},
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "07-afar"},
+  {"op": "label", "name": "pet"},
+  {"op": "pet", "hand": "right", "seconds": 3, "back": 2.5, "capture": "08-pet"},
   {"op": "quit"}
 ]

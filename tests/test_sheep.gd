@@ -17,6 +17,7 @@ func _initialize() -> void:
 	await _settled_sheep_follow_their_ground()
 	await _leaving_sheep_keep_out_of_walls_and_water()
 	await _a_sheep_off_its_grass_goes_back()
+	await _a_stroked_sheep_leans_in_and_follows()
 	finish()
 
 
@@ -131,6 +132,10 @@ func _a_resting(g: Glade, but: Array = []) -> Sheep:
 			room = near
 			best = s
 	return best
+
+
+func _an_upright_resting(g: Glade, but: Array = []) -> Sheep:
+	return _a_resting(g, but + g.sheep().filter(func(o: Sheep) -> bool: return o.state == Herds.State.LIE))
 
 
 func _a_lying_sheep_stands_before_it_walks() -> void:
@@ -478,4 +483,101 @@ func _a_sheep_off_its_grass_goes_back() -> void:
 	g.run(60.0)
 	var off := _off_fence(fence, s.position)
 	check(s.state != Herds.State.LEAVE and off.x <= Herds.BAND.y + 0.6 and off.y == flock.side, "with nothing in its way it walks back to its grass, %.1f m out" % off.x)
+	await g.teardown()
+
+
+func _a_stroked_sheep_leans_in_and_follows() -> void:
+	var g := await _glade(4)
+	_draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
+	g.run(Wildlife.SHEEP_AFTER.y + 40.0)
+	var s := _an_upright_resting(g)
+	for i in 60:
+		if s != null:
+			break
+		g.run(1.0)
+		s = _an_upright_resting(g)
+	check(s != null, "a sheep stands or grazes to pet")
+	if s == null:
+		await g.teardown()
+		return
+	var player := Node3D.new()
+	root.add_child(player)
+	g.wildlife.viewer = player
+	var side := s.global_basis.x.normalized()
+	player.global_position = s.position + side * 0.9 + Vector3.UP * 1.6
+	var hand: Hand = g.rig.right
+	hand.held_still = true
+	var from := player.global_position + Vector3(0, -0.5, 0) - side * 0.3
+	hand.global_position = from
+	# Put there as a teleport puts them: no animal takes it for a move.
+	g.rig.jumped.emit()
+	g.run(1.0)
+	var back := s.global_transform * Sheep.BACK
+	var fled := [false]
+	var watch := func() -> void: fled[0] = fled[0] or s.state == Herds.State.FLEE
+	var steps := int(2.0 / STEP)
+	for i in steps + 1:
+		hand.global_position = from.lerp(back, float(i) / steps)
+		g.run(STEP, watch)
+	check(not fled[0] and s.state == Herds.State.PET, "a hand reaching slowly to its back pets it, state %s" % Herds.State.keys()[s.state])
+	var leant := 0.0
+	for i in int(2.5 / STEP):
+		hand.global_position = back + s.global_basis.z.normalized() * 0.08 * sin(i * STEP * TAU * 0.5)
+		g.run(STEP, watch)
+		leant = maxf(leant, s.lean.x)
+	check(not fled[0] and s.state == Herds.State.PET, "stroked, it stays")
+	check(leant > Herds.LEAN * 0.5 and absf(s.lean.y) < s.lean.x, "it leans %.1f degrees toward the hand at its side" % rad_to_deg(leant))
+	var stood := s.position
+	var lifted := hand.global_position
+	for i in int(0.5 / STEP):
+		hand.global_position = lifted.lerp(lifted + side * 0.15 + Vector3.UP * 0.15, i * STEP * 2.0)
+		g.run(STEP, watch)
+	hand.global_position = AWAY
+	g.run(0.3, watch)
+	check(s.state == Herds.State.PET and s.lean.length() < Herds.LEAN * 0.25, "the hand lifted, it stands upright and waits, leaning %.1f degrees" % rad_to_deg(s.lean.length()))
+	g.run(Herds.PET_WAIT, watch)
+	check(s.state == Herds.State.FOLLOW, "then follows, state %s" % Herds.State.keys()[s.state])
+	var away := side.rotated(Vector3.UP, 0.3)
+	var start := player.global_position
+	for i in int(6.0 / STEP):
+		player.global_position = start + away * minf(i * STEP * 0.5, 2.5)
+		g.run(STEP, watch)
+	var walked := Vector2(s.position.x - stood.x, s.position.z - stood.z).length()
+	var gap := Vector2(player.global_position.x - s.position.x, player.global_position.z - s.position.z).length()
+	check(not fled[0] and walked > 1.0 and gap < Herds.FOLLOW_GAP + 0.3, "it walks %.1f m after the player and stops %.2f m short" % [walked, gap])
+	var most := [walked]
+	var follow := func() -> void:
+		watch.call()
+		if s.state == Herds.State.FOLLOW:
+			most[0] = maxf(most[0], Vector2(s.position.x - stood.x, s.position.z - stood.z).length())
+	for i in int(12.0 / STEP):
+		player.global_position = start + away * minf(2.5 + i * STEP * 0.5, 8.0)
+		g.run(STEP, follow)
+	gap = Vector2(player.global_position.x - s.position.x, player.global_position.z - s.position.z).length()
+	check(not fled[0] and s.state != Herds.State.FOLLOW and most[0] < Herds.FOLLOW_FOR * Herds.SPEED[Herds.State.WALK] + 0.5 and gap > Herds.FOLLOW_GAP + 2.0, "only a little way: it follows %.1f m and lets a player walking on go, %.1f m off" % [most[0], gap])
+	print("sheep: stroked %.1f s, leant %.1f degrees, followed %.1f m" % [s.petted, rad_to_deg(leant), most[0]])
+
+	var other := _an_upright_resting(g, [s])
+	check(other != null, "another sheep to touch briefly")
+	if other != null:
+		hand.global_position = other.global_transform * Sheep.BACK + Vector3.UP * 0.5
+		g.rig.jumped.emit()
+		g.run(1.0)
+		var touched := [0.0]
+		var brief := func() -> void:
+			fled[0] = fled[0] or other.state == Herds.State.FLEE
+			if other.state == Herds.State.PET:
+				touched[0] = other.petted
+		steps = int(1.5 / STEP)
+		for i in steps + 1:
+			hand.global_position = other.global_transform * Sheep.BACK + Vector3.UP * 0.5 * (1.0 - float(i) / steps)
+			g.run(STEP, brief)
+		g.run(0.4, brief)
+		hand.global_position = AWAY
+		g.run(Herds.PET_WAIT + 0.5, brief)
+		check(not fled[0] and touched[0] > 0.0 and touched[0] < Herds.PET_FOR, "a brief touch pets one for %.1f s" % touched[0])
+		check(other.state != Herds.State.FOLLOW, "but does not lead it away, state %s" % Herds.State.keys()[other.state])
+	hand.held_still = false
+	g.wildlife.viewer = g.rig.head
+	player.free()
 	await g.teardown()
