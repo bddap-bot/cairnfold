@@ -5420,7 +5420,7 @@ selfie included, and videos draw through the one style, and a photo records it (
 | --- | --- |
 | Plain | The view as it is |
 | Painterly | The view laid in flat daubs that keep its edges (Kuwahara's filter: each pixel takes the means of its four quadrants, each `PhotoStyle.STROKES` of the view's height on a side, weighted toward the evenest), its colours 1.3 times as saturated |
-| Sculpture | The garden carved from one white stone (`sculpture.gdshaderinc`): its shapes, light and shadows, none of its colours, the light bounced off the meadow still tinting its shade. The sky, the sun and moon, flames, fireflies and glows, falling snow, smoke, the motes under water, avatars' particles, the mirror's glass, see-through pieces drawn with Godot's own materials, and the interface and most held tools keep theirs |
+| Sculpture | The garden carved from one white stone (`sculpture.gdshaderinc`): its shapes, light and shadows, none of its colours, the light bounced off the meadow and the sky's blue still tinting its shade. The sky, the sun and moon, flames, fireflies and glows, falling snow, smoke, the motes under water, avatars' particles, the mirror's glass, see-through pieces drawn with Godot's own materials, and the interface and most held tools keep theirs |
 | Mono, sepia, cyanotype | The view's light alone, through a grey, brown or blue tint |
 
 A pass (`StylePass`, `photo_style.glsl`) is a `CompositorEffect` on the camera that draws the view, run after its
