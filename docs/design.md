@@ -3048,7 +3048,7 @@ Stage numbers refer to the build order at the end.
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format (`World.format()`: `World.FORMAT` and a digest of the meadow whose plants it numbers), or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
 | Wildlife | Sheep, birds, ducks, fireflies, deer, a fox | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk and stay all night while the day's animals rest (no new arrivals, butterflies settled, conures roosting with only murmurs, ducks quiet on the bank), conures perch on a tree or wall, sheep graze beside a fence; deer and a fox come out of the trees round the meadow (see "Wildlife") | 11 |
-| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 3200×2400 photo at full quality, saved as a PNG under `user://photos` (`Pictures/Cairnfold` in shared storage on Android) that records where and how it was taken (see "Photos") | 11 (done) |
+| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 3200×2400 photo at full quality, saved as a PNG under `user://photos` (`Pictures/Cairnfold` in shared storage on Android) that records where and how it was taken (see "Photos"); a dial on the camera picks a style, painterly, sculpture or a colour filter, for its photos and, if wanted, the whole view (see "Photo styles") | 11, 27 (done) |
 | Painting | None | A big easel set up on the ground, painted with a brush held in the hand in watercolour, oil or charcoal (see "Painting") | done |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network through the friends dial (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
@@ -3892,6 +3892,7 @@ whole day, through the night and past midnight. The clouds stay put: they are we
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 | Stand a mirror | Trigger of a hand holding the mirror, at the ground: it stands there facing the player; at its glass, it is put away |
 | Record a video | Hold the trigger of a hand holding the camera: its shutter button glows red while it records; let go to stop |
+| Choose a photo style | Grip of the other hand at a held camera's body: twist to turn a dial of styles, let go to keep the one at the top; let go raised over the camera to lay it over the whole view as well, level with it to take it off (see "Photo styles") |
 | Set up an easel | Trigger of a hand holding the easel, pointing at open ground with no easel near the hand: it stands there facing the player |
 | Move an easel | Grip pointing at an easel's legs or tray, whatever the hand holds, with no brush, palette or canvas within the hand's reach: it moves along the ground with the hand and turns about the vertical as the hand turns, the gain growing with distance, its painting and kit with it; let go to set it there, one undo step, unless that is within 1.4 m of another easel, when it goes back. The other hand's grip on it does nothing: an easel has one size |
 | Paint | At an easel: grip at the pot for a small round, big round or flat brush, at the sticks for charcoal, at the watercolour box or the oil palette to carry it in that hand; dip the brush in a pan or an oil colour for that medium, in the glass to wet it; touch the canvas and push in to press harder (see "Painting") |
@@ -4035,6 +4036,8 @@ the quality ladder held to the display's pace ("The flat screen").
 | Take up the camera, the seed dish, the mirror, or none, in turn | Tab or the right button | Y |
 | Take a photo, throw a handful of seeds or stand the mirror | Left button | Right trigger or A |
 | Record a video with the camera up | Hold the left button | Hold the right trigger or A |
+| Turn the camera's style on a step, with the camera up | C | B |
+| Lay the style over the whole view, or take it off | V | Right shoulder |
 
 With empty hands, F or gamepad X plays the human-recorded wave. Taking up a tool
 ends it. In VR, wave with the tracked hand.
@@ -4262,6 +4265,8 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 23. Move and copy: a grip carries and turns a wall, house, tower, fence or tree with its fittings and ivy; the colour tool copies one structure's look onto another. (Done.)
 24. Water life and winter: fish and lilypads in ponds; in winter frozen ponds, snow on roofs, wall tops and the ground, and bare trees. (Done.)
 25. Weather and the day's turning: a hand shapes the fog, thick or thin, high or low, clinging to the ground, and in winter the snowfall; the sky let go turning runs its own day and night. (Done.)
+26. Petting sheep: a hand reaching to a sheep pets it; it leans into the hand, then follows a little way. (Done.)
+27. Photo styles: painterly, sculpture and colour-filtered photos chosen on the camera, a style able to stay on the whole view. (Done.)
 
 ## Water
 
@@ -5398,6 +5403,44 @@ it packs to at most `PhotoMeta.WORLD_MAX` (4 MiB); a bigger garden is left out a
 kilobytes; ground shaped across the whole meadow adds its heights. `cairnfold -- --photo FILE`
 opens a photo's garden at its time of day, seen from its lens, and keeps nothing of it; a photo
 without one opens nothing.
+
+### Photo styles
+
+The camera draws through a style, chosen on the camera itself. The other hand's grip at the camera's body (within
+`PhotoTool.DIAL_REACH`, 10 cm) opens a dial of the styles over that hand (`Dial`), each a small print of the lens's view
+in its colours (`PhotoTool.card`, on `Quality.EYES_LAYER`, since a lens drawing the print would read its own view);
+twisting the hand turns it, every camera's screen showing the style at the top live, and letting go keeps it. Let go
+with the hand raised over the camera (`PhotoTool.OVER_VIEW`, 18 cm) and the style lies over the whole view as well,
+staying there while building with the camera put away; below `PhotoTool.UNDER_VIEW` (10 cm) it is on the lens alone,
+so a grip level with the camera takes it off the view. Both cameras, selfie included, and videos draw through the one
+style, and a photo records it (`style` in its metadata).
+
+| Style | What it draws |
+| --- | --- |
+| Plain | The view as it is |
+| Painterly | The view laid in strokes (Kuwahara's filter: each pixel takes the mean of whichever of its four quadrants varies least, about `PhotoStyle.STROKES` of the view's height across), its colours 1.3 times as saturated |
+| Sculpture | The garden carved from one white stone (`sculpture.gdshaderinc`): its shapes, light and shadows, none of its colours, the light bounced off the meadow still tinting its shade. The sky, the sun and moon, flames, fireflies and glows, the mirror's glass and the player's own tools keep theirs |
+| Mono, sepia, cyanotype | The view's light alone, through a grey, brown or blue tint |
+
+A pass (`StylePass`, `photo_style.glsl`) is a `CompositorEffect` on the camera that draws the view, run after its
+transparent objects and before tonemapping, so water, smoke and fog take the style with the rest. The mobile renderer
+gives effects no storage images, so it draws the view into a copy and back, two full-screen triangles; the scene's
+colour is held as the square root of its light (`scripts/engine.patch`), which the pass squares to work on light and
+roots again. Kuwahara's quadrants are each sampled on a fixed 4×4 grid however long the strokes, so a pixel costs the
+same on a photo as on the screen. A camera with no pass has no compositor (`PhotoStyle.dress`), so plain costs
+nothing. The sculpture is a camera's cull-mask bit, `Quality.SCULPTURE_LAYER`, past the 20 layers a node can stand on,
+which every shader of the garden reads (`CAMERA_VISIBLE_LAYERS`): one camera draws white while the eyes see colour.
+Pieces drawn with Godot's own materials, the built-in figures and the easel with its kit, run none of those shaders;
+while a camera draws the sculpture each takes a white pass of its own (`PhotoStyle.carve`, `sculpture_shell.gdshader`)
+that every other camera drops in its vertex stage, and at other times none, since they hold over a hundred surfaces,
+each a draw more.
+
+`tests/gpu_photo_styles.gd` draws one view of a garden in each and holds it against plain: painterly 0.58 of plain's
+edge energy at 1.4 times its saturation, the same light; mono grey on every pixel; sepia and cyanotype running red
+over blue and blue over red on every pixel; the sculpture a fifth of plain's saturation, its shading kept; and a
+photo's own pass at 3200×2400. `demo/photo.json` takes a photo in each and lays painterly and the sculpture over the
+whole view. The stress scene's `camera/*` phases run in painterly, the costliest, the only pass sampling the view
+more than once a pixel, and `camera/whole-view` lays it over the eyes too.
 
 ### Video
 

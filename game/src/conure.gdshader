@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, specular_schlick_ggx, shadows_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 
 instance uniform float floor_height = 0.0;
@@ -91,9 +92,9 @@ void fragment() {
 		feather = tint * COLOR.r * (0.94 + 0.08 * fluff) * (1.0 + rim * 0.3);
 	}
 	vec3 own = COLOR.a > 0.25 ? tint * COLOR.r : COLOR.rgb;
-	ALBEDO = mix(own, feather, plume);
+	ALBEDO = SCULPTED ? SCULPTURE : mix(own, feather, plume);
 	ROUGHNESS = mix(COLOR.r < 0.1 ? 0.15 : 0.55, 0.85, plume);
 	SPECULAR = mix(COLOR.r < 0.1 ? 0.8 : 0.35, 0.25, plume);
-	BACKLIGHT = feather * 0.25 * plume;
+	BACKLIGHT = SCULPTED ? vec3(0.0) : feather * 0.25 * plume;
 	TAKE_GIVEN;
 }

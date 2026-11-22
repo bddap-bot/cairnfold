@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode world_vertex_coords, cull_disabled, diffuse_lambert_wrap, specular_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
@@ -106,11 +107,11 @@ void fragment() {
 	float t = mix(tip, 0.6, far);
 	// A blade rises from the ground's own tone, so through thin grass its root melts into the ground, not a dark tuft.
 	float c = mix(mix(canopy, 1.0, tip), canopy, far);
-	ALBEDO = mix(blade_color(top, c), mix(weed_root, top, t), weed) * COLOR.rgb * (1.0 + gust_brighten * gust * t * (1.0 - far));
+	ALBEDO = SCULPTED ? SCULPTURE : mix(blade_color(top, c), mix(weed_root, top, t), weed) * COLOR.rgb * (1.0 + gust_brighten * gust * t * (1.0 - far));
 	// Back faces arrive with the normal flipped, which would turn the up-bent normal downward and shade them dark.
 	vec3 up = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 	NORMAL -= 2.0 * min(dot(NORMAL, up), 0.0) * up;
 	ROUGHNESS = 0.9;
-	BACKLIGHT = top * backlight * t * (1.0 - 0.5 * far) * (1.0 - weed);
+	BACKLIGHT = SCULPTED ? vec3(0.0) : top * backlight * t * (1.0 - 0.5 * far) * (1.0 - weed);
 	TAKE_GIVEN;
 }

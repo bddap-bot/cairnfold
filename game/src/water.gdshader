@@ -3,6 +3,7 @@ shader_type spatial;
 // (docs/design.md, "Water").
 render_mode blend_mix, depth_draw_never, cull_disabled, unshaded;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/daylight.gdshaderinc"
@@ -61,7 +62,7 @@ void fragment() {
 		float rim = smoothstep(0.09, 0.0, abs(c - WINDOW_COS - 0.035));
 		float glint = texture(detail, s * 1.3 - slope * 2.0 + TIME * vec2(0.03, 0.02)).r;
 		vec3 air = sky_overhead * (1.7 + 0.8 * smoothstep(0.75, 1.0, c)) * (0.85 + glint * 0.3);
-		vec3 mirror = mix(deep, shallow, 0.3) * dot(sky_overhead, vec3(0.3, 0.55, 0.15)) * (0.8 + glint * 0.4);
+		vec3 mirror = (SCULPTED ? SCULPTURE : mix(deep, shallow, 0.3)) * dot(sky_overhead, vec3(0.3, 0.55, 0.15)) * (0.8 + glint * 0.4);
 		ALBEDO = mix(mirror, air, window) + sky_overhead * rim * 0.9;
 		ALPHA = smoothstep(0.0, 0.07, depth);
 	} else {
@@ -97,6 +98,10 @@ void fragment() {
 			alpha = mix(alpha, 0.9, season_winter);
 			foam *= 1.0 - season_winter;
 			gloss = mix(1.0, 0.45 * (1.0 - cloud * 0.7), season_winter);
+		}
+		if (SCULPTED) {
+			col = SCULPTURE;
+			gloss = 0.0;
 		}
 		col = mix(col, foam_color, foam);
 		alpha = max(alpha, foam * 0.9) * smoothstep(0.0, 0.07, depth);

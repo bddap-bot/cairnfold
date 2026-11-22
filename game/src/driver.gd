@@ -1634,6 +1634,42 @@ func _photo(s: Dictionary) -> void:
 	await main.photo_tool.shoot(hand)
 
 
+## The free hand grips the held camera, twists its dial to `style` and lets go, raised over the camera with `view`.
+func _lens(s: Dictionary) -> void:
+	var tool: PhotoTool = main.photo_tool
+	var camera := _holding(s, Hand.Tool[str(s.get("tool", "camera")).to_upper()])
+	var turner: Hand = main.rig.left if camera == main.rig.right else main.rig.right
+	var to := PhotoStyle.of(s.style)
+	var view: bool = s.get("view", false)
+	var was := turner.global_transform
+	var still := turner.held_still
+	turner.held_still = true
+	await _frames(2)
+	turner.global_position = tool.body(camera)
+	var grip := Controls.key("grab", turner.tracker)
+	Buttons.injected[grip] = true
+	await _frames(2)
+	var n := PhotoStyle.Kind.size()
+	var steps := posmod(to - tool.style, n)
+	if steps > n / 2:
+		steps -= n
+	var from := turner.global_basis
+	for f in 12:
+		turner.global_basis = Basis(-from.z, deg_to_rad(steps * Dial.step(n) * (f + 1) / 12.0)) * from
+		await _frames(1)
+	if view:
+		turner.global_position += Vector3.UP * (PhotoTool.OVER_VIEW + 0.04)
+	await _frames(3)
+	if s.has("capture"):
+		await main.capture(s.capture)
+	Buttons.injected.erase(grip)
+	await _frames(2)
+	turner.global_transform = was
+	turner.held_still = still
+	if tool.style != to or tool.over_view != view:
+		_fail("lens: the dial left %s, %s on the view, not %s, %s" % [PhotoStyle.named(tool.style), tool.over_view, s.style, view])
+
+
 func _video(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[str(s.get("tool", "camera")).to_upper()])
 	var key := Controls.key("tool", hand.tracker)

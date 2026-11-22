@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, specular_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/stone_ground.gdshaderinc"
 #include "res://src/stone_disc.gdshaderinc"
@@ -12,7 +13,7 @@ void vertex() {
 void fragment() {
 	float laid;
 	vec2 slope;
-	ALBEDO = stone_disc(UV, laid, slope);
+	ALBEDO = SCULPTED ? SCULPTURE : stone_disc(UV, laid, slope);
 	vec3 x = normalize((VIEW_MATRIX * MODEL_MATRIX * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
 	vec3 z = normalize((VIEW_MATRIX * MODEL_MATRIX * vec4(0.0, 0.0, 1.0, 0.0)).xyz);
 	NORMAL = normalize(mix(NORMAL, stone_normal(NORMAL, x, z, slope), laid));

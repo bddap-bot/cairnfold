@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled, diffuse_lambert_wrap;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 
 void vertex() {
@@ -13,7 +14,7 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = COLOR.rgb * (0.85 + 0.15 * sin(UV.x * 20.0));
+	ALBEDO = SCULPTED ? SCULPTURE : COLOR.rgb * (0.85 + 0.15 * sin(UV.x * 20.0));
 	ROUGHNESS = 0.9;
 	SPECULAR = 0.1;
 	TAKE_GIVEN;

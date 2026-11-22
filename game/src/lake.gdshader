@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled, fog_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/horizon.gdshaderinc"
 
 uniform vec3 deep : source_color = vec3(0.08, 0.27, 0.34);
@@ -45,8 +46,9 @@ void fragment() {
 	seen = climb * far.x < far.y ? mix(mix(slope, stone, climb * far.x / far.y) * light, sky_haze, 0.55) : seen;
 	seen = climb * near.x < near.y ? mix(mix(slope, stone, climb * near.x / near.y) * light, sky_haze, 0.35) : seen;
 
-	vec3 body = deep * (sun_light * max(sun_toward.y, 0.0) * 0.5 + mix(sky_horizon, sky_zenith, 0.6) * sky_ambient * 0.6);
-	vec3 col = mix(body, seen * 0.85, fresnel);
-	col += sun_light * pow(max(dot(r, sun_toward), 0.0), 400.0) * 3.0;
+	vec3 body = (SCULPTED ? SCULPTURE : deep) * (sun_light * max(sun_toward.y, 0.0) * 0.5 + mix(sky_horizon, sky_zenith, 0.6) * sky_ambient * 0.6);
+	float gloss = SCULPTED ? 0.0 : 1.0;
+	vec3 col = mix(body, seen * 0.85, fresnel * gloss);
+	col += sun_light * pow(max(dot(r, sun_toward), 0.0), 400.0) * 3.0 * gloss;
 	ALBEDO = mix(col, sky_haze, mix(0.2 * smoothstep(0.0, radii.x - 300.0, dist), 1.0, fog_veil));
 }

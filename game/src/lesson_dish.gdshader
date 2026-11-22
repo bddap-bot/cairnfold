@@ -13,6 +13,7 @@ uniform float radius = 1.4;
 
 varying vec2 flat_at;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/noise.gdshaderinc"
 
 float hill(vec2 p) {
@@ -40,7 +41,7 @@ void fragment() {
 	vec3 grass = mix(mix(root_color, tip_lush, 0.55), tip_lush, n * 0.6);
 	grass = mix(grass, tip_dry, smoothstep(0.55, 0.9, noise(p * 2.0 + 5.0)) * 0.35);
 	vec3 c = mix(grass, earth, smoothstep(0.8, 0.95, fray) * 0.6);
-	ALBEDO = c;
+	ALBEDO = SCULPTED ? SCULPTURE : c;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.1;
 }

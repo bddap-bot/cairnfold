@@ -1,3 +1,4 @@
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
@@ -161,9 +162,12 @@ void fragment() {
 		ALBEDO = mix(ALBEDO, vec3(0.23, 0.37, 0.065) * (0.85 + 0.3 * patches), coat);
 	}
 #endif
+	if (SCULPTED) {
+		ALBEDO = SCULPTURE;
+	}
 	ROUGHNESS = roughness;
 	TAKE_GIVEN;
 #ifdef BACKLIT
-	BACKLIGHT = seasoned(backlight, season_foliage);
+	BACKLIGHT = SCULPTED ? vec3(0.0) : seasoned(backlight, season_foliage);
 #endif
 }

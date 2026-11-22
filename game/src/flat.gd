@@ -27,6 +27,7 @@ const DEADZONE := 0.2
 const STEP_UP := 0.5
 
 var rig: Rig
+var photo_tool: PhotoTool
 var yaw := 0.0
 var pitch := 0.0
 var mouse_held := false
@@ -168,6 +169,11 @@ func _process(delta: float) -> void:
 		_walk(rig.global_basis * level * Vector3(move.x, 0.0, move.y) * WALK * delta)
 	if Input.is_action_just_pressed("flat_next_tool") and not _taking_click and not wheel:
 		rig.right.tool = TOOLS[(TOOLS.find(rig.right.tool) + 1) % TOOLS.size()]
+	if photo_tool != null and rig.right.tool in PhotoTool.CAMERAS and not wheel:
+		if Input.is_action_just_pressed("flat_style"):
+			photo_tool.wear(((photo_tool.style + 1) % PhotoStyle.Kind.size()) as PhotoStyle.Kind, photo_tool.over_view)
+		if Input.is_action_just_pressed("flat_style_view"):
+			photo_tool.wear(photo_tool.style, not photo_tool.over_view)
 	var raised := rig.right.tool != Hand.Tool.NONE or wheel or rig.right.picking
 	if raised:
 		_wave_time = -1.0

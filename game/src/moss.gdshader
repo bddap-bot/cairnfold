@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode world_vertex_coords, cull_disabled;
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
@@ -28,7 +29,7 @@ void vertex() {
 void fragment() {
 	float grain = texture(detail, patch * 3.0).r;
 	float patchiness = texture(detail, patch * 0.55).r;
-	ALBEDO = mix(COLOR.rgb, vec3(0.035, 0.11, 0.028), wet) * mix(0.6, 1.35, grain) * mix(0.75, 1.15, patchiness);
+	ALBEDO = SCULPTED ? SCULPTURE : mix(COLOR.rgb, vec3(0.035, 0.11, 0.028), wet) * mix(0.6, 1.35, grain) * mix(0.75, 1.15, patchiness);
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	ALBEDO = mix(ALBEDO, SNOW * mix(0.92, 1.0, grain), snow_cover(up - 0.25, 1.0, patchiness) * (1.0 - wet));
 	ROUGHNESS = mix(1.0, 0.75, wet);

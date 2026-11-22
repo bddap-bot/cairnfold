@@ -1,3 +1,4 @@
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/roof_shadow.gdshaderinc"
 #include "res://src/piece.gdshaderinc"
@@ -148,7 +149,7 @@ void fragment() {
 #endif
 	float drift = 0.5;
 	if (abs(material - ELEMENT_PLASTER) < 0.5) {
-		ALBEDO = COLOR.rgb * occlusion * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
+		ALBEDO = SCULPTED ? SCULPTURE : COLOR.rgb * occlusion * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
 	} else {
 		vec3 surface_pos = miniature ? local_pos : world_pos;
 		vec3 p = surface_pos * 1.7;
@@ -166,7 +167,7 @@ void fragment() {
 			float m = stone_look[style].y;
 			mossy = smoothstep(0.9 - m, 1.0 - m * 0.6, world_nrm.y) * smoothstep(0.5 - m * 0.6, 0.6, patch) * smoothstep(0.35, 0.7, bounce.a) * min(m * 2.0, 1.0);
 		}
-		ALBEDO = mix(mix(base, moss, mossy * 0.8), glass_colour, glass) * occlusion;
+		ALBEDO = SCULPTED ? SCULPTURE : mix(mix(base, moss, mossy * 0.8), glass_colour, glass) * occlusion;
 	}
 	float snowy = 0.0;
 	if (COLOR.a > 0.0) {

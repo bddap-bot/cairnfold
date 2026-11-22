@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, specular_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/roof_shadow.gdshaderinc"
@@ -36,7 +37,7 @@ void fragment() {
 	vec3 base = COLOR.rgb * tint * (0.62 + straw * 0.7);
 	// COLOR.a: how weathered the roof is.
 	float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.5, 0.75, texture(detail, world_pos.xz * 0.3).r) * COLOR.a;
-	ALBEDO = mix(base, moss * (0.62 + straw * 0.7), mossy * 0.35);
+	ALBEDO = SCULPTED ? SCULPTURE : mix(base, moss * (0.62 + straw * 0.7), mossy * 0.35);
 	float snowy = 0.0;
 	if (season_winter > 0.0) {
 		snowy = snow_cover(world_nrm.y, 1.0 - room_in, straw);

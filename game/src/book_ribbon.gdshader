@@ -3,6 +3,7 @@ render_mode cull_disabled, diffuse_lambert_wrap;
 
 // VERTEX.z runs down the ribbon from where it leaves the pages.
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 
 uniform float glow = 0.0;
@@ -22,7 +23,7 @@ void fragment() {
 		discard;
 	}
 	float sheen = 0.7 + 0.3 * pow(abs(sin(UV.x * 3.14159)), 0.5) + 0.12 * sin(UV.y * 60.0 + UV.x * 9.0);
-	ALBEDO = colour * sheen;
+	ALBEDO = SCULPTED ? SCULPTURE : colour * sheen;
 	ROUGHNESS = 0.28;
 	SPECULAR = 0.65;
 	ANISOTROPY = 0.6;

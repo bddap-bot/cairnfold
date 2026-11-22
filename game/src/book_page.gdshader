@@ -4,6 +4,7 @@ render_mode cull_disabled, diffuse_lambert_wrap;
 // Hinged at x 0; `angle` 0 lies right, PI left. `*_paint` and `*_grain` are baked by book_paint.gdshader; `*_picture`
 // is a LessonScene. `*_horizon` runs 0 at the picture's top to 1 at its foot.
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/book.gdshaderinc"
 
@@ -93,7 +94,7 @@ void fragment() {
 	vec2 p = up ? UV : vec2(1.0 - UV.x, UV.y);
 	vec3 c = up ? page(p, front_paint, front_grain, front_picture, front_wash, front_horizon, front_fade, front_seed)
 		: page(p, back_paint, back_grain, back_picture, back_wash, back_horizon, back_fade, back_seed);
-	ALBEDO = c;
+	ALBEDO = SCULPTED ? SCULPTURE : c;
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.15;
 	AO = given.a;

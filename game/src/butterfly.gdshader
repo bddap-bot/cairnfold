@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled, specular_disabled, diffuse_lambert_wrap;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/wind.gdshaderinc"
 
@@ -33,8 +34,8 @@ void fragment() {
 	vec3 wing = COLOR.rgb * mix(0.7, 1.0, smoothstep(0.0, 0.35, edge)) * (part > 0.5 ? 0.88 : 1.0);
 	wing = mix(wing, wing * 0.25, smoothstep(0.82, 0.94, edge));
 	bool is_body = part > 1.5;
-	ALBEDO = is_body ? body : wing;
-	BACKLIGHT = is_body ? vec3(0.0) : wing * 0.6;
+	ALBEDO = SCULPTED ? SCULPTURE : is_body ? body : wing;
+	BACKLIGHT = is_body || SCULPTED ? vec3(0.0) : wing * 0.6;
 	ROUGHNESS = 0.9;
 	TAKE_GIVEN;
 }

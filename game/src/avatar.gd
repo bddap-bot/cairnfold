@@ -1156,6 +1156,7 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	for j: Joint in a._joints.values():
 		a._find_base(j, placed)
 	a._dress(a._model, tint)
+	PhotoStyle.carve(a._model)
 	if a._model.has_meta("expressions"):
 		a.expressions = ExpressionPlayer.new(a._model)
 		a.expressions.switched.connect(a._budget)

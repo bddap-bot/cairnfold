@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, specular_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/plaster.gdshaderinc"
@@ -32,7 +33,7 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = albedo * tint * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
+	ALBEDO = SCULPTED ? SCULPTURE : albedo * tint * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
 	vec4 bounce = texture(bounce_volume, bounce_at);

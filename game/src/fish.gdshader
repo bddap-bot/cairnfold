@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, diffuse_lambert_wrap, specular_disabled, shadows_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
@@ -31,7 +32,7 @@ void fragment() {
 	vec3 skin = pow(COLOR.rgb, vec3(2.2));
 	vec3 c = mix(mix(skin, vec3(0.9, 0.85, 0.75), 0.4), skin, top);
 	c = mix(c, vec3(0.92, 0.88, 0.8), top * patch * 0.45 * (1.0 - UV.x));
-	ALBEDO = mix(mix(c, tint, 0.25), ICE, season_winter * 0.12);
+	ALBEDO = SCULPTED ? SCULPTURE : mix(mix(c, tint, 0.25), ICE, season_winter * 0.12);
 	ALPHA = 0.88 * shown;
 	TAKE_GIVEN;
 }

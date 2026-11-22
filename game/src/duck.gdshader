@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, shadows_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/turn.gdshaderinc"
 
@@ -69,7 +70,7 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = COLOR.rgb;
+	ALBEDO = SCULPTED ? SCULPTURE : COLOR.rgb;
 	ROUGHNESS = COLOR.r < 0.1 ? 0.25 : 0.75;
 	SPECULAR = COLOR.r < 0.1 ? 0.6 : 0.3;
 	TAKE_GIVEN;

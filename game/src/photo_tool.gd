@@ -34,9 +34,18 @@ const VIDEO_QUALITY := 0.8
 const SUBJECT := 0.25
 ## Past this many frames awaiting write, a frame is dropped and its time goes to the next: writing never holds up play.
 const VIDEO_QUEUE := 6
+## Metres from a camera's body within which the other hand's grip takes its style dial.
+const DIAL_REACH := 0.1
+## Metres over the camera's body the gripping hand lays the style over the whole view, and under which it takes it off.
+const OVER_VIEW := 0.18
+const UNDER_VIEW := 0.1
+const CARD := Vector2(0.04, 0.03)
 
 var rig: Rig
 var folder := Main.photos_folder()
+## What every camera's lens draws through, and the eyes too while `over_view`.
+var style := PhotoStyle.Kind.PLAIN
+var over_view := false
 var flora: Flora
 var easels: Easels
 ## Called when the shutter is pressed, since the garden changes while the photo is drawn: {"about": Dictionary,
@@ -70,9 +79,15 @@ var _last_jpg := PackedByteArray()
 var _queue: Array[Dictionary] = []
 var _reading := 0
 var _writing := -1
+## The hand turning the style dial and the camera whose dial it holds.
+var _turner: Hand
+var _turned: Hand
+var _dial: Dial
 
 
 func _init(player: Rig) -> void:
+	# Before the tools that take a grip as it is pressed, so a grip at a camera turns its dial and nothing else.
+	process_priority = -1
 	rig = player
 	for h in rig.hands:
 		_pressed_for.append(-1.0)
@@ -143,6 +158,7 @@ func holders() -> Array[Hand]:
 
 func _process(delta: float) -> void:
 	var held := holders()
+	_turn_dial(held)
 	for h in _shots:
 		_shots[h] = maxf(_shots[h] - delta, 0.0)
 	_write()
@@ -176,7 +192,7 @@ func _process(delta: float) -> void:
 			_previews[h] = preview
 		_show(screen(h, h.tool), preview.get_texture(), Color.WHITE)
 		if h == drawing:
-			_aim(preview, lens(h), FOV, Quality.VIEW_MASK)
+			_aim(preview, lens(h), FOV, Quality.VIEW_MASK, style)
 			preview.render_target_update_mode = SubViewport.UPDATE_ONCE
 			if h == _clip_hand:
 				_grab(preview)
@@ -200,6 +216,85 @@ func _process(delta: float) -> void:
 			_pressed_for[i] = -1.0
 
 
+## The eyes draw through `kind` too while `view`.
+func wear(kind: PhotoStyle.Kind, view: bool) -> void:
+	style = kind
+	over_view = view
+	PhotoStyle.dress(rig.head, kind if view else PhotoStyle.Kind.PLAIN, rig.head.cull_mask)
+
+
+func view_style() -> PhotoStyle.Kind:
+	return style if over_view else PhotoStyle.Kind.PLAIN
+
+
+func body(camera: Hand) -> Vector3:
+	return camera.global_transform * Hand.TOP
+
+
+## The other hand's grip at a held camera takes its dial: twisting turns the style, live on every lens, and letting go
+## raised over the camera leaves it on the whole view.
+func _turn_dial(held: Array[Hand]) -> void:
+	if _turner != null:
+		if not _turner.buttons.held("grab") or not _turner.tracked() or not held.has(_turned):
+			_close_dial()
+			return
+		_turner.hold()
+		if _dial.twist(_turner, _dial.wrist(_turner)):
+			wear(_dial.pick as PhotoStyle.Kind, over_view)
+		var risen := _turner.global_position.y - body(_turned).y
+		if risen > OVER_VIEW and not over_view or risen < UNDER_VIEW and over_view:
+			wear(style, not over_view)
+		_dial.follow(_turner)
+		return
+	for h in rig.hands:
+		if held.has(h) or not h.buttons.pressed("grab") or h.taken() or h.picking or not h.tracked():
+			continue
+		for camera in held:
+			if h.global_position.distance_to(body(camera)) <= DIAL_REACH:
+				_open_dial(h, camera)
+				return
+
+
+func _open_dial(hand: Hand, camera: Hand) -> void:
+	_turner = hand
+	_turned = camera
+	hand.hold()
+	_dial = Dial.new()
+	add_child(_dial)
+	var cards: Array[Node3D] = []
+	var preview: SubViewport = _previews.get(camera)
+	for kind: PhotoStyle.Kind in PhotoStyle.Kind.values():
+		cards.append(card(kind, preview.get_texture() if preview != null else null))
+	_dial.open(hand, cards, style)
+
+
+func _close_dial() -> void:
+	for c in _dial.release():
+		c.queue_free()
+	_dial = null
+	_turner = null
+	_turned = null
+
+
+## A small print of the lens's view in `kind`'s colours, for the eyes alone: a lens drawing it would read its own view.
+static func card(kind: PhotoStyle.Kind, lens_view: Texture2D) -> MeshInstance3D:
+	var quad := QuadMesh.new()
+	quad.size = CARD
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://src/style_card.gdshader")
+	mat.set_shader_parameter(&"lens", lens_view)
+	var tone: Variant = PhotoStyle.TONES[kind]
+	mat.set_shader_parameter(&"tone", tone if tone != null else Basis.IDENTITY)
+	mat.set_shader_parameter(&"strokes", kind == PhotoStyle.Kind.PAINTERLY)
+	mat.set_shader_parameter(&"white", kind == PhotoStyle.Kind.SCULPTURE)
+	var m := MeshInstance3D.new()
+	m.mesh = quad
+	m.material_override = mat
+	m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	m.layers = Quality.EYES_LAYER
+	return m
+
+
 static func screen(hand: Hand, tool: Hand.Tool) -> StandardMaterial3D:
 	return ToolModels.screen(hand.model(tool))
 
@@ -217,18 +312,18 @@ static func lens(hand: Node3D) -> Transform3D:
 	return Transform3D(basis, t * (Hand.TOP + ToolModels.CAMERA_LENS))
 
 
-func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int) -> void:
+func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int, kind := PhotoStyle.Kind.PLAIN) -> void:
 	var cam: Camera3D = vp.get_child(0)
 	cam.global_transform = at
 	cam.fov = fov
-	cam.cull_mask = mask
+	PhotoStyle.dress(cam, kind, mask)
 	if rig.body != null and rig.body.visible and mask & Quality.SELF_LAYER:
 		rig.pose_body()
 
 
 func render_screen(at: Transform3D) -> Image:
 	var vp := _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
-	_aim(vp, at, FOV, Quality.VIEW_MASK)
+	_aim(vp, at, FOV, Quality.VIEW_MASK, style)
 	await _draw_complete(vp)
 	var img: Image = (await _read([vp])).pop_front()
 	vp.queue_free()
@@ -241,7 +336,8 @@ func shoot(hand: Hand) -> String:
 	Cues.play(Cues.Act.PHOTO, at.origin, hand)
 	var around: Dictionary = scene.call()
 	var subjects := _subjects(at)
-	var img := await render(at, FOV, Quality.PHOTO_MASK)
+	var look := style
+	var img := await render(at, FOV, Quality.PHOTO_MASK, look)
 	if img == null:
 		return ""
 	var msaa := _photo_msaa
@@ -255,7 +351,8 @@ func shoot(hand: Hand) -> String:
 	var path := _reserve("png")
 	var about: Dictionary = around.about.duplicate()
 	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(msaa),
-		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV}})
+		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV},
+		"style": PhotoStyle.named(look)})
 	# The frame the reads land on copies them out of GPU memory (`_read`): it ends under the cover.
 	await get_tree().process_frame
 	rig.uncover()
@@ -511,7 +608,7 @@ func _on_worker(work: Callable) -> Error:
 
 
 ## With Quality.FULL_LAYER in `mask`, returns with the view still covered for the caller to lift (Rig.uncover).
-func render(at: Transform3D, fov: float, mask: int) -> Image:
+func render(at: Transform3D, fov: float, mask: int, kind := PhotoStyle.Kind.PLAIN) -> Image:
 	var rd := RenderingServer.get_rendering_device()
 	if rd == null or not is_inside_tree():
 		push_error("photo: no renderer to take it with")
@@ -521,7 +618,7 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	_busy = true
 	if mask & Quality.FULL_LAYER == 0:
 		var view := _view_viewport()
-		_aim(view, at, fov, mask)
+		_aim(view, at, fov, mask, kind)
 		await _draw_complete(view)
 		var seen: Image = (await _read([view])).pop_front()
 		_busy = false
@@ -530,7 +627,7 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 		_photo_msaa = photo_msaa(OS.get_memory_info().available)
 	# Drawing the full view again each frame its pipelines still compile took a Quest 2 185 ms a frame.
 	var warm := _photo_view(PREVIEW_SIZE, _photo_msaa)
-	_aim(warm, at, fov, mask)
+	_aim(warm, at, fov, mask, kind)
 	await _draw_complete(warm, true)
 	warm.queue_free()
 	_covered_at_msec = Time.get_ticks_msec()
@@ -543,7 +640,7 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	var atlas: int = ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size")
 	var bits: bool = ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/16_bits")
 	RenderingServer.directional_shadow_atlas_set_size(PHOTO_SHADOWS, bits)
-	_aim(_photo, at, fov, mask)
+	_aim(_photo, at, fov, mask, kind)
 	await _draw_complete(_photo, true)
 	RenderingServer.directional_shadow_atlas_set_size(atlas, bits)
 	var img: Image = (await _read([_photo])).pop_front()

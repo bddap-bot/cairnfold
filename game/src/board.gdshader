@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_opaque, cull_back;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/paint.gdshaderinc"
 
@@ -26,7 +27,7 @@ void fragment() {
 	float inside = (1.0 - smoothstep(open - 0.01, open, length(at / (board * 0.5)))) * smoothstep(thumb_clear, thumb_clear + 0.002, distance(at, thumb));
 	vec3 pigment = d.rgb + w.rgb;
 	ALPHA = max(smoothstep(0.02, 0.35, d.a), smoothstep(0.02, 0.3, max(pigment.r, max(pigment.g, pigment.b)))) * inside;
-	ALBEDO = canvas_colour(w, d, tooth);
+	ALBEDO = SCULPTED ? SCULPTURE : canvas_colour(w, d, tooth);
 	vec3 mean_normal = texture(relief, UV).rgb * 2.0 - 1.0;
 	NORMAL_MAP = normalize(mean_normal) * 0.5 + 0.5;
 	float oil = smoothstep(0.02, 0.2, d.a);

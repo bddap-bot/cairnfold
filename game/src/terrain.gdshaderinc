@@ -1,3 +1,4 @@
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
@@ -161,7 +162,7 @@ void fragment() {
 	mediump vec3 worn = mix(trodden * (0.85 + fine * 0.3), tilled * (0.7 + fine * 0.6), smoothstep(0.4, 0.5, cover.b));
 	c = mix(c, worn, smoothstep(0.1, 0.7, cover.r * (1.0 - cover.g) + (d - 0.5) * 0.3));
 	// Slabs stay over the sand; a slope's own rock goes under it.
-	ALBEDO = mix(c, sand * (0.92 + fine * 0.16), smoothstep(0.1, 0.7, cover.a * (1.0 - cover.g) + (d - 0.5) * 0.3));
+	ALBEDO = SCULPTED ? SCULPTURE : mix(c, sand * (0.92 + fine * 0.16), smoothstep(0.1, 0.7, cover.a * (1.0 - cover.g) + (d - 0.5) * 0.3));
 	if (season_winter > 0.0) {
 		ALBEDO = mix(ALBEDO, SNOW * (0.94 + fine * 0.06), snow_cover(1.0 - s, sky_seen, d) * lying * (1.0 - TRODDEN * clamp(max(cover.r, max(cover.g, cover.a)), 0.0, 1.0)));
 	}

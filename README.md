@@ -49,6 +49,9 @@ also holds the people: avatars to wear, and nearby gardens to join.
   A photo of an easel, its canvas a quarter of the frame or more and facing the lens,
   also saves that painting beside it, flat at the canvas's full 1536×1152, with its
   height off the board as a 16-bit greyscale PNG.
+  Grip the camera with the other hand and twist to turn its dial of styles: painterly,
+  sculpture (everything white) or a colour filter; let go with that hand raised over the
+  camera to keep the style on everything you see while you build.
 - Holding seeds: hold the hand out and keep it calm. A conure may fly down and eat
   standing on it; ducks and sheep come to seeds held low by their pond or fence.
   Animals let you come right up if you move slowly; a sudden move startles them.

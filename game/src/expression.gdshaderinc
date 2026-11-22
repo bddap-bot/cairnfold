@@ -1,3 +1,4 @@
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/flat_light.gdshaderinc"
 
 uniform sampler2D picture : source_color, filter_linear_mipmap_anisotropic;
@@ -620,4 +621,9 @@ void fragment() {
 #endif
 	ALBEDO *= glow_and_brightness.y;
 	EMISSION = EMISSION * glow_and_brightness.y + clamp(glowing * replacing, 0.0, 1.0) * replaced + glowing + rim_glow;
+	// Matcaps, rims, coats and glows all carry the avatar's own colours, so a sculpture keeps only its light.
+	if (SCULPTED) {
+		ALBEDO = SCULPTURE;
+		EMISSION = SCULPTURE * (flat_lit > 0.5 ? flat_light + min(tinted.rgb * SCULPTURE, vec3(tinted.a)) : given.rgb);
+	}
 }

@@ -1,5 +1,6 @@
 shader_type spatial;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/paint.gdshaderinc"
 
@@ -17,7 +18,7 @@ void fragment() {
 	vec4 d = texture(dry, UV);
 	vec2 tooth = texture(paper, UV).rg;
 	float damp = canvas_damp(w);
-	ALBEDO = canvas_colour(w, d, tooth);
+	ALBEDO = SCULPTED ? SCULPTURE : canvas_colour(w, d, tooth);
 	vec3 mean_normal = texture(relief, UV).rgb * 2.0 - 1.0;
 	NORMAL_MAP = normalize(mean_normal) * 0.5 + 0.5;
 	float oil = smoothstep(0.02, 0.2, d.a);

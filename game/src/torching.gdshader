@@ -1,5 +1,6 @@
 shader_type spatial;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
@@ -32,7 +33,7 @@ void fragment() {
 	vec3 p = world_pos * 1.7;
 	vec3 n = abs((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	float grain = COLOR.r > 0.5 ? (n.x > n.z ? texture(detail, p.yz).r : texture(detail, p.xy).r) : texture(detail, p.xz).r;
-	ALBEDO = albedo * mix(tint, backing_tint, COLOR.r) * (0.78 + grain * 0.45);
+	ALBEDO = SCULPTED ? SCULPTURE : albedo * mix(tint, backing_tint, COLOR.r) * (0.78 + grain * 0.45);
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;
 	vec4 bounce = texture(bounce_volume, bounce_at);

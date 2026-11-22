@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/book.gdshaderinc"
 
@@ -51,7 +52,7 @@ void fragment() {
 		} else {
 			c = cover(local, n, size, front, cloth, leather, rough, metal);
 		}
-		ALBEDO = c;
+		ALBEDO = SCULPTED ? SCULPTURE : c;
 		METALLIC = metal;
 		ROUGHNESS = rough;
 	} else {
@@ -63,7 +64,7 @@ void fragment() {
 		fore *= step(0.25, deckle) * 0.4 + 0.6;
 		vec2 at = vec2(lp.z + lp.x, lp.y) * vec2(180.0, 900.0);
 		c = mix(c, edge_paint * (0.85 + 0.25 * noise(at)), clamp(fore, 0.0, 1.0) * (0.75 + 0.25 * noise(at * 0.3)));
-		ALBEDO = c;
+		ALBEDO = SCULPTED ? SCULPTURE : c;
 		ROUGHNESS = 0.95;
 	}
 	SPECULAR = 0.2;

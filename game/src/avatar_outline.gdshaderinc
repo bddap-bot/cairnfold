@@ -1,3 +1,4 @@
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/flat_light.gdshaderinc"
 
 // unity/materials.gd outline_layer: each atlas texel's colour, and in alpha its share of `width`. Read nearest: where
@@ -35,7 +36,7 @@ void vertex() {
 
 void fragment() {
 	vec2 uv = UV * atlas.xy + atlas.zw;
-	ALBEDO = texture(outline, uv).rgb;
+	ALBEDO = SCULPTED ? SCULPTURE : texture(outline, uv).rgb;
 #ifdef CUT
 	ALPHA = texture(picture, uv).a * colour.a;
 	ALPHA_SCISSOR_THRESHOLD = 0.5;

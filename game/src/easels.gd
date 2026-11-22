@@ -139,6 +139,7 @@ func _easel() -> Easel:
 	_canvas(e)
 	_board(e)
 	_build(e)
+	PhotoStyle.carve(e)
 	return e
 
 

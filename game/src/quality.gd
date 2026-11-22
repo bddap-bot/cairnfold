@@ -88,12 +88,14 @@ const LADDER_LAYER := 1 << 16
 const FULL_LAYER := 1 << 17
 ## Only cameras and mirrors see the player's own avatar: their eyes would see its head from inside.
 const SELF_LAYER := 1 << 18
-## The player's own avatar without its head (Avatar.headless).
+## What only the eyes see: the player's own avatar without its head (Avatar.headless), a camera's style dial.
 const EYES_LAYER := 1 << 19
 ## Every body drawn for a person but the player's own: what a mirror reflects (MirrorTool).
 const PEOPLE_LAYER := 1 << 14
 ## A mirror's own light, which lights only the people it reflects.
 const MIRROR_LAYER := 1 << 13
+## Past the 20 layers a node can be on, so only a camera holds it: that camera draws the garden white (sculpture.gdshaderinc).
+const SCULPTURE_LAYER := 1 << 20
 const VIEW_MASK := 0xFFFFF & ~FULL_LAYER & ~MIRROR_LAYER & ~EYES_LAYER
 const PHOTO_MASK := 0xFFFFF & ~LADDER_LAYER & ~MIRROR_LAYER & ~EYES_LAYER
 const MIRROR_MASK := PEOPLE_LAYER | SELF_LAYER | MIRROR_LAYER

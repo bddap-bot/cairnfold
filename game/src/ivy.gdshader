@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
 
@@ -27,8 +28,8 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = COLOR.rgb;
+	ALBEDO = SCULPTED ? SCULPTURE : COLOR.rgb;
 	ROUGHNESS = 0.75;
-	BACKLIGHT = seasoned(backlight, season_foliage);
+	BACKLIGHT = SCULPTED ? vec3(0.0) : seasoned(backlight, season_foliage);
 	TAKE_GIVEN;
 }

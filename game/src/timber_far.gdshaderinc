@@ -1,5 +1,6 @@
 // No per-fragment reads: past the near distance a beam is a few pixels wide, its detail averages to the colour it
 // scales (0.78 + 0.45 x its mean of 0.5), and its bounce light varies too little across it.
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/piece.gdshaderinc"
@@ -29,7 +30,7 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = COLOR.rgb * occlusion;
+	ALBEDO = SCULPTED ? SCULPTURE : COLOR.rgb * occlusion;
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
 	EMISSION = ALBEDO * given.rgb;

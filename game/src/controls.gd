@@ -101,5 +101,7 @@ const FLAT := {
 	"tool": [["mouse", MOUSE_BUTTON_LEFT], ["axis", JOY_AXIS_TRIGGER_RIGHT, 1.0], ["button", JOY_BUTTON_A]],
 	"next_tool": [["key", KEY_TAB], ["mouse", MOUSE_BUTTON_RIGHT], ["button", JOY_BUTTON_Y]],
 	"wave": [["key", KEY_F], ["button", JOY_BUTTON_X]],
+	"style": [["key", KEY_C], ["button", JOY_BUTTON_B]],
+	"style_view": [["key", KEY_V], ["button", JOY_BUTTON_RIGHT_SHOULDER]],
 	"let_go": [["key", KEY_ESCAPE]],
 }

@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, specular_disabled;
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 void vertex() {
 	float phase = INSTANCE_CUSTOM.x;
@@ -12,7 +13,7 @@ void vertex() {
 	GIVE_HERE;
 }
 void fragment() {
-	ALBEDO = COLOR.rgb;
+	ALBEDO = SCULPTED ? SCULPTURE : COLOR.rgb;
 	ROUGHNESS = 0.65;
 	TAKE_GIVEN;
 }

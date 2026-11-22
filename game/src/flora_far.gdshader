@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode skip_vertex_transform, cull_disabled, diffuse_lambert_wrap, specular_disabled;
 
+#include "res://src/sculpture.gdshaderinc"
 #include "res://src/given.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
@@ -40,7 +41,7 @@ void vertex() {
 
 void fragment() {
 	NORMAL = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
-	ALBEDO = tint;
+	ALBEDO = SCULPTED ? SCULPTURE : tint;
 	ROUGHNESS = 0.9;
 	TAKE_GIVEN;
 }

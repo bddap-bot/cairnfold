@@ -32,6 +32,10 @@ textures/vram_compression/import_etc2_astc=true
 
 [shader_globals]
 
+sculpture_layer={
+"type": "uint",
+"value": 0
+}
 view_grade={
 "type": "vec2",
 "value": Vector2(1, 1)

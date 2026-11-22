@@ -201,6 +201,7 @@ func _ready() -> void:
 	metrics.info.flat = Main.flat_wanted(args, metrics.info.xr, played)
 	if metrics.info.flat:
 		flat = Flat.new(rig)
+		flat.photo_tool = photo_tool
 		add_child(flat)
 	var pace := Callable()
 	if metrics.info.xr:
@@ -429,9 +430,9 @@ func capture(name: String, screen := false, lens: Variant = null) -> void:
 	if screen:
 		img = await photo_tool.render_screen(rig.head.global_transform)
 	elif lens != null:
-		img = await photo_tool.render(lens, PhotoTool.FOV, Quality.VIEW_MASK)
+		img = await photo_tool.render(lens, PhotoTool.FOV, Quality.VIEW_MASK, photo_tool.style)
 	elif metrics.info.xr:
-		img = await photo_tool.render(rig.head.global_transform, 90.0, rig.head.cull_mask)
+		img = await photo_tool.render(rig.head.global_transform, 90.0, rig.head.cull_mask, photo_tool.view_style())
 	else:
 		await RenderingServer.frame_post_draw
 		img = get_viewport().get_texture().get_image()
