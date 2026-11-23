@@ -82,7 +82,7 @@ func _one_avatar_fits_any_wearer(rig: Rig, scene: PackedScene, name: String, eye
 	return stretch
 
 
-## A file may put the eyes well ahead of the face, as a helmet's visor does: the body then stands forward under the
+## A file may put the eyes well ahead of the face: the body then stands forward under the
 ## view, so the shoulders stand behind the wearer's eyes as far as a person's do.
 func _shoulders_stand_where_the_wearers_do(rig: Rig, scene: PackedScene) -> void:
 	var model := scene.instantiate()

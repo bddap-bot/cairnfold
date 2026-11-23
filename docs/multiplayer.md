@@ -143,7 +143,7 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   solved from those three, and every player solves it alike from the same streamed poses,
   so the network carries no body. The body hangs from the head bone and turns with the
   head once it has turned further than a neck turns. Where a file puts the eyes farther ahead of the
-  shoulders than a person's stand (`Avatar.SHOULDERS_BEHIND`, as a helmet's visor does), the body
+  shoulders than a person's stand (`Avatar.SHOULDERS_BEHIND`), the body
   stands forward under the view until its shoulders are where the wearer's are, so its arms reach the
   wearer's hands, and its drawn face stands that much ahead of the wearer's own; the spine bends forward about the
   head as the head looks down and as it crouches, so the hips go back. The feet stand
