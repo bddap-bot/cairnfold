@@ -9,7 +9,7 @@ const NEAR := 0.02
 const FAR := 2600.0
 ## Real metres, until `stature` has measured the wearer's.
 const EYE := 1.65
-## A fraction of the scale: past it the view fades out and in at the new scale, so the world never grows in view.
+## A fraction of the scale: past it a new avatar fades the view out and in at its scale, so the world never grows in view.
 const REFIT := 0.02
 ## Past these an avatar stands above the floor or sinks into it.
 const FITS := Vector2(0.1, 10.0)
@@ -156,6 +156,8 @@ func wear(a: Avatar) -> void:
 		mi.layers = Quality.EYES_LAYER
 	add_child(a)
 	_landing.wear(a)
+	if _pending == null and not _covered and absf(fit() / world_scale - 1.0) > REFIT:
+		_cut(null, 0.0, "a new avatar")
 
 
 ## A hand holding a tool is drawn as the tool alone, so its fingers never reach in front of a camera's lens.
@@ -213,23 +215,18 @@ func far() -> float:
 	return maxf(FAR, terrain.bounds().size.length() + AIR_REACH + MAX_LIFT)
 
 
+## The stature reads the head before a cut rescales it: the runtime's head follows the new scale only next frame.
 func _process(delta: float) -> void:
+	stature.add(head.position.y / world_scale, delta)
 	head.far = Look.WATER_FOG.fog_depth_end if under else far()
 	_locomotion_input(delta)
 	_fade_step(delta)
 	_underfoot.follow(head.global_position, global_position.y, _floor_y)
-	_refit(delta)
 
 
 ## The avatar's eye height over the wearer's, so they see from its eyes and reach as far as its arms.
 func fit() -> float:
 	return clampf(body.eye_height / stature.eye(EYE), FITS.x, FITS.y) if body != null else 1.0
-
-
-func _refit(delta: float) -> void:
-	stature.add(head.position.y / world_scale, delta)
-	if _fade_t < 0.0 and aim_hand == null and absf(fit() / world_scale - 1.0) > REFIT:
-		_cut(null, 0.0)
 
 
 func _locomotion_input(delta: float) -> void:
@@ -338,15 +335,19 @@ func teleport(ground: Vector3, lift_m: float) -> void:
 	var at := ground + Vector3.UP * (lift_m + head.position.y)
 	var landing := lift_m <= LIFTED and head.global_position.distance_to(at) > MARKER_NEAR_M
 	Cues.play(Cues.Act.TELEPORT_ONTO if landing else Cues.Act.TELEPORT, at, left if aim_hand == null else aim_hand)
-	_cut(ground, lift_m)
+	_cut(ground, lift_m, "a teleport")
 
 
 ## With no `ground`, sets the player down where the head stands once the view is black, at the height it stands at
 ## then: a scripted view taken during the fade holds.
-func _cut(ground: Variant, lift_m: float) -> void:
+## Under a cover it lands once the cover is black; mid-fade it goes on from how dark the view already is.
+func _cut(ground: Variant, lift_m: float, why: String) -> void:
+	Metrics.note("view: fades to black for %s" % why)
 	_pending = [ground, lift_m]
+	if _covered:
+		return
+	_fade_t = 0.0 if _fade_t < 0.0 else minf(_fade_t, _fade_s * 2.0 - _fade_t) * FADE / _fade_s
 	_fade_s = FADE
-	_fade_t = 0.0
 	_fade.visible = true
 
 
@@ -355,7 +356,7 @@ func blackout() -> bool:
 	if not _covered:
 		end_aim()
 		_pending = null
-	return cover()
+	return cover(FADE, "a garden swapping in")
 
 
 func respawn() -> void:
@@ -366,8 +367,9 @@ func respawn() -> void:
 
 
 ## Says whether it is black yet. Black is never brighter than what it covers.
-func cover(fade := FADE) -> bool:
+func cover(fade: float, why: String) -> bool:
 	if not _covered:
+		Metrics.note("view: fades to black for %s" % why)
 		_covered = true
 		_fade_t = 0.0 if _fade_t < 0.0 else minf(_fade_t, _fade_s * 2.0 - _fade_t) * fade / _fade_s
 		_fade_s = fade
@@ -398,11 +400,13 @@ func spawn() -> Vector3:
 
 
 ## The head moves with the scale between frames, as a runtime reports it, never within one, so a session record keeps
-## each frame's head as given and a replay places the player from the same pose.
+## each frame's head as given and a replay places the player from the same pose. The wearer's measured stature refits
+## them only here, so one who stands up after starting low never sees the view go black for it.
 func place(ground: Vector3, lift_m: float) -> void:
 	var s := fit()
 	var h := global_transform * (head.position * s / world_scale)
 	if s != world_scale:
+		Metrics.note("view: scale %.4f -> %.4f for a wearer's eyes %.3f m up" % [world_scale, s, stature.eye(EYE)])
 		(func(by: float) -> void: head.position *= by).call_deferred(s / world_scale)
 	world_scale = s
 	head.near = NEAR * s

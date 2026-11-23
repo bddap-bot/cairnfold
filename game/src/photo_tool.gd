@@ -639,7 +639,7 @@ func render(at: Transform3D, fov: float, mask: int, kind := PhotoStyle.Kind.PLAI
 	await _draw_complete(warm, true)
 	warm.queue_free()
 	_covered_at_msec = Time.get_ticks_msec()
-	while not rig.cover(PHOTO_FADE):
+	while not rig.cover(PHOTO_FADE, "a photo"):
 		await get_tree().process_frame
 	# The photo's view is made under the cover and let go once the screen stops showing it: held, its buffers left
 	# the system short enough of memory to page the engine's own code back in on the main thread (148 ms frames).

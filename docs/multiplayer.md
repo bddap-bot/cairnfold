@@ -170,9 +170,11 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   the wearer's own eye height as they play: the height their head is held at or below
   nine tenths of the time, so crouching to plant or a moment on tiptoe leaves it alone,
   and someone seated throughout stands as tall as the avatar; until two seconds are
-  measured it is the typical `Rig.EYE`. A new fit, from another avatar or the measure
-  settling, comes behind a fade, as a teleport does: the world never grows in view. On a
-  flat screen the eyes stand at the avatar's eye height.
+  measured it is the typical `Rig.EYE`. Another avatar's fit comes behind a fade, as a
+  teleport does: the world never grows in view. The measure settling refits the wearer
+  only at their next teleport, so one who stands up after starting low never sees the
+  view go black. Each fade and each change of scale is a Metrics note naming why and the
+  scales either side. On a flat screen the eyes stand at the avatar's eye height.
 - **Lying and sitting.** A player lying down or sitting is shown in a recorded human
   pose: on the back, on either side (one recording and its mirror), on the front,
   sitting on the ground with the hands forward or leaning back on them, or sitting on

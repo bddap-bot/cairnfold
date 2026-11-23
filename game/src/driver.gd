@@ -164,8 +164,8 @@ func _pick(s: Dictionary) -> void:
 	var start := hand.global_position
 	var reach := func(p: Vector2) -> void:
 		Hand.injected_reach[hand.tracker] = p
-	# Setting the player down, dressing, or refitting after a change of avatar closes the wheel.
-	while main.rig._pending != null or main.session.dressing() or absf(main.rig.fit() / main.rig.world_scale - 1.0) > Rig.REFIT:
+	# Setting the player down, a change of avatar's refit among them, or dressing closes the wheel.
+	while main.rig._pending != null or main.session.dressing():
 		await get_tree().process_frame
 	Buttons.injected[key] = true
 	await _frames(3)

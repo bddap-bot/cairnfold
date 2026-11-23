@@ -299,6 +299,12 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 13.5}})
 	await _settled()
 	check(world.state.walls[tall_id].height == 4.5, "pulling a wall among the others taller than the budget allows is turned down")
+	var said := [""]
+	Metrics._notes.clear()
+	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 13.5, "rise": 6.0}}, func() -> void:
+		said[0] = "; ".join(Metrics._notes.map(func(n: Dictionary) -> String: return n.what)))
+	await _settled()
+	check(said[0].contains("reshape walls #%d rise 6.00 turned down" % tall_id), "the record names a raise turned down: %s" % said[0])
 	await play([{"op": "bare"}])
 	await _settled()
 

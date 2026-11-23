@@ -47,9 +47,12 @@ func _wear(rig: Rig, scene: PackedScene, eye_m: float) -> Avatar:
 	rig.stature = Stature.new()
 	rig.wear(Avatar.open(scene, Color.WHITE))
 	rig.place(terrain.ground(0, 0), 0.0)
-	for i in int((Stature.SETTLE + 4.0 * Rig.FADE) / STEP) + 2:
+	for i in int(Stature.SETTLE / STEP) + 2:
 		rig.head.position = Vector3(0.1, eye_m * rig.world_scale, -0.2)
 		rig._process(STEP)
+	rig.place(terrain.ground(0, 0), 0.0)
+	rig.head.position = Vector3(0.1, eye_m * rig.world_scale, -0.2)
+	rig._process(STEP)
 	rig.pose_body()
 	return rig.body
 

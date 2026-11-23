@@ -503,7 +503,7 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 		return
 	_next_token += 1
 	cmd.token = _next_token
-	_sent[_next_token] = {"op": cmd.get("op"), "hand": hand}
+	_sent[_next_token] = {"op": _named(cmd), "hand": hand}
 	if done.is_valid():
 		_sent[_next_token].done = done
 	if multiplayer.is_server():
@@ -626,12 +626,28 @@ static func _gather(cmd: Dictionary) -> void:
 		cmd.clutter = ClutterLayout.of_path(cmd)
 
 
+## What a refusal note names: a house raised or moved reads "reshape walls #7 rise 1.20". A peer's command is
+## untrusted, so only a batch's first few are named.
+static func _named(cmd: Dictionary, depth := 0) -> String:
+	var out := str(cmd.get("op")).left(16)
+	if cmd.get("op") == "batch" and cmd.get("cmds") is Array and depth == 0:
+		var cmds: Array = cmd.cmds
+		var named := cmds.slice(0, 3).map(func(c: Variant) -> String: return _named(c, 1) if c is Dictionary else "?")
+		return "batch of %d: %s" % [cmds.size(), ", ".join(named)]
+	if cmd.get("of") is String:
+		out += " %s #%s" % [str(cmd.of).left(16), str(cmd.get("id")).left(16)]
+	var data: Variant = cmd.get("data")
+	if data is Dictionary and ((data as Dictionary).get("rise") is float or (data as Dictionary).get("rise") is int):
+		out += " rise %.2f" % data.rise
+	return out
+
+
 func _refuse(by: int, proposed: Dictionary, why: String) -> void:
 	var token: Variant = proposed.get("token")
 	if by == me() and typeof(token) == TYPE_INT:
 		_turned_down(token, why)
 		return
-	print("world: refused %s from player %d: %s" % [str(proposed.get("op")).left(16), by, why])
+	Metrics.note("world: refused %s from player %d: %s" % [_named(proposed), by, why])
 	if typeof(token) == TYPE_INT:
 		if why == OVER:
 			_capped.rpc_id(by, token)
@@ -653,7 +669,7 @@ func _capped(token: int) -> void:
 
 func _turned_down(token: int, why: String) -> void:
 	var sent: Dictionary = _sent.get(token, {})
-	print("world: %s turned down: %s" % [sent.get("op"), why])
+	Metrics.note("world: %s turned down: %s" % [sent.get("op"), why])
 	var hand: XRController3D = sent.get("hand")
 	if hand != null and not is_instance_valid(hand):
 		hand = null

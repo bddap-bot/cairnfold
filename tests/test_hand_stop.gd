@@ -49,9 +49,9 @@ func _an_eye_inside_a_wall_or_hill_sees_dark() -> void:
 func _a_cover_fades_to_black_holds_and_fades_back() -> void:
 	var rig: Rig = main.rig
 	var dim := func() -> float: return rig._fade_mat.albedo_color.a if rig._fade.visible else 0.0
-	check(not rig.cover(PhotoTool.PHOTO_FADE), "a cover is not black on the frame it starts")
+	check(not rig.cover(PhotoTool.PHOTO_FADE, "a photo"), "a cover is not black on the frame it starts")
 	await frames(6)
-	check(rig.cover(PhotoTool.PHOTO_FADE) and dim.call() == 1.0, "within %.2f s it is black" % PhotoTool.PHOTO_FADE)
+	check(rig.cover(PhotoTool.PHOTO_FADE, "a photo") and dim.call() == 1.0, "within %.2f s it is black" % PhotoTool.PHOTO_FADE)
 	check(main.quality.covered.call(), "and the quality governor judges none of its frames")
 	await frames(30)
 	check(dim.call() == 1.0, "and holds black, %.2f" % dim.call())
