@@ -57,8 +57,8 @@ tests/test_replay.gd records a scripted session in which a visiting player propo
 mid-aim, the player puts on a file of their own and is refitted to it, and some frames run at half speed; it replays it
 in a fresh game, and finds every frame's delta and head pose and the final garden equal, and every check the record
 took holding. tests/test_replay_visit.gd records a player who plants at home and then joins a garden at the same
-command; its replay compares the visited garden once it is restored whole, not halfway, and plays as the id it joined
-as.
+command; its replay compares the visited garden once it is restored whole, not halfway, though a look is put on later
+in the frame it is restored and kept in, and plays as the id it joined as.
 
 In a headset the eyes are drawn where its own tracking puts them, so before each draw a replay shifts the play space
 under the headset's pose until the eyes see from the recorded head; the game's state never moves. A Quest's session
@@ -83,9 +83,10 @@ frames. `demo/cameras/played.json` circles a session of `demo/played.json`.
 Every chunk's start record names its build revision, its `schema` (`PlayLog.SCHEMA`): how a frame lays out, and its
 `events` (`Replayer.events`): a fingerprint of the events the replay delivers, each a `Replayer._deliver_` method, and
 of every RPC of `World` and `Session` with its arguments' names and types, and of `World.FORMAT`. A record of another schema or other events
-is refused with the reason, as is one missing frames, and so is one whose starting garden is not in this build's
-`World.format()`: `World.FORMAT` and a digest of the meadow, every plant's pool in the order the snapshot numbers
-them and the state its seeded scatter ends in. One from another revision replays. A frame's inputs
+is refused with the reason, as is one missing frames or keeping its gardens without `heard` and `turn`, and so is one
+whose starting garden is not in this build's `World.format()`: `World.FORMAT` and a digest of the meadow, every
+plant's pool in the order the snapshot numbers them and the state its seeded scatter ends in. One from another
+revision replays. A frame's inputs
 are read by the names the record lists, so a later controls table that reads other inputs presses none it lost.
 
 What a later build changes, a replay of an earlier record shows the session under: the same head, hands, inputs,
@@ -111,15 +112,26 @@ digest of where the play space stands (`player`), of every node under the wildli
 `rng` (`wildlife`), and of every thrown handful (`physics`). Whenever the garden is kept (`World._keep`, at most every
 five seconds while it changes) the session keeps the snapshot's digest too (`garden`), with the command it stands
 after; a host serializes that snapshot to save it anyway, and a visitor, who saves none, serializes it for the record
-alone. The log's worker takes every digest. The replay compares the parts at the point of the frame the record took
-them, and the garden as it comes to the command it was kept after, and notes the first check each part fails: its
-frame, the game second, and for the garden the commands it ran since it last matched, among which is the one whose
-result changed, or the command it never came to. It prints each as it finds it and once more as the record runs out,
-or that every check held. The parts compare exactly, so they hold only where every frame replays at its recorded
-length (`--fixed-fps`); a replay in real time, as on a headset, diverges in them from its first check, while the
-garden, made of the record's commands, still holds.
+alone. The log's worker takes every digest, and beside a garden's the number of messages heard before it was kept
+(`heard`) and whether World kept it in its turn of the frame or between frames (`turn`). The replay compares each part
+at the point of the frame the record took it, and a garden where it was kept: in its frame, after the messages heard
+before it, and in `World`'s turn of the frame if it was kept there, the frame's messages heard after it delivered once
+that turn is done. A keep waits for the last save to be written, so the recording machine chose that point, and the
+garden moves between commands, a running sky a `World.RUN_STEP` of the day at a time. It notes the first check each part
+fails: its frame, the game second, and for the garden the commands it ran since it last matched, among which is the one
+whose result changed, or, where the replay stood at another command, that command, or that it never came to where the
+garden was kept. It prints each as it finds it and once more as the record runs out, or that every check held. The parts
+compare exactly, so they hold only where every frame replays at its recorded length (`--fixed-fps`); a replay in real
+time, as on a headset, diverges in them from its first check, and in the garden wherever a change waits on the frames'
+lengths: a running sky's time of day is their deltas summed, and a whole garden coming in waits for the view to fade,
+while the rest of the garden is made of the record's commands.
 
 tests/test_replay.gd replays its record on a later revision with the input's sticks and buttons cleared, where the
 garden still comes out as recorded and the player is said to stand elsewhere from the first check, and replays it with
 one command's tree grown from another seed, the wildlife from another seed and one check's handfuls changed, where it
 names each part's first failed check and, for the garden, the commands since it last matched.
+tests/test_replay_sky.gd records a running sky and a tree planted while the garden's next keep is put off, which comes
+after the sky has stepped on from where it stood when the tree was planted; a tree planted in the frame of that keep,
+after it, from a node that runs after `World` as a tool does; and a keep between frames with a tree planted after it,
+before the next frame. Replayed, every garden holds; with one kept garden's digest changed, or its command, the replay
+names it and the commands since the last that held.

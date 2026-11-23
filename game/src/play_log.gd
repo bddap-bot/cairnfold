@@ -126,10 +126,11 @@ func check(parts: Dictionary) -> void:
 		_checks.append(parts.merged({"frame": frames()}))
 
 
-## `garden` is World's snapshot bytes once it has run command `seq`.
-func kept(seq: int, garden: PackedByteArray) -> void:
+## `garden` is World's snapshot bytes once it has run command `seq`, kept in World's turn of the frame or, with `turn`
+## false, between frames.
+func kept(seq: int, garden: PackedByteArray, turn: bool) -> void:
 	if not _ended:
-		_checks.append({"frame": frames(), "seq": seq, "garden": garden})
+		_checks.append({"frame": frames(), "seq": seq, "garden": garden, "heard": _messages + _heard.size(), "turn": turn})
 
 
 func _open() -> void:

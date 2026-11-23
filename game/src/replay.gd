@@ -150,6 +150,8 @@ static func read(path: String, avatars := "") -> Dictionary:
 	inputs.sort_custom(func(a, b) -> bool: return a.first < b.first)
 	nets.sort_custom(func(a, b) -> bool: return a.first < b.first)
 	out.checks.sort_custom(func(a, b) -> bool: return a.frame < b.frame)
+	if out.checks.any(func(c: Dictionary) -> bool: return c.has("garden") and not (c.has("heard") and c.has("turn"))):
+		return {"error": "%s keeps its gardens without where among its messages and its frame each was kept, by which this build compares them" % path}
 	for e in inputs:
 		if int(e.first) * FRAME_BYTES != out.frames.size():
 			return {"error": "%s lost frames %d to %d" % [path, out.frames.size() / FRAME_BYTES, int(e.first) - 1]}

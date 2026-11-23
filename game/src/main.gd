@@ -228,7 +228,7 @@ func _ready() -> void:
 	if replayer != null:
 		world.replayed = true
 		metrics.compare = replayer.compare
-		replayer.watch(world)
+		world.compare_garden = replayer.compare_garden
 	metrics.view_off = func() -> Variant: return null if rig.view_eye == null else rig.head.global_position.distance_to(rig.view_eye)
 	metrics.context = func():
 		var counts := {}

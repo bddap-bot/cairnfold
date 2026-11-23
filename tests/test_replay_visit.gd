@@ -67,6 +67,9 @@ func _run() -> void:
 	host.connected_to_server.emit()
 	host.peers.append(1)
 	host.peer_connected.emit(1)
+	await until(func() -> bool: return world._keep_wait <= 0.0, "home's garden kept long enough ago that the next keep comes as the garden does")
+	var after := Replayed.after_keep(main)
+	after.act = func() -> void: main.session.put_on(null, "", PackedByteArray(), 0, Color.WHITE)
 	host.sender = 1
 	world._welcome(there)
 	host.sender = 0
@@ -90,6 +93,10 @@ func _run() -> void:
 	var gardens: Array = record.checks.filter(func(c: Dictionary) -> bool: return c.has("garden") and c.seq == 2)
 	check(gardens.size() == 2 and gardens[0].garden != gardens[1].garden,
 		"the record kept two gardens at command 2, home's and the host's: %s" % [gardens])
+	var looked: Array = range(record.messages.size()).filter(func(i: int) -> bool:
+		return record.messages[i][3] == "look" and gardens.size() == 2 and record.messages[i][0] == gardens[1].frame and i >= gardens[1].heard)
+	check(gardens.size() == 2 and gardens[1].turn and not looked.is_empty(),
+		"the host's garden came into World's turn of a frame and was kept there, and a look put on later in that frame: %s" % [gardens])
 	var replayed := Replayed.replay(self, chunk, avatars)
 	if not replayed.is_empty():
 		check(replayed.diverged.is_empty(), "replayed, every check holds, the host's garden compared once it is in: %s" % [replayed.diverged])

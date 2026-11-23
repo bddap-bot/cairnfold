@@ -96,6 +96,8 @@ var _pending := {}
 var _queue: Array[Dictionary] = []
 var _ahead_task := -1
 var play_log: PlayLog
+## Replayer.compare_garden, run where the session kept its garden.
+var compare_garden: Callable
 ## Tools' submits from replayed input are dropped: the record holds the host's order.
 var replayed := false
 ## [refill, the fills `Commands` checks a pond put against (Water.know)].
@@ -237,7 +239,9 @@ func _process(delta: float) -> void:
 		_drain()
 	_keep_wait -= delta
 	if (_keep_due or _record_due) and _keep_wait <= 0.0 and (_keep_task < 0 or WorkerThreadPool.is_task_completed(_keep_task)):
-		_keep()
+		_keep(true)
+	if compare_garden.is_valid():
+		compare_garden.call()
 
 
 func _notification(what: int) -> void:
@@ -340,7 +344,7 @@ func idle() -> bool:
 
 func flush() -> void:
 	if _keep_due or _record_due:
-		_keep()
+		_keep(false)
 	if _keep_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_keep_task)
 		_keep_task = -1
@@ -376,7 +380,7 @@ func restore_whole(snap: Variant) -> bool:
 
 
 ## Snapshots here so the garden cannot change under the writer.
-func _keep() -> void:
+func _keep(turn: bool) -> void:
 	var ours := _keep_due and save_path != ""
 	_keep_due = false
 	_record_due = false
@@ -385,7 +389,7 @@ func _keep() -> void:
 	var start := Time.get_ticks_usec()
 	var bytes := var_to_bytes(snapshot())
 	if play_log != null:
-		play_log.kept(seq, bytes)
+		play_log.kept(seq, bytes, turn)
 	if _keep_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_keep_task)
 	Metrics.note("world: keeping the garden", (Time.get_ticks_usec() - start) / 1000.0)

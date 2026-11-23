@@ -123,7 +123,7 @@ func _initialize() -> void:
 		"the record holds the headset leaving focus and coming back")
 	var unfiled := Replay.read(chunk)
 	check(Session.sha256(file) in unfiled.get("error", ""), "without the folder holding the file worn, the record is refused, naming it: %s" % unfiled.get("error"))
-	var other := _copy(chunk, "other-events", func(e: Dictionary) -> Dictionary:
+	var other := Replayed.copy(chunk, "other-events", func(e: Dictionary) -> Dictionary:
 		if e.event == "start":
 			e.events = Replayer.events() + 1
 		return e)
@@ -159,7 +159,7 @@ func _initialize() -> void:
 		check(replayed.garden == garden, "the replayed garden equals the recorded one: seq %d against %d, commands %s differ" % [replayed.garden.seq, garden.seq, differ])
 
 	# A later revision whose tools make nothing of the input, so neither the hill nor the teleport comes.
-	var later := _copy(chunk, "later", func(e: Dictionary) -> Dictionary:
+	var later := Replayed.copy(chunk, "later", func(e: Dictionary) -> Dictionary:
 		if e.event == "start":
 			e.revision = "a later revision"
 		elif e.event == "input":
@@ -180,7 +180,7 @@ func _initialize() -> void:
 
 	var tree: Dictionary = record.messages.filter(func(m: Array) -> bool: return m[3] == "ordered" and m[2] == VISITOR)[0][4][0]
 	var flown: int = record.checks[3].frame
-	var diverging := _copy(chunk, "diverged", func(e: Dictionary) -> Dictionary:
+	var diverging := Replayed.copy(chunk, "diverged", func(e: Dictionary) -> Dictionary:
 		if e.event == "replay":
 			e.seeds.wildlife = str(int(e.seeds.wildlife) + 1)
 		elif e.event == "checks":
@@ -233,19 +233,3 @@ func _every_event_heard_is_delivered() -> void:
 					if name.get_string(1) not in delivered:
 						lost.append("%s %s" % [file, name.get_string(1)])
 	check(lost.is_empty() and delivered.size() > 20, "every event the game passes to hear() is one a replay delivers: %s" % [lost])
-
-
-func _copy(chunk: String, name: String, change: Callable) -> String:
-	var into := chunk.get_base_dir().path_join(name)
-	DirAccess.make_dir_recursive_absolute(into)
-	for file in DirAccess.get_files_at(chunk.get_base_dir()):
-		if not file.ends_with(".jsonl"):
-			continue
-		var lines := []
-		for line in FileAccess.get_file_as_string(chunk.get_base_dir().path_join(file)).split("\n", false):
-			lines.append(JSON.stringify(change.call(JSON.parse_string(line))))
-		var f := FileAccess.open(into.path_join(file), FileAccess.WRITE)
-		f.store_string("\n".join(lines) + "\n")
-		f.close()
-	return into.path_join(chunk.get_file())
-

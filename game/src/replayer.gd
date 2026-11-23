@@ -19,12 +19,9 @@ var _head: Transform3D
 ## The engine's step before scaling; 0 until the frame before the record's first measures it.
 var _step := 0.0
 var _check := 0
-## Garden checks not yet come to, oldest first: each garden numbers its own commands, so only the oldest is looked for.
 var _gardens := []
 ## The seq after which the garden last matched the record's.
 var _held_seq := 0
-## A whole garden is coming in, whose commands carry no seq of their own.
-var _restoring := false
 ## Part -> where it first diverged (`_diverge`).
 var diverged := {}
 
@@ -33,23 +30,11 @@ func _init(on: Main, played: Dictionary) -> void:
 	_main = on
 	record = played
 	_count = record.frames.size() / Replay.FRAME_BYTES
-	for c: Dictionary in record.checks:
-		if c.has("garden") and (_gardens.is_empty() or _gardens[-1].seq != c.seq or _gardens[-1].garden != c.garden):
-			_gardens.append(c)
+	_gardens = record.checks.filter(func(c: Dictionary) -> bool: return c.has("garden"))
+	_gardens.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.frame < b.frame or a.frame == b.frame and (a.heard < b.heard or a.heard == b.heard and b.turn and not a.turn))
 	RenderingServer.frame_pre_draw.connect(_view)
 	# Snapping frames to physics ticks would move the step a fixed rate gives, which every recorded delta is scaled from.
 	Engine.physics_jitter_fix = 0.0
-
-
-## A batch's or a rebuild's own commands carry no garden seq, so only a whole command or garden is compared.
-func watch(world: World) -> void:
-	world.applied.connect(func(cmd: Dictionary) -> void:
-		if not _restoring and cmd.get("seq") == world.seq:
-			_compare_garden())
-	world.restored.connect(func() -> void: _restoring = true)
-	world.loaded.connect(func() -> void:
-		_restoring = false
-		_compare_garden())
 
 
 ## Runs where the tree polls the network, before anything else of the frame.
@@ -63,16 +48,14 @@ func _poll() -> Error:
 		_pace()
 		return OK
 	_main.get_tree().paused = false
-	var messages: Array = record.messages
-	while _next < messages.size() and messages[_next][0] <= _frame:
-		_next += 1
-		_deliver(messages[_next - 1])
+	_play_until(_frame)
 	if _frame == _count:
 		_frame += 1
 		_let_go()
-		_main.world.settle()
+		_compare_kept(_count, _next, true)
 		if not _gardens.is_empty():
-			_diverge("garden", _gardens[0], "the garden never came to command %d" % _gardens[0].seq)
+			_diverge("garden", _gardens[0], "the replay never came to where it was kept")
+		_main.world.settle()
 		if not diverged.is_empty():
 			print("replay: " + "; ".join(diverged.values().map(func(d: Dictionary) -> String: return d.said)))
 		else:
@@ -144,14 +127,39 @@ func compare() -> void:
 				_diverge(part, c, "")
 
 
-func _compare_garden() -> void:
-	if _gardens.is_empty() or _gardens[0].seq != _main.world.seq:
-		return
-	var c: Dictionary = _gardens.pop_front()
-	if Replay.garden(_main.world) != c.garden:
-		_diverge("garden", c, "")
-	elif not diverged.has("garden"):
-		_held_seq = maxi(_held_seq, int(c.seq))
+## Run in World's turn of the frame, where the session kept its garden.
+func compare_garden() -> void:
+	# The session's World keeps before Metrics records the frame, so a garden kept in frame k reads k frames.
+	_compare_kept(_frame - 1, _next, true)
+	_play_until(_frame - 1)
+
+
+## Delivers what the session heard by `frame`, but what it heard after a garden World kept in its turn of `frame` only
+## from that turn on.
+func _play_until(frame: int) -> void:
+	var messages: Array = record.messages
+	while true:
+		_compare_kept(frame, _next, false)
+		if _next >= messages.size() or messages[_next][0] > frame:
+			return
+		if not _gardens.is_empty() and _gardens[0].turn and _gardens[0].frame <= frame and _gardens[0].heard <= _next:
+			return
+		_next += 1
+		_deliver(messages[_next - 1])
+
+
+## The session kept each garden at a point its machine's timing chose, and the running sky moves the garden between
+## commands, so a garden is compared there and nowhere else: in its frame, after the messages heard before it, and in
+## World's turn if World kept it there.
+func _compare_kept(frame: int, heard: int, turn: bool) -> void:
+	while not _gardens.is_empty() and _gardens[0].frame <= frame and _gardens[0].heard <= heard and (turn or not _gardens[0].turn):
+		var c: Dictionary = _gardens.pop_front()
+		if _main.world.seq != c.seq:
+			_diverge("garden", c, "the garden stood at command %d, not %d" % [_main.world.seq, c.seq])
+		elif Replay.garden(_main.world) != c.garden:
+			_diverge("garden", c, "")
+		elif not diverged.has("garden"):
+			_held_seq = maxi(_held_seq, int(c.seq))
 
 
 ## Records where `part` first differs from `c`; for the garden, also the commands run since it last matched, among
@@ -168,7 +176,7 @@ func _diverge(part: String, c: Dictionary, why: String) -> void:
 			return m[3] in ["ordered", "_commit"] and m[4][0].get("seq", 0) > _held_seq and m[4][0].get("seq", 0) <= c.seq).map(
 			func(m: Array) -> String: return "%d %s" % [m[4][0].seq, m[4][0].op])
 	at.said = "the %s first differs from the record at frame %d, %.1f s in%s%s" % [part, at.frame, at.second,
-		", after commands %s" % ", ".join(at.commands) if at.has("commands") else "", ": " + why if why != "" else ""]
+		", after commands %s" % ", ".join(at.commands) if not at.get("commands", []).is_empty() else "", ": " + why if why != "" else ""]
 	diverged[part] = at
 	push_warning("replay: " + at.said)
 

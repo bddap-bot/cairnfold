@@ -31,6 +31,27 @@ class Probe:
 			applied_at[cmd.seq] = heads.size()
 
 
+## Runs `act` once, right after World's turn of the next frame in which World keeps the garden, as a tool would.
+class AfterKeep:
+	extends Node
+	var world: World
+	var act := Callable()
+
+	func _process(_delta: float) -> void:
+		if act.is_valid() and world._keep_wait == World.KEEP_EVERY:
+			var run := act
+			act = Callable()
+			run.call()
+
+
+static func after_keep(on: Main) -> AfterKeep:
+	var node := AfterKeep.new()
+	node.world = on.world
+	on.add_child(node)
+	on.move_child(node, on.world.get_index() + 1)
+	return node
+
+
 ## Reads the head after every node has moved it.
 static func watch(on: Main) -> Probe:
 	var probe := Probe.new()
@@ -55,6 +76,22 @@ static func replay(by: Suite, chunk: String, avatars: String) -> Dictionary:
 	var replayed: Dictionary = f.get_var()
 	f.close()
 	return replayed
+
+
+## A copy of the session `chunk` is part of, each event put through `change`, in a folder `name` beside it.
+static func copy(chunk: String, name: String, change: Callable) -> String:
+	var into := chunk.get_base_dir().path_join(name)
+	DirAccess.make_dir_recursive_absolute(into)
+	for file in DirAccess.get_files_at(chunk.get_base_dir()):
+		if not file.ends_with(".jsonl"):
+			continue
+		var lines := []
+		for line in FileAccess.get_file_as_string(chunk.get_base_dir().path_join(file)).split("\n", false):
+			lines.append(JSON.stringify(change.call(JSON.parse_string(line))))
+		var f := FileAccess.open(into.path_join(file), FileAccess.WRITE)
+		f.store_string("\n".join(lines) + "\n")
+		f.close()
+	return into.path_join(chunk.get_file())
 
 
 func _initialize() -> void:
