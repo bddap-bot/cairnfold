@@ -82,12 +82,11 @@ frames. `demo/cameras/played.json` circles a session of `demo/played.json`.
 
 Every chunk's start record names its build revision, its `schema` (`PlayLog.SCHEMA`): how a frame lays out, and its
 `events` (`Replayer.events`): a fingerprint of the events the replay delivers, each a `Replayer._deliver_` method, and
-of every RPC of `World` and `Session` with its arguments' names and types, and of `World.FORMAT`. A record of another schema or other events
-is refused with the reason, as is one missing frames or keeping its gardens without `heard` and `turn`, and so is one
-whose starting garden is not in this build's `World.format()`: `World.FORMAT` and a digest of the meadow, every
-plant's pool in the order the snapshot numbers them and the state its seeded scatter ends in. One from another
-revision replays. A frame's inputs
-are read by the names the record lists, so a later controls table that reads other inputs presses none it lost.
+of every RPC of `World` and `Session` with its arguments' names and types, and of `World.FORMAT`. A record of another
+schema or other events is refused with the reason, as is one missing frames, and so is one whose starting garden is not
+in this build's `World.format()`: `World.FORMAT` and a digest of the meadow, every plant's pool in the order the
+snapshot numbers them and the state its seeded scatter ends in. One from another revision replays. A frame's inputs are
+read by the names the record lists, so a later controls table that reads other inputs presses none it lost.
 
 What a later build changes, a replay of an earlier record shows the session under: the same head, hands, inputs,
 messages and build commands, with this build's logic between them. Where that logic changed, the replay diverges from
@@ -110,13 +109,15 @@ the session:
 A replay says where it diverged. Every `Replay.CHECK_EVERY` (60) frames the session keeps a check (`Replay.check`): a
 digest of where the play space stands (`player`), of every node under the wildlife and every generator held there as
 `rng` (`wildlife`), and of every thrown handful (`physics`). Whenever the garden is kept (`World._keep`, at most every
-five seconds while it changes) the session keeps the snapshot's digest too (`garden`), with the command it stands
-after; a host serializes that snapshot to save it anyway, and a visitor, who saves none, serializes it for the record
-alone. The log's worker takes every digest, and beside a garden's the number of messages heard before it was kept
-(`heard`) and whether World kept it in its turn of the frame or between frames (`turn`). The replay compares each part
-at the point of the frame the record took it, and a garden where it was kept: in its frame, after the messages heard
-before it, and in `World`'s turn of the frame if it was kept there, the frame's messages heard after it delivered once
-that turn is done. A keep waits for the last save to be written, so the recording machine chose that point, and the
+five seconds while it changes) the session keeps the snapshot's digest too (`garden`), with the command it stands after;
+a host serializes that snapshot to save it anyway, and a visitor, who saves none, serializes it for the record alone.
+The log's worker takes every digest, and beside a garden's the number of messages heard before it was kept (`heard`) and
+whether World kept it in its turn of the frame or between frames (`turn`). The replay compares each part at the point of
+the frame the record took it, and a garden where it was kept: in its frame, after the messages heard before it, and in
+`World`'s turn of the frame if it was kept there, the frame's messages heard after it delivered once that turn is done;
+a garden an earlier build kept without `heard` and `turn` is compared in `World`'s turn of its frame, after all of that
+frame's messages, which is where it was kept unless a message came after it in that frame or it was kept between frames;
+there it may be said to differ when it did not. A keep waits for the last save to be written, so the recording machine chose that point, and the
 garden moves between commands, a running sky a `World.RUN_STEP` of the day at a time. It notes the first check each part
 fails: its frame, the game second, and for the garden the commands it ran since it last matched, among which is the one
 whose result changed, or, where the replay stood at another command, that command, or that it never came to where the

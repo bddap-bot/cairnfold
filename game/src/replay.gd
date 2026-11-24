@@ -110,8 +110,9 @@ static func messages(event: Dictionary) -> Array:
 
 
 ## `path` is any chunk of the session. Keys: "session", "revision", "seeds", "garden", "frames" (`frame`s end to end),
-## "inputs" (`unpack`'s names), "messages", "checks" (digests, each with its "frame", oldest first), and "avatars", worn
-## files' bytes by hash from the folder `avatars`, as the record keeps only hashes; {"error": why} if not replayable.
+## "inputs" (`unpack`'s names), "messages", "checks" (digests, each with its "frame", oldest first, a garden's with its
+## "heard" and "turn"), and "avatars", worn files' bytes by hash from the folder `avatars`, as the record keeps only
+## hashes; {"error": why} if not replayable.
 static func read(path: String, avatars := "") -> Dictionary:
 	var folder := path.get_base_dir()
 	var session := path.get_file().get_basename().rsplit("-", true, 1)[0]
@@ -150,8 +151,6 @@ static func read(path: String, avatars := "") -> Dictionary:
 	inputs.sort_custom(func(a, b) -> bool: return a.first < b.first)
 	nets.sort_custom(func(a, b) -> bool: return a.first < b.first)
 	out.checks.sort_custom(func(a, b) -> bool: return a.frame < b.frame)
-	if out.checks.any(func(c: Dictionary) -> bool: return c.has("garden") and not (c.has("heard") and c.has("turn"))):
-		return {"error": "%s keeps its gardens without where among its messages and its frame each was kept, by which this build compares them" % path}
 	for e in inputs:
 		if int(e.first) * FRAME_BYTES != out.frames.size():
 			return {"error": "%s lost frames %d to %d" % [path, out.frames.size() / FRAME_BYTES, int(e.first) - 1]}
@@ -160,6 +159,13 @@ static func read(path: String, avatars := "") -> Dictionary:
 		if int(e.first) != out.messages.size():
 			return {"error": "%s lost messages %d to %d" % [path, out.messages.size(), int(e.first) - 1]}
 		out.messages.append_array(messages(e))
+	var heard := 0
+	for c: Dictionary in out.checks:
+		if c.has("garden") and not (c.has("heard") and c.has("turn")):
+			while heard < out.messages.size() and out.messages[heard][0] <= c.frame:
+				heard += 1
+			c.heard = heard
+			c.turn = true
 	out.avatars = {}
 	var held := {}
 	for m: Array in out.messages:

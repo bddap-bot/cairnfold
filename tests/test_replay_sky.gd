@@ -49,6 +49,31 @@ func _initialize() -> void:
 	if not replayed.is_empty():
 		check(replayed.diverged.is_empty(), "replayed, every garden holds, each compared where it was kept: %s" % [replayed.diverged])
 
+	var exact := {}
+	for c: Dictionary in record.checks:
+		if c.has("garden") and c.turn and (c.heard == record.messages.size() or record.messages[c.heard][0] > c.frame):
+			exact["%d %d" % [c.frame, c.seq]] = c
+	check(exact.values().any(func(c: Dictionary) -> bool: return c.heard > 0 and record.messages[c.heard - 1][0] == c.frame),
+		"such a garden is kept after a message of its own frame: %s" % [exact])
+	check(exact.values().any(func(c: Dictionary) -> bool: return c.heard < record.messages.size()),
+		"such a garden is kept before a message of a later frame: %s" % [exact])
+	var earlier := Replayed.copy(chunk, "earlier", func(e: Dictionary) -> Dictionary:
+		if e.event == "checks":
+			for c: Dictionary in e.checks:
+				if exact.has("%d %d" % [c.frame, c.get("seq", -1)]) and c.has("garden"):
+					c.erase("heard")
+					c.erase("turn")
+		return e)
+	var read_earlier := Replay.read(earlier, avatars)
+	var placed: Array = read_earlier.get("checks", []).filter(func(c: Dictionary) -> bool:
+		var was: Dictionary = exact.get("%d %d" % [c.frame, c.get("seq", -1)], {})
+		return not was.is_empty() and c.get("heard") == was.heard and c.get("turn") == was.turn)
+	check(exact.values().any(func(c: Dictionary) -> bool: return int(c.seq) == 4) and placed.size() == exact.size(),
+		"a record that keeps its gardens without where each was kept reads each with no message after it in its frame, the garden of the tree planted after the keep between frames among them, as kept there: %s of %s" % [placed.size(), exact.keys()])
+	replayed = Replayed.replay(self, earlier, avatars)
+	if not replayed.is_empty():
+		check(replayed.diverged.is_empty(), "replayed, such a record's gardens hold: %s" % [replayed.diverged])
+
 	var changed := Replayed.copy(chunk, "changed", func(e: Dictionary) -> Dictionary:
 		if e.event == "checks":
 			for c: Dictionary in e.checks:
@@ -72,7 +97,7 @@ func _initialize() -> void:
 		check(d.get("frame") == kept[2].frame and "stood at command 2, not 3" in d.get("said", ""),
 			"a garden kept at another command than the replay stands at says which: %s" % [d])
 
-	for sub in ["changed", "renumbered", "avatars", ""]:
+	for sub in ["earlier", "changed", "renumbered", "avatars", ""]:
 		for name in DirAccess.get_files_at(folder.path_join(sub)):
 			DirAccess.remove_absolute(folder.path_join(sub).path_join(name))
 		DirAccess.remove_absolute(folder.path_join(sub))
