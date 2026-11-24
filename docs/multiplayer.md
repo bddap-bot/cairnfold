@@ -234,8 +234,10 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   The avatars folder reads only VRM, since a worn file travels to everyone met and a Godot scene can run code, and
   `Avatar.read` reads it into the avatar model (see "Skinned bodies"). The `VRCHAT_expressions` extension carries
   creator menus, parameters, animation curves and supported material controls.
-  The avatar is the GameObject with a VRChat avatar descriptor, its own or one that a prefab it instances from a `--with`
-  package holds, as an edit's variant of its base does (AVATAR names it where a package holds several), instantiated as
+  The avatar is the GameObject with a VRChat avatar descriptor, its own or one that a prefab it instances holds: each
+  prefab of PACKAGE reaching one is an avatar, a variant of a base in PACKAGE as much as an edit's variant of a `--with`
+  base, while a scene counts by its own descriptor or one a `--with` package holds, and is taken over the prefabs where
+  it does (AVATAR names it where a package holds several), instantiated as
   its scene or prefab does: prefab instances, nested ones too,
   expand with their modifications, so the renderers it draws are those active there, with the
   materials and blend shape weights saved on them. Unity names a model's objects by fixed IDs

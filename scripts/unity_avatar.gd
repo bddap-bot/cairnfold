@@ -448,7 +448,8 @@ static func _avatar(assets: Assets, prefabs: Prefabs, pick: String) -> Dictionar
 	var bearing := {}
 	for guid: String in assets.of(["unity", "prefab"]):
 		var text := assets.text(guid) if assets.own.has(guid) else ""
-		if not text.contains("\n  ViewPosition:") and not SOURCE.search_all(text).any(func(m: RegExMatch) -> bool: return not assets.own.has(m.get_string(1)) and _bears_descriptor(assets, m.get_string(1), bearing)):
+		# A scene staging its own package's prefab would be taken over that prefab, so a scene counts by its own descriptor or a lent one.
+		if not text.contains("\n  ViewPosition:") and not SOURCE.search_all(text).any(func(m: RegExMatch) -> bool: return (assets.extension(guid) == "prefab" or not assets.own.has(m.get_string(1))) and _bears_descriptor(assets, m.get_string(1), bearing)):
 			continue
 		var objs := prefabs.flatten(guid)
 		for id: int in objs:

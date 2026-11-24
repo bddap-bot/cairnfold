@@ -3269,6 +3269,17 @@ PrefabInstance:
       objectReference: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: ba5e, type: 3}
 """ % ((100 ^ top) & Prefabs.MASK))
+	write.call(base, "Staged.unity", "57a9", """--- !u!1001 &400
+PrefabInstance:
+  m_Modification:
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: %d, guid: ba5e, type: 3}
+      propertyPath: m_Name
+      value: Staged
+      objectReference: {fileID: 0}
+  m_SourcePrefab: {fileID: 100100000, guid: ba5e, type: 3}
+""" % ((100 ^ top) & Prefabs.MASK))
 	write.call(base, "shared.png", "shared", "base's")
 	write.call(edit, "shared.png", "shared", "edit's")
 	write.call(edit, "Edit.prefab", "ed17", """--- !u!1001 &200
@@ -3282,10 +3293,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
   m_SourcePrefab: {fileID: 100100000, guid: ba5e, type: 3}
 """ % ((100 ^ top) & Prefabs.MASK))
-	var alone := UnityAvatar.avatar_scene(base)
-	check(alone != null and alone.name == "Base", "a variant in the base's own package is no second avatar (%s)" % [alone.name if alone != null else null])
-	if alone != null:
-		alone.free()
+	check(UnityAvatar.avatar_scene(base) == null, "a variant in its base's package is a second avatar, so neither is taken unnamed, and a scene staging the base hides neither")
+	for name: String in ["Base", "Variant"]:
+		var alone := UnityAvatar.avatar_scene(base, [], name)
+		check(alone != null and alone.name == name, "%s imports from the base's own package by its name (%s)" % [name, alone.name if alone != null else null])
+		if alone != null:
+			alone.free()
 	var both := Assets.new(edit, [base])
 	check(both.text("shared") == "edit's" and both.text("ba5e").contains("ViewPosition"), "the edit's own assets win and the base lends the rest")
 	var imported := UnityAvatar.avatar_scene(edit, [base])
