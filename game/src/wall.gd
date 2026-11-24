@@ -775,35 +775,36 @@ func occlude_shown() -> void:
 
 
 ## So a carrying hold moves its stones; the glade lets them go at once (`Masonry.flush`) or they stay where taken from.
+## A lay under way lands live too: settled, its stones would go to the glade and stay there as the hold carries the rest.
 func draw_live() -> void:
+	_settle_on_land = false
 	_occlude(PackedVector3Array(), PackedInt32Array())
 	if _settled:
 		_settled = false
 		_sync()
 
 
-## Stones drawn here upload at once, so they are always the ones laid, which a carry's transform is placed for.
+## Stones drawn here upload at once, so they are always the ones laid, which a carry's transform is placed for. A wall
+## drawing its own stones keeps drawing the latest lay until the glade draws it: the roof's faces show that lay at once.
 func _sync() -> void:
 	var placed: Array[Dictionary] = []
 	var drawn: Array[Dictionary] = []
-	var live := false
 	for p in Part.size():
 		var settle := _settled and (p != Part.IVY or not _ivy_growing())
 		placed.append(_chunked[p] if settle else {})
-		drawn.append(_chunked[p] if not settle and p != Part.IVY else {})
-		live = live or not drawn[p].is_empty()
+		drawn.append(_chunked[p] if p != Part.IVY else {})
 	var ivy_placed := not placed[Part.IVY].is_empty()
 	_ivy_handoff = ivy_placed and (_ivy_handoff or not _ivy_placed)
 	_ivy_placed = ivy_placed
 	masonry.place(get_instance_id(), placed)
-	if live:
+	_live = not _settled and drawn.any(func(d: Dictionary) -> bool: return not d.is_empty())
+	_handoff = not masonry.drawn(get_instance_id())
+	if _live or (_handoff and _drawn != null):
 		if _drawn == null:
 			_drawn = Masonry.new(kinds())
 			add_child(_drawn)
 		_drawn.place(get_instance_id(), drawn)
 		_drawn.flush()
-	_live = live
-	_handoff = not masonry.drawn(get_instance_id())
 	if _handoff:
 		set_process(true)
 		_show_ivy(_ivy_handoff or (_settled and _ivy_growing()))
