@@ -5,7 +5,8 @@ extends "res://../tests/support/suite.gd"
 
 const STEP := 1.0 / 60.0
 const LOW_M := 1.0
-const STAND_M := 1.5
+## Taller than typical: a shorter stature is taken only once a minute is measured.
+const STAND_M := 1.8
 ## Covers luma under 20 of 255 over a lit scene.
 const BLACK := 0.85
 
@@ -44,5 +45,5 @@ func _finish(rig: Rig) -> void:
 	var want := rig.body.eye_height / STAND_M
 	check(absf(rig.world_scale - want) < 0.01 and cuts[0] == 1, "their next teleport fits them to the avatar: a scale of %.3f, %.3f wanted, %d cut" % [rig.world_scale, want, cuts[0]])
 	var said := Metrics._notes.map(func(n: Dictionary) -> String: return n.what)
-	check(said.any(func(w: String) -> bool: return w.contains("teleport")) and said.any(func(w: String) -> bool: return w.contains("%.3f" % want)), "the record says the view faded for a teleport and the scale it took: %s" % [said])
+	check(said.any(func(w: String) -> bool: return w.contains("teleport")) and said.any(func(w: String) -> bool: return w.contains("%.4f" % want)), "the record says the view faded for a teleport and the scale it took: %s" % [said])
 	finish()
