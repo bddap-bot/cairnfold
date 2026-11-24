@@ -75,7 +75,7 @@ class Room:
 		var r := Room.new()
 		r.massing = massing
 		r.joined = layout.joined.duplicate()
-		var line := WallLayout.ground_line(layout.points)
+		var line := WallLayout.ground_line(layout.laid_points)
 		r.inside = Geometry2D.offset_polygon(line, -WallLayout.THICKNESS * 0.5)
 		r.probe_inside = Geometry2D.offset_polygon(line, Terrain.STEP * 0.5)
 		r.rect = Rect2(line[0], Vector2.ZERO)
