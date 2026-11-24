@@ -382,7 +382,7 @@ landings = {}
 for s in d["seconds"]:
     for w in s.get("landings", []):
         landings.setdefault(w["label"], []).append(w)
-print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'late':>5} {'draws':>6} {'prims':>9} {'land max':>8} {'land late':>9} {'gpu ms':>7}" + (f" {'MHz':>5} {'step':>4}" if device == "frame" else ""))
+print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'late':>5} {'draws':>6} {'prims':>9} {'land max':>8} {'land late':>9} {'gpu ms':>7}" + (f" {'cyc/us':>6} {'step':>4} {'others':>6}" if device == "frame" else ""))
 over = []
 summary = {}
 mid = lambda xs: sorted(xs)[len(xs) // 2] if xs else float("nan")
@@ -431,9 +431,15 @@ for name, secs in phases.items():
     mem = [s["mem_mb"] for s in secs if "mem_mb" in s]
     if mem:
         summary[name]["mem_mb"] = {k: max(m[k] for m in mem) for k in mem[0]}
-    mhz = [s["gpu_mhz"] for s in secs if "gpu_mhz" in s]
+    mhz = [s["gpu_cycles_per_busy_us"] for s in secs if "gpu_cycles_per_busy_us" in s]
     if mhz:
-        summary[name]["gpu_mhz"] = mid(mhz)
+        summary[name]["gpu_cycles_per_busy_us"] = mid(mhz)
+    # Each other process's GPU time a refresh period, none in a second it is absent: the compositor draws one frame a refresh.
+    procs = {proc for s in secs for proc in s.get("others_gpu_ms", {})}
+    if procs:
+        summary[name]["others_gpu_ms"] = {proc: round(mid([s.get("others_gpu_ms", {}).get(proc, 0.0) / s["refresh_hz"] for s in secs]), 3)
+                                          for proc in sorted(procs)}
+    others_total = [sum(s.get("others_gpu_ms", {}).values()) / s["refresh_hz"] for s in secs] if procs else []
     if gpu.get(name):
         g = mid(gpu[name])
         summary[name]["gpu_ms"] = round(g, 3)
@@ -441,7 +447,8 @@ for name, secs in phases.items():
             summary[name]["timewarp_ms"] = round(mid(timewarp[name]), 3)
         row += f" {g:7.2f}"
         if device == "frame":
-            row += (f" {mid(mhz):5.0f}" if mhz else f" {'-':>5}") + (f" {mid(steps):4}" if steps else f" {'-':>4}")
+            row += (f" {mid(mhz):6.0f}" if mhz else f" {'-':>6}") + (f" {mid(steps):4}" if steps else f" {'-':>4}")
+            row += f" {mid(others_total):6.2f}" if others_total else f" {'-':>6}"
         if name in incomplete:
             row += " incomplete"
         elif device == "quest":

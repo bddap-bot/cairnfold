@@ -281,6 +281,22 @@ class BenchmarkRendering(unittest.TestCase):
             self.assertEqual(phase["mem_mb"], {"textures": 102.0, "buffers": 49.0, "video": 300.0})
 
 
+    def test_a_frame_phase_keeps_the_game_and_every_other_process_on_the_gpu_a_frame(self):
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            (out / "metrics.json").write_text(json.dumps({"info": {"xr": True, "budget": {"gpu_ms": 13.889, "refresh_hz": 72}}, "seconds": [
+                {"label": "hold", "p50": 13.89, "p99": 13.89, "late": 0, "draws": 100, "prims": 1000, "frames": 72, "refresh_hz": 72,
+                 "gpu_ms": 720.0, "gpu_cycles_per_busy_us": mhz, "others_gpu_ms": {"vrcompositor": 72.0 * ms, **({"eyetracking": 7.2} if eye else {})}}
+                for mhz, ms, eye in [(100, 9, True), (900, 1, False), (300, 2, True), (900, 3, False)]]}))
+            (out / "stress.json").write_text("[]")
+            result = report(out, "frame")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            phase = json.loads((out / "record.json").read_text())["phases"]["hold"]
+            self.assertEqual((phase["gpu_ms"], phase["gpu_cycles_per_busy_us"], phase["others_gpu_ms"]),
+                             (10.0, 900, {"eyetracking": 0.0, "vrcompositor": 2.0}))
+            self.assertRegex(result.stdout, r"hold .* 10\.00 +900 +- +2\.10")
+
+
 class Costs(unittest.TestCase):
     def test_each_unit_costs_what_a_bench_measured_it_to(self):
         cost = {"grass": 0.5, "flower": 0.8, "tree": 30, "bush": 10, "wall_m2": 4, "wall_m2_near": 6, "plaster_m2": 2, "plaster_m2_near": 3,

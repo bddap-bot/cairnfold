@@ -104,7 +104,12 @@ over a native run: 457.3 s against 456.5 s.
 Explicit `--metrics PATH` writes a benchmark record to that path: per second, frame-time
 percentiles, frames over 1.5× the refresh period, and `gpu_ms`, the GPU time the
 game process used in that second (summed `drm-engine-*` time from the kernel's
-fdinfo, so it is real on the device whether or not the runtime reports any).
+fdinfo, so it is real on the device whether or not the runtime reports any);
+`gpu_cycles_per_busy_us`, the game's GPU cycles over that busy time, which is not the clock: with the devfreq clock at
+its 903 MHz top it reads near 900 in steady seconds and fell to 74 in a second the game ran at half rate; and
+`others_gpu_ms`, each other process's GPU time that second by its name, from the same counters wherever the system lets
+the game read them (on the Steam Frame the runtime's compositor, `vrcompositor`, among them). The bench summary gives
+each phase's `others_gpu_ms` a refresh period by process, for the compositor its GPU time a frame, and prints their sum.
 `info` records the render-target size, the render scale and each eye's field of
 view. Ordinary play writes no session telemetry unless explicitly opted in (see
 "Local play-session history" below).
@@ -942,7 +947,7 @@ at step 16 (3D scale 0.78) `standing/along` read 6.1 ms and `standing/across` 6.
 the roofs village and the walk three times over landed on step 15 or 16 at each pass and read the
 same two figures. The earlier records, 8.2 to 8.7 ms on some builds and 5.9 to 6.4 on others with
 the same primitives, carried no step and match these two. Bench records now carry each phase's step
-and GPU clock (`gpu_mhz`, from the driver's cycle count), and `scripts/trend.py` compares a phase only
+and cycles per busy microsecond (`gpu_cycles_per_busy_us`, the clock while the game's work runs), and `scripts/trend.py` compares a phase only
 with runs on its step. A comparison of a change goes further: a governed phase measures the governor, not the change
 (a governed stress run read camera phases at 6.3 ms where, pinned at step 6, the same change read 12.55 to 13.54 ms
 against 13.14 to 13.73 before), so each record marks a phase `pinned` when a pin held its step every second, and

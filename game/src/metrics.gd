@@ -40,13 +40,12 @@ var _was_late := false
 var _late_line := ""
 ## On `clock`; -1 before any.
 var late_at_us := -1
-var _gpu_ns := -1
-var _gpu_cycles := -1
-var _gpu_counted_ns := 0
-var _drm_fds: PackedStringArray = []
+## gpu_time's last reading.
+var _gpu_was := {}
+var _drm_fds: Array[PackedStringArray] = []
 var _row := {}
 var _gpu_reader: Thread
-## Rescans for DRM clients every tenth reading: the runtime may open more later.
+## Rescans for DRM clients every tenth reading: the runtime may open more later, and other processes come and go.
 var _drm_scan := 0
 var _draws := 0
 var _prims := 0
@@ -297,15 +296,10 @@ func _finish_row() -> void:
 	if _row.is_empty():
 		return
 	if _gpu_reader != null:
-		var gpu: PackedInt64Array = _gpu_reader.wait_to_finish()
+		var gpu: Dictionary = _gpu_reader.wait_to_finish()
 		_gpu_reader = null
-		if gpu[0] >= 0 and _gpu_ns >= 0:
-			_row.gpu_ms = (gpu[0] - _gpu_ns) / 1e6
-			if gpu[1] >= 0 and _gpu_cycles >= 0 and gpu[2] > _gpu_counted_ns:
-				_row.gpu_mhz = snappedf(float(gpu[1] - _gpu_cycles) / (gpu[2] - _gpu_counted_ns) * 1000.0, 1.0)
-		_gpu_ns = gpu[0]
-		_gpu_cycles = gpu[1]
-		_gpu_counted_ns = gpu[2]
+		_row.merge(gpu_second(_gpu_was, gpu))
+		_gpu_was = gpu
 	if play_log != null:
 		play_log.sample(_row)
 	if not path.is_empty():
@@ -391,47 +385,104 @@ func is_late(ms: float) -> bool:
 	return hz > 0.0 and ms > 1500.0 / hz
 
 
-## [busy ns, cycles, busy ns of the clients that count cycles], -1 where the driver reports none. Busy time stretches as
-## the GPU clocks down and cycles do not, so together they tell more work from a slower clock.
-func gpu_time() -> PackedInt64Array:
+## Each DRM client's [busy ns, cycles or -1, its process's name or "" for the game's own], by client id, from every
+## process whose fds this one may read: the runtime's compositor and any other client share the GPU with the game. A
+## client another process shares with the game is the game's. The rescan follows the reading, so it delays none.
+func gpu_time() -> Dictionary:
+	var clients := {}
+	for at in _drm_fds:
+		var used := drm_usage(_proc_file(at[0]))
+		if not used.is_empty() and not (clients.has(used[0]) and clients[used[0]][2] == ""):
+			clients[used[0]] = [used[1], used[2], at[1]]
 	if _drm_scan % 10 == 0:
-		var dir := DirAccess.open("/proc/self/fd")
+		_drm_fds = drm_fds()
+	_drm_scan += 1
+	return clients
+
+
+## [fdinfo path, process name or "" for this process] of every DRM fd readable. Reading every fd's info held the Steam
+## Frame's main thread for up to 15 ms; a link read costs the kernel nothing.
+static func drm_fds() -> Array[PackedStringArray]:
+	var own := str(OS.get_process_id())
+	var found: Array[PackedStringArray] = []
+	for pid in DirAccess.get_directories_at("/proc"):
+		if not pid.is_valid_int():
+			continue
+		var dir := DirAccess.open("/proc/%s/fd" % pid)
 		if dir == null:
-			return PackedInt64Array([-1, -1, 0])
-		_drm_fds.clear()
-		# Reading every fd's info held the Steam Frame's main thread for up to 15 ms; a link read costs the kernel nothing.
+			continue
+		var name := ""
+		if pid != own:
+			name = _proc_file("/proc/%s/comm" % pid).strip_edges()
+			if name.is_empty():
+				name = pid
 		for fd in dir.get_files():
 			if dir.read_link(fd).begins_with("/dev/dri/"):
-				_drm_fds.append(fd)
-	_drm_scan += 1
-	var by_client := {}
-	for fd in _drm_fds:
-		var client := ""
-		var used := PackedInt64Array([0, -1])
-		for line in _fdinfo(fd).split("\n"):
-			var value := line.get_slice(":", 1).strip_edges().get_slice(" ", 0)
-			if line.begins_with("drm-client-id:"):
-				client = value
-			elif line.begins_with("drm-engine-") and not line.begins_with("drm-engine-capacity"):
-				used[0] += int(value)
-			elif line.begins_with("drm-cycles-"):
-				used[1] = maxi(used[1], 0) + int(value)
-		if client != "":
-			by_client[client] = used
-	if by_client.is_empty():
-		return PackedInt64Array([-1, -1, 0])
-	var total := PackedInt64Array([0, -1, 0])
-	for v: PackedInt64Array in by_client.values():
-		total[0] += v[0]
-		if v[1] >= 0:
-			total[1] = maxi(total[1], 0) + v[1]
-			total[2] += v[0]
-	return total
+				found.append(PackedStringArray(["/proc/%s/fdinfo/%s" % [pid, fd], name]))
+	return found
+
+
+## [client id, busy ns summed over engines, cycles or -1] from a DRM fd's info, or [] for a fd that names no client or
+## whose busy time is no reading. A count past 18 digits is a counter the driver wrapped below zero (one Xwayland client's
+## cycles on the Steam Frame).
+static func drm_usage(info: String) -> Array:
+	var client := ""
+	var busy := 0
+	var cycles := -1
+	var wrapped := false
+	for line in info.split("\n"):
+		var value := line.get_slice(":", 1).strip_edges().get_slice(" ", 0)
+		if line.begins_with("drm-client-id:"):
+			client = value
+		elif line.begins_with("drm-engine-") and not line.begins_with("drm-engine-capacity"):
+			if value.length() > 18:
+				return []
+			busy += int(value)
+		elif line.begins_with("drm-cycles-"):
+			if value.length() > 18:
+				wrapped = true
+			else:
+				cycles = maxi(cycles, 0) + int(value)
+	return [] if client.is_empty() else [client, busy, -1 if wrapped else cycles]
+
+
+## A second's row fields from two gpu_time readings, over the clients in both whose busy time did not run backwards: a
+## client's counters start when it opens. `gpu_ms` is the game's busy time. `gpu_cycles_per_busy_us` is its cycles over
+## that busy time, not the clock: with the clock at its 903 MHz top it read 74 while the Steam Frame halved the game's
+## rate. `others_gpu_ms` is every other process's busy time, by name, where it had any.
+static func gpu_second(was: Dictionary, now: Dictionary) -> Dictionary:
+	var busy := -1
+	var cycles := 0
+	var counted := 0
+	var others := {}
+	for client in now:
+		if not was.has(client):
+			continue
+		var used: Array = now[client]
+		var ns: int = used[0] - was[client][0]
+		if ns < 0:
+			continue
+		if used[2] != "":
+			if ns > 0:
+				others[used[2]] = others.get(used[2], 0.0) + ns / 1e6
+			continue
+		busy = maxi(busy, 0) + ns
+		if used[1] >= 0 and was[client][1] >= 0:
+			cycles += used[1] - was[client][1]
+			counted += ns
+	var row := {}
+	if busy >= 0:
+		row.gpu_ms = busy / 1e6
+	if counted > 0:
+		row.gpu_cycles_per_busy_us = snappedf(float(cycles) / counted * 1000.0, 1.0)
+	if not others.is_empty():
+		row.others_gpu_ms = others
+	return row
 
 
 ## procfs reports no length, and the kernel writes a DRM fd's info afresh on every read, so it is taken in one.
-static func _fdinfo(fd: String) -> String:
-	var f := FileAccess.open("/proc/self/fdinfo/" + fd, FileAccess.READ)
+static func _proc_file(path: String) -> String:
+	var f := FileAccess.open(path, FileAccess.READ)
 	return f.get_buffer(65536).get_string_from_utf8() if f != null else ""
 
 

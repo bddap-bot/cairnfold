@@ -15,6 +15,9 @@ func _initialize() -> void:
 	_each_frame_splits_the_main_thread()
 	await _the_engine_splits_its_frames()
 	_a_pause_is_no_frame()
+	_drm_usage_reads_a_clients_counters()
+	_a_second_splits_the_gpu_between_the_game_and_other_processes()
+	_this_process_reads_its_own_drm_fds()
 	finish()
 
 
@@ -280,3 +283,36 @@ func _the_engine_splits_its_frames() -> void:
 	check(times.keys() == Metrics.MAIN_PHASES, "the engine reports every phase: %s" % [times])
 	var spent: float = times.values().reduce(func(a: float, b: float) -> float: return a + b, 0.0)
 	check(spent > 0.0 and times.values().all(func(t: float) -> bool: return t >= 0.0), "a frame's phases fill its length: %s" % [times])
+
+
+func _drm_usage_reads_a_clients_counters() -> void:
+	var info := "pos:\t0\ndrm-driver:\tmsm\ndrm-client-id:\t30\ndrm-engine-gpu:\t904 ns\ndrm-engine-capacity-gpu:\t4\ndrm-cycles-gpu:\t596\n"
+	check(Metrics.drm_usage(info) == ["30", 904, 596], "a client's busy ns and cycles: %s" % [Metrics.drm_usage(info)])
+	check(Metrics.drm_usage("drm-client-id:\t7\ndrm-engine-render:\t5 ns\n") == ["7", 5, -1], "a driver without cycles reads -1")
+	check(Metrics.drm_usage("pos:\t0\n").is_empty(), "a fd that names no client is none")
+	check(Metrics.drm_usage("drm-client-id:\t25\ndrm-engine-gpu:\t10 ns\ndrm-cycles-gpu:\t18446744073709419613\n") == ["25", 10, -1],
+		"a cycle counter wrapped below zero is no reading")
+
+
+func _a_second_splits_the_gpu_between_the_game_and_other_processes() -> void:
+	var was := {"1": [1000000, 900000, ""], "2": [5000000, -1, "vrcompositor"], "3": [0, 0, "vrcompositor"]}
+	var now := {"1": [5000000, 1300000, ""], "2": [7000000, -1, "vrcompositor"], "3": [500000, 0, "vrcompositor"],
+		"4": [9000000, 0, "eyetracking"]}
+	var row := Metrics.gpu_second(was, now)
+	check(is_equal_approx(row.gpu_ms, 4.0), "the game's busy time: %s" % [row])
+	check(row.gpu_cycles_per_busy_us == 100.0, "400000 cycles over 4 ms of busy time is 100 a microsecond: %s" % [row])
+	check(row.others_gpu_ms.keys() == ["vrcompositor"] and is_equal_approx(row.others_gpu_ms.vrcompositor, 2.5),
+		"another process's clients sum by its name, and a client first seen this second counts nothing: %s" % [row])
+	check(Metrics.gpu_second({}, now).is_empty(), "a first reading has no second")
+	var gone := Metrics.gpu_second(was, {"2": [7000000, -1, "vrcompositor"]})
+	check(not gone.has("gpu_ms") and not gone.has("gpu_cycles_per_busy_us"), "a second without the game's clients has no game time: %s" % [gone])
+	var back := Metrics.gpu_second(was, {"1": [500000, 950000, ""], "2": [4000000, -1, "vrcompositor"]})
+	check(back.is_empty(), "a counter that ran backwards counts nothing: %s" % [back])
+	check(Metrics.drm_usage("drm-client-id:\t9\ndrm-engine-gpu:\t18446744073709419613 ns\n").is_empty(), "a wrapped busy count is no reading")
+
+
+func _this_process_reads_its_own_drm_fds() -> void:
+	var me := str(OS.get_process_id())
+	for at in Metrics.drm_fds():
+		check(at[0].begins_with("/proc/") and at[0].contains("/fdinfo/"), "a DRM fd names its info: %s" % [at])
+		check(at[0].begins_with("/proc/%s/" % me) == at[1].is_empty(), "only this process's fds go unnamed: %s" % [at])
