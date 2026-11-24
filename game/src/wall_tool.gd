@@ -578,24 +578,36 @@ func _place_carried() -> void:
 	_settle_builds()
 
 
+## Carries `w`, and each lay it draws while it waits for the light fields (Wall._views), from where it was laid to `at`.
+## A lay none of `laid_at` holds was laid where it stands.
 func _carry(w: Wall, laid_at: Array[Dictionary], at: Dictionary) -> void:
-	var laid := w.layout.laid_points
-	var i := laid_at.find_custom(func(e: Dictionary) -> bool: return e.points == laid and e.laid_rise == w.layout.laid_rise)
-	if i < 0:
+	var found := PackedInt32Array([_laid_index(laid_at, w.layout.laid_points, w.layout.laid_rise), _laid_index(laid_at, w.drawn_points, w.drawn_rise)])
+	found.sort()
+	var first := found[1] if found[0] < 0 else found[0]
+	if first < 0:
 		return
-	for k in i:
+	for k in first:
 		laid_at.pop_front()
-	var was: Dictionary = laid_at[0]
+	var carrier := func(points: Array[Vector3], rise: float) -> Transform3D:
+		var j := _laid_index(laid_at, points, rise)
+		return Transform3D.IDENTITY if j < 0 else _carried_from(laid_at[j], at)
+	_place_laid(w, carrier.call(w.layout.laid_points, w.layout.laid_rise), carrier)
+
+
+static func _laid_index(laid_at: Array[Dictionary], points: Array[Vector3], rise: float) -> int:
+	return laid_at.find_custom(func(e: Dictionary) -> bool: return e.points == points and e.laid_rise == rise)
+
+
+func _carried_from(was: Dictionary, at: Dictionary) -> Transform3D:
 	var lift: float = 0.0 if not at.grounded else _lowest(outline(at), world.terrain.shown_at) - _lowest(outline({"center": was.center, "yaw": was.yaw, "size": at.size, "round": at.round}), world.terrain.shown_at) + at.rise - was.rise
-	var from := _footing(was)
 	var to := Transform3D(Basis(Vector3.UP, at.yaw), Vector3(at.center.x, lift, at.center.z))
-	_place_laid(w, to * from.affine_inverse())
+	return to * _footing(was).affine_inverse()
 
 
-func _place_laid(w: Wall, x: Transform3D) -> void:
-	if w.transform.is_equal_approx(x):
+func _place_laid(w: Wall, x: Transform3D, carrier: Callable) -> void:
+	if w.transform.is_equal_approx(x) and w.drawn_carry.is_equal_approx(carrier.call(w.drawn_points, w.drawn_rise)):
 		return
-	w.carry(x)
+	w.carry(x, carrier)
 	if world.decorations != null:
 		world.decorations.place()
 
@@ -676,8 +688,8 @@ func _settle_builds() -> void:
 		var s: Dictionary = _settling[id]
 		if w == null or not world.state.walls.has(id):
 			_settling.erase(id)
-		elif s.back and not w.laying() and PackedVector3Array(w.layout.laid_points) == world.state.walls[id].points and w.layout.laid_rise == world.state.walls[id].rise:
-			_place_laid(w, Transform3D.IDENTITY)
+		elif s.back and not w.laying() and not w.view_waits() and PackedVector3Array(w.layout.laid_points) == world.state.walls[id].points and w.layout.laid_rise == world.state.walls[id].rise:
+			_place_laid(w, Transform3D.IDENTITY, func(_points: Array[Vector3], _rise: float) -> Transform3D: return Transform3D.IDENTITY)
 			w.occlude_shown()
 			_settling.erase(id)
 		else:

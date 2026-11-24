@@ -74,6 +74,17 @@ static var _due_frame := -1
 static var _due_laid := 0
 var _build := {}
 var _shown := {}
+## What this wall draws (pieces, roof faces, ivy, fittings) shows a lay once the light fields are solved for it
+## (Bake.step), so its stones and the light they read change in one frame; game logic reads each lay as it lands. Per
+## lay landed and not yet drawn: told, the frame its pieces were given the fields; lay; chunked and settled as it landed.
+var _views: Array[Dictionary] = []
+## Where the drawn lay is carried, and the points and rise it was laid at; `_carrier(points, rise)` gives where a lay laid
+## at those is carried (WallTool._carry).
+var drawn_carry := Transform3D.IDENTITY
+var drawn_points: Array[Vector3] = []
+var drawn_rise := 0.0
+var _carrier := Callable()
+var _drawn_chunked: Array[Dictionary] = []
 var _settle_on_land := false
 var _stand_in: Wall
 ## Freeing a long wall's thousands of stones takes milliseconds, so the wall's next worker task does it.
@@ -222,6 +233,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	var lit := _views.size() - 1
+	while lit >= 0 and _views[lit].told >= Bake.drawn_before and Bake.stepping():
+		lit -= 1
+	if lit >= 0:
+		_draw_view(lit)
 	if due.is_valid() and Engine.get_process_frames() > _due_since and _may_lay_due():
 		_lay_due()
 	if _queued and _slot_free():
@@ -248,7 +264,7 @@ func _process(delta: float) -> void:
 	if _ivy != null:
 		var mm := _ivy.multimesh
 		mm.visible_instance_count = mini(_ivy_times.bsearch(ivy_age), mm.instance_count)
-	if not laying() and _recolour_task < 0 and not _ivy_growing() and not _handoff:
+	if not laying() and _recolour_task < 0 and not _ivy_growing() and not _handoff and _views.is_empty():
 		set_process(false)
 		if _settled:
 			_sync()
@@ -265,6 +281,8 @@ func lay_now() -> void:
 			_land()
 		else:
 			_land_recolour()
+	if not _views.is_empty():
+		_draw_view(_views.size() - 1)
 
 
 ## A settling lay whose inputs changed is dropped: shown, its stones would stand apart from the glade's meanwhile.
@@ -279,12 +297,48 @@ func _land() -> void:
 	_shown = _build
 	if _build_stale:
 		_build_live()
+	var job: WallLayout = _shown.job
+	if job.laid_points != layout.laid_points or job.laid_rise != layout.laid_rise:
+		# The ivy grew on the stones before; the settle lays it on these.
+		_parts[Part.IVY] = PackedFloat32Array()
+		_chunked[Part.IVY] = {}
+	var view := {"told": Engine.get_process_frames(), "lay": _shown}
+	_views.append(view)
 	if _settle_on_land and not laying():
 		_settle()
 	else:
 		_put_shown()
 		_occlude(PackedVector3Array(), PackedInt32Array())
+	view.chunked = _chunked.duplicate()
+	view.settled = _settled
+	masonry.tell(get_instance_id(), _parts)
+	Lamps.relaid = true
+	if not Bake.stepping():
+		_draw_view(_views.size() - 1)
+
+
+## The lay the light fields are given for this wall, the one shown: {job, roof, out}; empty before the first.
+func laid_as() -> Dictionary:
+	return _shown
+
+
+func view_waits() -> bool:
+	return not _views.is_empty()
+
+
+## Draws `_views[i]` and drops those before it; the newest as the wall stands now, which may have grown ivy since.
+func _draw_view(i: int) -> void:
+	var view := _views[i]
+	_views = _views.slice(i + 1)
+	var job: WallLayout = view.lay.job
+	drawn_points = job.laid_points
+	drawn_rise = job.laid_rise
+	_dress(view.lay)
+	if _views.is_empty():
 		_sync()
+	else:
+		_draw(view.chunked, view.settled)
+	_show_view(_carrier.call(drawn_points, drawn_rise) if _carrier.is_valid() else transform)
 
 
 func _ivy_growing() -> bool:
@@ -294,9 +348,8 @@ func _ivy_growing() -> bool:
 ## A stand-in let go as its wall leaves may outlive the glade.
 func _exit_tree() -> void:
 	if is_instance_valid(masonry):
-		masonry.remove(get_instance_id())
-		if _drawn != null:
-			masonry.announce(get_instance_id(), Masonry.nothing(masonry.kinds.size()))
+		masonry.place(get_instance_id(), Masonry.nothing(masonry.kinds.size()), false)
+		masonry.tell(get_instance_id(), [])
 	if is_instance_valid(_stand_in):
 		_stand_in.queue_free()
 
@@ -501,9 +554,20 @@ func _lay() -> void:
 func _lay_dressing(roofed: Dictionary) -> void:
 	if roof != null:
 		_pack_roof(roofed)
-	else:
-		_fittings.lay(layout.flames, layout.cloths, paint[Palette.Element.LANTERN])
+	if _views.is_empty():
+		_dress(_shown)
+
+
+func _dress(lay: Dictionary) -> void:
+	var job: WallLayout = lay.job
+	var r: RoofLayout = lay.out.get("roofed", {}).get("roof")
+	if r == null:
+		_fittings.lay(job.flames, job.cloths, paint[Palette.Element.LANTERN])
 		_smoke.lay(PackedVector3Array())
+		return
+	_fittings.lay(job.flames, job.cloths + r.cloths, paint[Palette.Element.LANTERN])
+	_smoke.lay(r.vents)
+	_face_roof(r, job)
 
 
 ## Touches nothing but its arguments: it runs on a worker thread.
@@ -524,6 +588,7 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 func _pack_roof(roofed: Dictionary) -> void:
 	if roofed.is_empty():
 		roofed = pack_roof(layout, roof, kinds(), _painted)
+		_shown.out.roofed = roofed
 	else:
 		roof.adopt(roofed.roof)
 	_parts[Part.TILE] = roofed.tiles
@@ -534,15 +599,16 @@ func _pack_roof(roofed: Dictionary) -> void:
 	if not roofed.mortar.is_empty():
 		_parts[Part.MORTAR] = _wall_mortar + roofed.mortar
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR])
-	_fittings.lay(layout.flames, layout.cloths + roof.cloths, paint[Palette.Element.LANTERN])
-	_smoke.lay(roof.vents)
-	var plastered := layout.plastered() and layout.gable_kind() == WallLayout.GableEnd.WALL
-	var faces := [roof.coat, roof.gable_faces if plastered else PackedVector3Array(), roof.torching_faces, roof.timber_faces, PackedVector3Array() if plastered else roof.gable_faces]
+
+
+func _face_roof(r: RoofLayout, job: WallLayout) -> void:
+	var plastered := job.plastered() and job.gable_kind() == WallLayout.GableEnd.WALL
+	var faces := [r.coat, r.gable_faces if plastered else PackedVector3Array(), r.torching_faces, r.timber_faces, PackedVector3Array() if plastered else r.gable_faces]
 	if faces == _faced:
 		return
 	_faced = faces.duplicate(true)
-	_coat.mesh = _coat_mesh(roof.coat)
-	_coat_far.mesh = _coat_mesh(roof.coat_far)
+	_coat.mesh = _coat_mesh(r.coat)
+	_coat_far.mesh = _coat_mesh(r.coat_far)
 	_coat.visibility_range_end = kinds()[Part.STONE].near + (_coat.mesh.get_aabb().size.length() * 0.5 if _coat.mesh != null else 0.0)
 	_coat_far.visibility_range_begin = _coat.visibility_range_end
 	_gables.mesh = _faces_mesh(faces[1])
@@ -722,6 +788,7 @@ func _land_recolour() -> void:
 			_chunked[p] = out[p][1]
 		_painted = out.to
 		_sync()
+		masonry.tell(get_instance_id(), _parts)
 	_recolour()
 
 
@@ -784,47 +851,66 @@ func draw_live() -> void:
 	if _settled:
 		_settled = false
 		_sync()
+	for v in _views:
+		v.settled = false
+	if not _views.is_empty() and not _drawn_chunked.is_empty():
+		_draw(_drawn_chunked, false)
 
 
 ## Stones drawn here upload at once, so they are always the ones laid, which a carry's transform is placed for. A wall
-## drawing its own stones keeps drawing the latest lay until the glade draws it: the roof's faces show that lay at once.
+## drawing its own stones keeps drawing them until the glade draws them: the roof's faces show a lay as it is drawn.
 func _sync() -> void:
+	if _views.is_empty():
+		_draw(_chunked, _settled)
+
+
+func _draw(chunked: Array[Dictionary], settled: bool) -> void:
+	_drawn_chunked = chunked
 	var placed: Array[Dictionary] = []
 	var drawn: Array[Dictionary] = []
 	for p in Part.size():
-		var settle := _settled and (p != Part.IVY or not _ivy_growing())
-		placed.append(_chunked[p] if settle else {})
-		drawn.append(_chunked[p] if p != Part.IVY else {})
+		var settle := settled and (p != Part.IVY or not _ivy_growing())
+		placed.append(chunked[p] if settle else {})
+		drawn.append(chunked[p] if p != Part.IVY else {})
 	var ivy_placed := not placed[Part.IVY].is_empty()
 	_ivy_handoff = ivy_placed and (_ivy_handoff or not _ivy_placed)
 	_ivy_placed = ivy_placed
-	masonry.place(get_instance_id(), placed)
-	_live = not _settled and drawn.any(func(d: Dictionary) -> bool: return not d.is_empty())
+	masonry.place(get_instance_id(), placed, false)
+	_live = not settled and drawn.any(func(d: Dictionary) -> bool: return not d.is_empty())
 	_handoff = not masonry.drawn(get_instance_id())
 	if _live or (_handoff and _drawn != null):
 		if _drawn == null:
 			_drawn = Masonry.new(kinds())
-			_drawn.carry = transform
 			add_child(_drawn)
+			_show_view(drawn_carry)
 		_drawn.place(get_instance_id(), drawn)
 		_drawn.flush()
-		# The bounce volume reads pieces as the glade announces them, whichever draws them.
-		masonry.announce(get_instance_id(), drawn)
 	if _handoff:
 		set_process(true)
-		_show_ivy(_ivy_handoff or (_settled and _ivy_growing()))
+		_show_ivy(_ivy_handoff or (settled and _ivy_growing()))
 	else:
 		_hand_off()
 
 
-## Moves the build as a hold carries it; what it draws itself keeps the light of where it was laid.
-func carry(x: Transform3D) -> void:
+## Moves the build as a hold carries it, `x` from where it was laid; `carrier` as `_carrier`.
+func carry(x: Transform3D, carrier: Callable) -> void:
 	transform = x
+	_carrier = carrier
+	_show_view(carrier.call(drawn_points, drawn_rise))
+
+
+## What this wall draws stands at `drawn` and keeps the light of where its lay was laid.
+func _show_view(drawn: Transform3D) -> void:
+	drawn_carry = drawn
+	var view := transform.affine_inverse() * drawn
+	for n: Node3D in [_drawn, _gables, _coat, _coat_far, _torching, _ceiling, _ivy, _fittings, _smoke]:
+		if n != null:
+			n.transform = view
 	if _drawn != null:
-		_drawn.carry = x
+		_drawn.carry = drawn
 	for g: GeometryInstance3D in [_gables, _coat, _coat_far, _torching, _ceiling]:
 		if g != null:
-			Masonry.show_carry(g, x)
+			Masonry.show_carry(g, drawn)
 
 
 func _hand_off() -> void:
@@ -846,6 +932,7 @@ func _show_ivy(growing: bool) -> void:
 			return
 		_ivy = kinds()[Part.IVY].instance()
 		add_child(_ivy)
+		_ivy.transform = transform.affine_inverse() * drawn_carry
 	kinds()[Part.IVY].fill(_ivy.multimesh, buf)
 
 

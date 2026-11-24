@@ -185,8 +185,9 @@ static func build_owner(id: int) -> int:
 	return -1 - id
 
 
-## `parts`: one `split` result per kind, in `kinds` order; replaces what `owner` placed before.
-func place(owner: int, parts: Array[Dictionary]) -> void:
+## `parts`: one `split` result per kind, in `kinds` order; replaces what `owner` placed before. Unless `announce` is
+## false, `placed` tells of its occluding pieces; a wall tells of its own as each lay lands.
+func place(owner: int, parts: Array[Dictionary], announce := true) -> void:
 	assert(parts.size() == kinds.size(), "one split buffer per kind")
 	var keys := {}
 	for k in kinds.size():
@@ -212,22 +213,25 @@ func place(owner: int, parts: Array[Dictionary]) -> void:
 		_owners[owner] = keys.keys()
 	if not _dirty.is_empty():
 		set_process(true)
-	if occluders:
-		announce(owner, parts)
+	if occluders and announce:
+		var flat: Array[PackedFloat32Array] = []
+		for k in kinds.size():
+			var all := PackedFloat32Array()
+			for buf in parts[k].values():
+				all.append_array(buf)
+			flat.append(all)
+		tell(owner, flat)
 
 
-## Emits `placed` for `owner`'s occluding pieces in `parts`, one `split` result per kind.
-func announce(owner: int, parts: Array[Dictionary]) -> void:
+## Emits `placed` for `owner`'s occluding pieces in `flat`, one buffer per kind in `kinds` order; none if empty.
+func tell(owner: int, flat: Array[PackedFloat32Array]) -> void:
 	if placed.get_connections().is_empty():
 		return
 	var buffers: Array[PackedFloat32Array] = []
 	var strides := PackedInt32Array()
-	for k in kinds.size():
-		if kinds[k].occludes and not parts[k].is_empty():
-			var all := PackedFloat32Array()
-			for buf in parts[k].values():
-				all.append_array(buf)
-			buffers.append(all)
+	for k in flat.size():
+		if kinds[k].occludes and not flat[k].is_empty():
+			buffers.append(flat[k])
 			strides.append(kinds[k].stride())
 	placed.emit(owner, buffers, strides)
 

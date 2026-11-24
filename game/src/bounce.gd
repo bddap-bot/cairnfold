@@ -35,7 +35,9 @@ var _tops := PackedFloat32Array()
 var _colors := PackedColorArray()
 ## Owner id -> [instance buffers, strides], placed since the last solve began.
 var _pending := {}
-var _rooms := Bake.no_rooms
+var _rooms := Lamps.Rooms.new()
+## Ground whose rooms changed since the last solve began.
+var _enclosed: Array[Rect2] = []
 var _sun := Vector3.UP
 var _relight := false
 var _layers: Array[Image] = []
@@ -128,20 +130,21 @@ func set_sun(toward_sun: Vector3, light: Color) -> void:
 
 
 ## Share the rooms already derived for lantern occlusion; the column approximation cannot distinguish a
-## roof and wall in one cell, so it must not invent sky through that solid shell.
-func enclose(rooms: Lamps.Rooms) -> void:
+## roof and wall in one cell, so it must not invent sky through that solid shell. Only the probes near `moved` change.
+func enclose(rooms: Lamps.Rooms, moved: Array[Rect2]) -> void:
 	_rooms = rooms
-	_relight = true
+	_enclosed.append_array(moved)
 
 
 func _next() -> Callable:
 	if _ground_moved():
 		_relight = true
-	if _pending.is_empty() and not _relight:
+	if _pending.is_empty() and not _relight and _enclosed.is_empty():
 		return Callable()
-	var job := {"pending": _pending, "sun": _sun, "relight": _relight, "heights": terrain.read(Terrain.ALL), "rooms": _rooms}
+	var job := {"pending": _pending, "sun": _sun, "relight": _relight, "heights": terrain.read(Terrain.ALL), "rooms": _rooms, "enclosed": _enclosed}
 	_pending = {}
 	_relight = false
+	_enclosed = []
 	return _work.bind(job)
 
 
@@ -171,8 +174,15 @@ func _work(job: Dictionary) -> Dictionary:
 	if job.relight:
 		for o in _owners.values():
 			changed.merge(o)
+	for rect: Rect2 in job.enclosed:
+		var footprint := rect.grow(Terrain.STEP * 0.5)
+		var a := column(footprint.position.x, footprint.position.y)
+		var b := column(footprint.end.x, footprint.end.y)
+		for z in range(a.y, b.y + 1):
+			for x in range(a.x, b.x + 1):
+				changed[Vector2i(x, z)] = true
 	if changed.is_empty():
-		return {"rooms": job.rooms}
+		return {}
 	var area := Rect2i(changed.keys()[0], Vector2i.ONE)
 	for c in changed:
 		area = area.expand(c).expand(c + Vector2i.ONE)
@@ -180,7 +190,6 @@ func _work(job: Dictionary) -> Dictionary:
 	var ground := grounds(job.heights)
 	var result := solve(_bottoms, _tops, _colors, ground, job.sun, area)
 	enclose_probes(result, ground, job.rooms, _colors, job.sun)
-	result.rooms = job.rooms
 	return result
 
 

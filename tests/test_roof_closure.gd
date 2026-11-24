@@ -55,6 +55,7 @@ func _case(finish_kind: WallLayout.Finish, pitch: float, curve: float, thatch: b
 	rendered.add_roof(r)
 	rendered._take(packed)
 	rendered._pack_roof(roof)
+	rendered._face_roof(rendered.roof, w)
 	var faces := PackedVector3Array()
 	for part in [Wall.Part.STONE, Wall.Part.MORTAR, Wall.Part.TIMBER, Wall.Part.TILE]:
 		faces.append_array(HouseLeaks.instances(rendered._parts[part], kinds[part]))

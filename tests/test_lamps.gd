@@ -125,7 +125,7 @@ func _a_live_hump_solves_nothing() -> void:
 	lamps.light([], PackedVector3Array([Vector3(1.0, 1.8, 0.0)]))
 	lamps.finish()
 	terrain.set_hump(0, 1.0, 0.0, 3.0, 1.0)
-	lamps.update()
+	Bake.step([lamps])
 	check(lamps._task < 0, "a stroke's live hump, which the light never stands on, starts no solve")
 	terrain.clear_hump(0)
 	lamps.finish()
@@ -135,7 +135,7 @@ func _a_live_hump_solves_nothing() -> void:
 	for i in raised.size():
 		raised[i] += 1.0
 	terrain.write(cells, raised)
-	lamps.update()
+	Bake.step([lamps])
 	check(lamps._task >= 0, "ground raised under a lantern solves its light again")
 	lamps.stop()
 

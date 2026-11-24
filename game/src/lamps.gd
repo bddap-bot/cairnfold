@@ -25,7 +25,13 @@ const OUT := 0.5
 ## The share of a doorway's light that gets out: a doorway spills little, so a lit house reads by its windows.
 const DOOR := 0.2
 
-signal rooms_changed(rooms: Rooms)
+## `moved`: the ground of every group of rooms that changed, before and after.
+signal rooms_changed(rooms: Rooms, moved: Array[Rect2])
+
+## A build was laid anew: Look has `light` read the rooms it stands as (Wall.laid_as) before the fields next step.
+static var relaid := false
+## The last solve lit something.
+var _shining := false
 
 var texture := ImageTexture3D.new()
 var _layers: Array[Image] = []
@@ -75,7 +81,7 @@ class Room:
 		var r := Room.new()
 		r.massing = massing
 		r.joined = layout.joined.duplicate()
-		var line := WallLayout.ground_line(layout.points)
+		var line := WallLayout.ground_line(layout.laid_points)
 		r.inside = Geometry2D.offset_polygon(line, -WallLayout.THICKNESS * 0.5)
 		r.probe_inside = Geometry2D.offset_polygon(line, Terrain.STEP * 0.5)
 		r.rect = Rect2(line[0], Vector2.ZERO)
@@ -189,22 +195,38 @@ func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedCo
 		for f in w.layout.flames:
 			flames.append(w.transform * f.origin)
 			lights.append(g)
-		# Until a reshape is laid its outline and roof are the reshape's while its stones, and the light they read, are
-		# still the lay's: a room from the one darkens the other.
-		if w.layout.closed and not w.layout.fence and w.massing != null and PackedVector3Array(w.layout.points) == PackedVector3Array(w.layout.laid_points):
-			shells.append([w, w.massing, w.layout.laid, w.roof.dormers.duplicate() if w.roof != null else []])
+		# A room stands as the lay its stones, and the light they read, are: a reshape's outline or roof darkens them.
+		var lay := w.laid_as()
+		if not lay.is_empty() and lay.job.closed and not lay.job.fence:
+			shells.append([w, lay.job, lay.job.laid, lay.out.get("roofed", {}).get("roof", lay.roof)])
 	if shells != _shells:
-		_shells = shells
 		var rooms: Array[Room] = []
 		for s in shells:
-			rooms.append(Room.of(s[0].layout, s[1], s[0].roof))
+			rooms.append(Room.of(s[1], Massing.of(s[1], s[3]), s[3]))
+		var was := _rooms
 		_rooms = Rooms.new(rooms)
-		rooms_changed.emit(_rooms)
+		var moved := _moved(was, _shells, shells)
+		moved.append_array(_moved(_rooms, shells, _shells))
+		_shells = shells
+		rooms_changed.emit(_rooms, moved)
 		_dirty = true
 	if flames != _flames or lights != _lights:
 		_flames = flames
 		_lights = lights
 		_dirty = true
+
+
+## The rooms of each group in `rooms` (made from `shells`, in order) with a room whose shell `other` lacks.
+static func _moved(rooms: Rooms, shells: Array, other: Array) -> Array[Rect2]:
+	var groups := {}
+	for i in rooms.all.size():
+		if not other.has(shells[i]):
+			groups[rooms.all[i].group] = true
+	var out: Array[Rect2] = []
+	for r in rooms.all:
+		if groups.has(r.group):
+			out.append(r.rect)
+	return out
 
 
 func _next() -> Callable:
@@ -213,6 +235,10 @@ func _next() -> Callable:
 	if not _dirty:
 		return Callable()
 	_dirty = false
+	# Rooms only shape lanterns' light: with none lit, and none before, the field stays dark.
+	if _flames.is_empty() and not _shining:
+		return Callable()
+	_shining = not _flames.is_empty()
 	var flames := _flames
 	var lights := _lights
 	var rooms := _rooms

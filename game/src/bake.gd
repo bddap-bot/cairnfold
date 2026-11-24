@@ -7,43 +7,51 @@ var terrain: Terrain
 var _ground := -1
 var _task := -1
 var _out := {}
-## Before any room is known.
-static var no_rooms := Lamps.Rooms.new()
-## The rooms what this shows was solved for. Solves for other rooms are `held`, in order, until Look shows them
-## together with the other bake's for the same rooms: one showing a room the other does not yet lights the walls on
-## its edge wrong.
-var shown_rooms := no_rooms
-var held: Array[Dictionary] = []
 
 
-## Called once a frame.
-func update() -> void:
-	if _task >= 0:
-		if not WorkerThreadPool.is_task_completed(_task):
+## What was given the fields `step` drives before this frame is drawn.
+static var drawn_before := -1
+static var _began := -1
+static var _stepped := -1
+
+
+## Called once a frame with every field a build reads. What they solved is taken in one frame, so those fields change
+## together, and a build waiting for them (Wall) shows its lay in that frame; then each starts on what it has been given.
+static func step(bakes: Array[Bake]) -> void:
+	_stepped = Engine.get_process_frames()
+	for b in bakes:
+		if b._task >= 0 and not WorkerThreadPool.is_task_completed(b._task):
 			return
+	for b in bakes:
+		if b._task >= 0:
+			b._collect()
+	drawn_before = _began
+	_began = Engine.get_process_frames()
+	for b in bakes:
+		b._begin()
+
+
+## Whether anything steps the fields: a build waits for them only then.
+static func stepping() -> bool:
+	return _stepped >= Engine.get_process_frames() - 1
+
+
+func finish() -> void:
+	if _task >= 0:
 		_collect()
+	_begin()
+	while _task >= 0:
+		_collect()
+		_begin()
+
+
+func _begin() -> void:
 	var work := _next()
 	if not work.is_valid():
 		return
 	var out := {}
 	_out = out
 	_task = WorkerThreadPool.add_task(func() -> void: out.merge(work.call()), false)
-
-
-func finish() -> void:
-	update()
-	while _task >= 0:
-		_collect()
-		update()
-	if not held.is_empty():
-		show_held()
-
-
-func show_held() -> void:
-	for out in held:
-		_take(out)
-	shown_rooms = held[-1].rooms
-	held = []
 
 
 func stop() -> void:
@@ -70,12 +78,4 @@ func _ground_moved() -> bool:
 
 func _collect() -> void:
 	stop()
-	var rooms: Lamps.Rooms = _out.get("rooms", shown_rooms)
-	if rooms == shown_rooms:
-		_take(_out)
-		return
-	if not held.is_empty() and held[-1].rooms != rooms:
-		for out in held:
-			_take(out)
-		held = []
-	held.append(_out)
+	_take(_out)

@@ -104,7 +104,6 @@ func _process(delta: float) -> void:
 	_since_lights += delta
 	if _since_lights >= LIGHT_EVERY:
 		light_lanterns()
-	lamps.update()
 
 
 func _let_go(i: int, hand: Hand, stroke: Dictionary, target: Dictionary) -> void:

@@ -42,6 +42,10 @@ var disc: MeshInstance3D
 var moon_disc: MeshInstance3D
 var bounce := Bounce.new()
 var interior := Interior.new()
+## The lanterns' field, stepped with the others when the garden has one; `gather` gives it and the rooms the builds
+## stand as now.
+var lamps: Lamps
+var gather := Callable()
 var terrain: Terrain
 var _lift := -1.0
 var time := -1.0
@@ -273,11 +277,13 @@ func _process(delta: float) -> void:
 		var open := bounce.sky_at(at)
 		adapt(open, delta)
 		snow.fall(at, weather.snow if Palette.wintry() and not under else 0.0, open)
-	bounce.update()
-	interior.update()
-	if not bounce.held.is_empty() and not interior.held.is_empty() and bounce.held[-1].rooms == interior.held[-1].rooms:
-		bounce.show_held()
-		interior.show_held()
+	if Lamps.relaid and gather.is_valid():
+		Lamps.relaid = false
+		gather.call()
+	var fields: Array[Bake] = [bounce, interior]
+	if lamps != null:
+		fields.append(lamps)
+	Bake.step(fields)
 	_since_sky += delta
 	if _sky_time != time and _since_sky >= SKY_EVERY:
 		_paint_sky()

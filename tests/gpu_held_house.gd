@@ -1,7 +1,8 @@
 extends "res://../tests/support/suite.gd"
 
 ## A house let go after a stretch or a carry lays again; until the glade draws the new lay, the house must still show it
-## whole. The glade is held still here, as a busy frame's flush budget holds it on a headset.
+## whole. The glade is held still here, as a busy frame's flush budget holds it on a headset. Its walls keep their light
+## through every frame of a hold and of the lay after it.
 
 static func _luma(image: Image, box: Rect2) -> float:
 	var size := Vector2(image.get_size())
@@ -26,6 +27,12 @@ func _run() -> void:
 	await play(["wildlife", "shy", "grass", "flowers", "ivy"].map(func(n: String) -> Dictionary: return {"op": "layer", "name": n, "mode": "off"}))
 	await play([{"op": "view", "eye": [0, 2.0, 15], "at": [0, 1.8, 0], "ground": true}])
 	var wall := Rect2(0.4, 0.5, 0.2, 0.15)
+	await _lit_through("stretched", func(start: Dictionary, k: float) -> Dictionary:
+		return start.merged({"size": start.size.lerp(Vector2(11, 5), k)}, true), wall)
+	await _lit_through("carried", func(start: Dictionary, k: float) -> Dictionary:
+		return start.merged({"center": start.center + Vector3(-1.5, 0, 1) * k}, true), wall)
+	await _lit_through("shrunk and carried back", func(start: Dictionary, k: float) -> Dictionary:
+		return start.merged({"size": start.size.lerp(Vector2(5, 5), k), "center": start.center + Vector3(1.5, 0, -1) * k}, true), wall)
 	var before := await drawn()
 	var stretch := func(start: Dictionary, k: float) -> Dictionary:
 		return start.merged({"size": start.size.lerp(Vector2(11, 5), k)}, true)
@@ -37,6 +44,33 @@ func _run() -> void:
 		return start.merged({"center": start.center + Vector3(-1.5, 0, -1) * k}, true)
 	await _taken_again(move)
 	finish()
+
+
+## Over a hold to `to(start, k)` and every frame after the let-go until its lay is drawn and lit, the wall reads within
+## 30% of its light before the hold.
+func _lit_through(what: String, to: Callable, wall: Rect2) -> void:
+	var tool: WallTool = main.tool
+	var w: Wall = tool.walls[0]
+	var before := _luma(await drawn(), wall)
+	var worst := [1.0, ""]
+	var look := func(when: String) -> void:
+		var ratio := _luma(await drawn(), wall) / before
+		if absf(ratio - 1.0) > absf(worst[0] - 1.0):
+			worst.assign([ratio, when])
+	tool.take_build(w)
+	var start: Dictionary = tool.held_at.duplicate()
+	for i in 120:
+		tool.stand_build(to.call(start, (i + 1) / 120.0))
+		await look.call("held, frame %d" % i)
+	tool.end_build()
+	var calm := 0
+	var frame := 0
+	while calm < 60:
+		await look.call("let go, frame %d" % frame)
+		frame += 1
+		var still := not w.laying() and not tool._settling.has(w.id) and tool.masonry.drawn(w.get_instance_id())
+		calm = calm + 1 if still else 0
+	check(absf(worst[0] - 1.0) < 0.3, "the %s house's wall keeps its light: %.2f of before at its worst, %s" % [what, worst[0], worst[1]])
 
 
 ## Holds the house, moves it to `to(start, k)` over the hold, lets go, and compares the house as the glade waits with the

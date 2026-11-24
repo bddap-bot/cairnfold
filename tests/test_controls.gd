@@ -158,9 +158,9 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 		hold.call(&"right_hand", Vector3(0.5, -0.4 + 0.04 * mini(i + 1, 10), -0.3), front)
 		await frames(1)
 		var shown: Dictionary = tool._laid_at[0]
-		if shown.points != w.layout.laid_points or shown.laid_rise != w.layout.laid_rise:
+		if shown.points != w.drawn_points or shown.laid_rise != w.drawn_rise:
 			stale += 1
-	check(stale == 0, "each frame the stones laid are the ones carried, never a new lay under the old carry: %d stale frames" % stale)
+	check(stale == 0, "each frame the stones drawn are carried from where they were laid, never under another lay's carry: %d stale frames" % stale)
 	var rise: float = tool.held_at.rise
 	check(rise >= 0.3 and w.layout.rise == rise, "raising the hand raises it onto its plinth: %.1f m" % rise)
 	await _laid(w)
