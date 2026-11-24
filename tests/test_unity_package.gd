@@ -70,6 +70,7 @@ func _run() -> void:
 	_a_liltoon_shader_the_package_omits_is_known()
 	_liltoon_looks_carry_its_shadow_rim_matcaps_and_emission()
 	_liltoon_layers_bake_into_the_atlas()
+	_each_mask_weighs_what_its_shader_samples()
 	_liltoon_curves_bind_their_looks()
 	_liltoon_faded_layers_draw_as_decals()
 	_installed_packages_lend_only_missing_images()
@@ -993,6 +994,11 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
     - _MainHueShiftColorSpace: 1
     - _MainHueShiftSelectOrShift: 0
 """)
+	var mask := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
+	mask.set_pixel(0, 0, Color(1, 0, 0, 1))
+	mask.set_pixel(1, 0, Color(0, 1, 0, 1))
+	mask.save_png(dir.path_join("mask.png"))
+	FileAccess.open(dir.path_join("mask.png.meta"), FileAccess.WRITE).store_string("fileFormatVersion: 2\nguid: mask\n")
 	var assets := Assets.new(dir)
 	var materials := Materials.new(assets)
 	materials.use({"guid": "colour"}, Color.WHITE)
@@ -1025,10 +1031,6 @@ func _a_hue_radial_keeps_its_material_binding() -> void:
 	materials.materials.colour.floats = {"_HueShift": "0.5", "_HueShiftMaskChannel": "1"}
 	materials.materials.colour.keywords = ["USE_HUE_SHIFT"]
 	materials.materials.colour.textures = {"_HueShiftMask": {"m_Texture": {"guid": "mask"}}}
-	var mask := Image.create_empty(2, 1, false, Image.FORMAT_RGBA8)
-	mask.set_pixel(0, 0, Color(1, 0, 0, 1))
-	mask.set_pixel(1, 0, Color(0, 1, 0, 1))
-	materials._images.mask = mask
 	expressions.data.clips[0].curves[0].attribute = "material._HueShift"
 	expressions.data.clips[0].curves[0].keys = [[0.0, 0.0], [1.0, TAU]]
 	var mobile := UnityAvatar._bound(expressions, {"targets": [], "by_curve": {}}, [mesh], {}, objs, {"": 2}, sk, materials, Particles.new(null, null, {}, [], {}, []), {})
@@ -1787,7 +1789,7 @@ func _matcaps_and_emission_join_the_look() -> void:
 		var cell: Rect2i = materials.materials.body.cell
 		var left := masks.get_pixel(cell.position.x + cell.size.x / 4, cell.position.y + cell.size.y / 2)
 		var right := masks.get_pixel(cell.position.x + 3 * cell.size.x / 4, cell.position.y + cell.size.y / 2)
-		check(left.b < 0.2 and absf(right.b - 0.5) < 0.05 and left.r == 1.0, "slot three's channel holds its mask's chosen channel times its global mask: %s %s" % [left, right])
+		check(left.b < 0.2 and absf(right.b - Color(0.5, 0, 0).srgb_to_linear().r) < 0.02 and left.r == 1.0, "slot three's channel holds its mask's chosen channel times its global mask, its sRGB red decoded: %s %s" % [left, right])
 	var glow: Image = looks.get("emission")
 	check(glow != null, "the emission map is an image")
 	if glow != null:
@@ -2485,6 +2487,61 @@ func _liltoon_layers_bake_into_the_atlas() -> void:
 			check(range(4).all(func(x: int) -> bool: return absf(alphas[x] - masked[mode][x]) <= 2.0), "alpha mask mode %d sets the alpha from its red as its %s import reads: %s against %s" % [mode, "linear" if mask == "flat" else "sRGB", alphas, masked[mode]])
 	var opaque: Array = texels.call(_liltoon_mat(LILTOON, [], {"_AlphaMaskMode": 1}, {}, {"_MainTex": "grey", "_AlphaMask": "ramp"}))
 	check(opaque[0].a == 1.0, "an opaque material takes no alpha mask")
+
+
+## A grey byte of 128 weighs 0.22 in a mask imported sRGB, as Unity decodes it before a shader samples it, and 0.50 in
+## one imported linear: in each reader of a lilToon, Poiyomi or Toon Standard mask. Alpha is never decoded.
+func _each_mask_weighs_what_its_shader_samples() -> void:
+	var grey := Color8(128, 128, 128)
+	for linear: bool in [false, true]:
+		var by := 128 if linear else roundi(grey.srgb_to_linear().r * 255.0)
+		var import := "linear" if linear else "sRGB"
+		var imported: Array[String] = []
+		if linear:
+			imported.append_array(["grey", "veiled"])
+		var faded := Color(1.0 - by / 255.0, 0, 0).linear_to_srgb().r
+		var assets := _liltoon_fixture("mask-decode", {
+			"tone": _liltoon_mat(LILTOON, [], {}, {"_MainTexHSVG": Color(0, 1, 0, 1)}, {"_MainTex": "white", "_MainColorAdjustMask": "grey"}),
+			"layer": _liltoon_mat(LILTOON, [], {"_UseMain2ndTex": 1}, {"_Color2nd": Color(0, 0, 0, 1)}, {"_MainTex": "white", "_Main2ndBlendMask": "grey", "_Main3rdBlendMask": "grey"}),
+			"looks": _liltoon_mat(LILTOON, [], {"_UseShadow": 1, "_UseMatCap": 1, "_UseMatCap2nd": 1, "_UseEmission": 1}, {"_EmissionColor": Color.WHITE}, {"_MainTex": "white", "_ShadowStrengthMask": "grey", "_MatCapBlendMask": "grey", "_MatCap2ndBlendMask": "grey", "_EmissionBlendMask": "grey"}),
+			"poi": _liltoon_mat("poiyomi", [], {"_MainColorAdjustToggle": 1, "_MainBrightness": -1, "_GlobalMaskTexturesEnable": 1, "_EmissionMask0GlobalMask": 1}, {}, {"_MainTex": "white", "_MainColorAdjustTexture": "grey", "_DecalMask": "grey", "_MatcapMask": "grey", "_GlobalMaskTexture0": "grey"}),
+			"mobile": _liltoon_mat("e765db0afa7ecfc44ade2e4e2491f65a", ["USE_DETAIL_MAPS", "USE_HUE_SHIFT"], {"_DetailMaskChannel": 0, "_HueShiftMaskChannel": 0}, {}, {"_MainTex": "white", "_DetailAlbedoMap": "white", "_DetailMask": "grey", "_HueShiftMask": "grey"}),
+			"veil": _liltoon_mat("e765db0afa7ecfc44ade2e4e2491f65a", ["USE_DETAIL_MAPS"], {"_DetailMaskChannel": 3}, {}, {"_MainTex": "white", "_DetailAlbedoMap": "white", "_DetailMask": "veiled"}),
+		}, {"grey": [grey], "veiled": [Color8(0, 0, 0, 128)], "white": [Color.WHITE]}, imported)
+		var materials := Materials.new(assets)
+		var keys: Array = ["tone", "layer", "looks", "poi", "mobile", "veil"]
+		for key: String in keys:
+			materials.use({"guid": key}, Color.WHITE)
+		materials.materials.poi.shader = "Hidden/Locked/.poiyomi/Poiyomi Toon"
+		materials.pack(keys)
+		check(_near(_row(materials, materials.atlas, "tone")[0], Color(faded, faded, faded)), "lilToon's colour adjustment is weighed by its %s mask: %s" % [import, _row(materials, materials.atlas, "tone")[0]])
+		check(Materials.Liltoon.hue_mask(materials, materials.materials.tone, []).get_pixel(Materials.PAD, Materials.PAD).r8 == by, "the hue mask the renderer adjusts by holds the %s mask as sampled" % import)
+		check(_near(_row(materials, materials.atlas, "layer")[0], Color(faded, faded, faded)), "lilToon's 2nd layer covers by its %s blend mask: %s" % [import, _row(materials, materials.atlas, "layer")[0]])
+		var third := Materials.Liltoon._layer_image(materials, materials.materials.layer, "3rd", Materials.Liltoon.layer(materials.materials.layer, "2nd"), Vector2i(1, 1), 0)
+		check(third.get_pixel(0, 0).a8 == by, "lilToon's 3rd layer covers by its %s blend mask: %d" % [import, third.get_pixel(0, 0).a8])
+		materials.atlas_materials()
+		var looks := materials.looks()
+		check(_row(materials, looks.shade, "looks")[0].a8 == by, "lilToon's shade is as strong as its %s strength mask: %s" % [import, _row(materials, looks.shade, "looks")[0]])
+		var covers: Color = _row(materials, looks.matcapMasks, "looks")[0]
+		check(covers.r8 == by and covers.g8 == by, "both lilToon matcaps cover by their %s blend masks: %s" % [import, covers])
+		var glows: Color = _row(materials, looks.emission, "looks")[0]
+		var glow := Color(by / 255.0, 0, 0).linear_to_srgb()
+		check(_near(glows, Color(glow.r, glow.r, glow.r)), "lilToon's emission glows by its %s blend mask: %s" % [import, glows])
+		var poi: Dictionary = materials.materials.poi
+		var img := Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
+		img.fill(Color.WHITE)
+		materials._adjust(poi, img)
+		check(_near(img.get_pixel(0, 0), Color(faded, faded, faded)), "Poiyomi's colour adjustment is weighed by its %s mask: %s" % [import, img.get_pixel(0, 0)])
+		check(materials._adjust_mask("poi").get_pixel(Materials.PAD, Materials.PAD).r8 == by, "the Poiyomi adjust mask the renderer reads holds the %s mask as sampled" % import)
+		check(materials.decal_images[materials._decal_image("poi", 0)].get_pixel(0, 0).a8 == by, "a Poiyomi decal covers by its %s mask" % import)
+		var own := materials._mask(poi, "_MatcapMask", "_MatcapMaskChannel", "_MatcapMaskInvert", "_MatcapMaskGlobalMask", "_MatcapMaskGlobalMaskBlendType")
+		var global := materials._mask(poi, "_EmissionMask", "_EmissionMaskChannel", "_EmissionMaskInvert", "_EmissionMask0GlobalMask", "_EmissionMask0GlobalMaskBlendType")
+		check(own[0] == by and global[0] == by, "a Poiyomi mask and a global mask weigh what their %s textures sample: %d, %d" % [import, own[0], global[0]])
+		var detail := materials._detail_layer(materials.materials.mobile, Vector2i(1, 1), 0)
+		check(detail != null and detail.get_pixel(0, 0).a8 == by, "a Toon Standard detail covers by its %s mask: %s" % [import, detail.get_pixel(0, 0) if detail else null])
+		check(materials._adjust_mask("mobile").get_pixel(Materials.PAD, Materials.PAD).r8 == by, "Toon Standard's hue shift mask holds its %s texture as sampled" % import)
+		var veiled := materials._detail_layer(materials.materials.veil, Vector2i(1, 1), 0)
+		check(veiled != null and veiled.get_pixel(0, 0).a8 == 128, "a mask's alpha, which no import decodes, weighs its byte from an %s import: %s" % [import, veiled.get_pixel(0, 0) if veiled else null])
 
 
 func _liltoon_curves_bind_their_looks() -> void:

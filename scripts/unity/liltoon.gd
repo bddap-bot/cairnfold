@@ -113,7 +113,7 @@ static func adjust(materials: Materials, m: Dictionary, img: Image, animated: Di
 		hsvg.g = 1.0
 	if hsvg == Color(0, 1, 1, 1):
 		return
-	var cover := materials._tiled(m, materials._slot_image(m, "_MainColorAdjustMask"), m.scale, m.offset, img.get_size(), 0).get_data()
+	var cover := materials._tiled(m, materials._slot_sampled(m, "_MainColorAdjustMask"), m.scale, m.offset, img.get_size(), 0).get_data()
 	var data := img.get_data()
 	for i in range(0, data.size(), 4):
 		var by := cover[i] / 255.0
@@ -212,7 +212,7 @@ static func _layer_image(materials: Materials, m: Dictionary, n: String, l: Dict
 	var straight: bool = l.angle == 0.0 and not l.copy and not l.flip
 	var out := materials._tiled(m, source if straight else null, scale, offset, size, pad)
 	var data := out.get_data()
-	var mask := materials._tiled(m, materials._slot_image(m, "_Main%sBlendMask" % n), m.scale, m.offset, size, pad).get_data()
+	var mask := materials._tiled(m, materials._slot_sampled(m, "_Main%sBlendMask" % n), m.scale, m.offset, size, pad).get_data()
 	var colour: Color = l.colour
 	for y in size.y + 2 * pad:
 		for x in size.x + 2 * pad:
@@ -296,15 +296,15 @@ static func lighting(m: Dictionary) -> Dictionary:
 	return {"model": "flat", "cap": Materials._float(m, "_LightMaxLimit", 1.0), "shadow": shadow if shadow is Dictionary else null}
 
 
-## Alpha holds _ShadowStrengthMask's red for the first shade, 255 for the second.
+## Alpha holds _ShadowStrengthMask's red as sampled for the first shade, 255 for the second.
 ## Neither is held below the albedo: lilToon caps the shade after mixing the second into the first, as the renderer does.
 static func shade(materials: Materials, m: Dictionary, padded_albedo: Image, second: bool) -> Image:
 	var n := "2nd" if second else ""
 	var size: Vector2i = (m.cell as Rect2i).size
 	var texture := materials._slot_image(m, "_Shadow%sColorTex" % n)
 	var laid := PackedByteArray() if texture == null else materials._tiled(m, texture, m.scale, m.offset, size, Materials.PAD).get_data()
-	var mask := materials._slot_image(m, "_ShadowStrengthMask")
-	var strength := PackedByteArray() if second or mask == null else materials._tiled(m, mask, m.scale, m.offset, size, Materials.PAD).get_data()
+	var mask := null if second else materials._slot_sampled(m, "_ShadowStrengthMask")
+	var strength := PackedByteArray() if mask == null else materials._tiled(m, mask, m.scale, m.offset, size, Materials.PAD).get_data()
 	var colour := _colour(m, "_Shadow%sColor" % n, Color(0.68, 0.66, 0.79, 1) if second else Color(0.82, 0.76, 0.85, 1))
 	var main := Materials._float(m, "_ShadowMainStrength")
 	var data := padded_albedo.get_data()
@@ -422,10 +422,10 @@ static func matcap(m: Dictionary, slot: int) -> Dictionary:
 	}
 
 
-## Red, one byte a texel over the padded cell; empty where unmasked.
+## Its blend mask's red as sampled, one byte a texel over the padded cell; empty where unmasked.
 static func matcap_cover(materials: Materials, m: Dictionary, slot: int) -> PackedByteArray:
 	var p := "_MatCap%sBlendMask" % ["", "2nd"][slot]
-	var source := materials._slot_image(m, p)
+	var source := materials._slot_sampled(m, p)
 	if source == null:
 		return PackedByteArray()
 	var tiling := _through_main(m, p)
@@ -500,7 +500,7 @@ static func glow(materials: Materials, m: Dictionary, padded_albedo: Image) -> I
 		var c: Color = e[1].colour
 		var by: Color = Color(1, 1, 1) if drawn.size() == 1 else Color(c.r, c.g, c.b) * (c.a * e[1].blend / strength)
 		var map := materials._over_cell(m, materials._slot_image(m, p + "Map"), p + "Map").get_data()
-		var mask := materials._over_cell(m, materials._slot_image(m, p + "BlendMask") if compiled(m, "emission masks") else null, p + "BlendMask").get_data()
+		var mask := materials._over_cell(m, materials._slot_sampled(m, p + "BlendMask") if compiled(m, "emission masks") else null, p + "BlendMask").get_data()
 		var main := Materials._float(m, p + "MainStrength")
 		for i in range(0, base.size(), 4):
 			var cover := map[i + 3] * mask[i + 3] / 65025.0
@@ -515,10 +515,10 @@ static func glow(materials: Materials, m: Dictionary, padded_albedo: Image) -> I
 	return Image.create_from_data(padded_albedo.get_width(), padded_albedo.get_height(), false, Image.FORMAT_RGBA8, data)
 
 
-## _MainColorAdjustMask's red, spared where an atlas-laid normal-blend layer covers it (not those `faded`, which the
+## _MainColorAdjustMask's red as sampled, spared where an atlas-laid normal-blend layer covers it (not those `faded`, which the
 ## renderer lays after adjusting); null where it covers all.
 static func hue_mask(materials: Materials, m: Dictionary, faded: Array[String]) -> Image:
-	var source := materials._slot_image(m, "_MainColorAdjustMask")
+	var source := materials._slot_sampled(m, "_MainColorAdjustMask")
 	var over := LAYERS.filter(func(n: String) -> bool: return n not in faded and layer(m, n) is Dictionary and layer(m, n).mode == 0)
 	if source == null and over.is_empty():
 		return null

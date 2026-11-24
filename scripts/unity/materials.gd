@@ -315,7 +315,7 @@ func _adjust(m: Dictionary, img: Image) -> void:
 	var brightness: float = at.call("_MainBrightness")
 	if not shifted and gamma == 1.0 and saturation == 0.0 and brightness == 0.0:
 		return
-	var masks := _over(m, _slot_image(m, "_MainColorAdjustTexture"), "_MainColorAdjustTexture", img.get_size(), 0)
+	var masks := _over(m, _slot_sampled(m, "_MainColorAdjustTexture"), "_MainColorAdjustTexture", img.get_size(), 0)
 	masks.convert(Image.FORMAT_RGBA8)
 	var mask := masks.get_data()
 	var data := img.get_data()
@@ -401,7 +401,7 @@ func _detail_layer(m: Dictionary, size: Vector2i, pad: int) -> Image:
 		return null
 	var mode := _number(m, "_DetailMode", DETAIL_BLEND)
 	var layer := _over(m, source, "_DetailAlbedoMap", size, pad)
-	var cover := _over(m, _slot_image(m, "_DetailMask"), "_DetailMask", size, pad).get_data()
+	var cover := _over(m, _slot_sampled(m, "_DetailMask"), "_DetailMask", size, pad).get_data()
 	var channel := clampi(int(_number(m, "_DetailMaskChannel", 3.0)), 0, 3)
 	var data := layer.get_data()
 	for i in range(0, data.size(), 4):
@@ -578,7 +578,7 @@ func _adjust_mask(key: String) -> Image:
 	var m: Dictionary = materials[key]
 	var mobile := toon_standard(m)
 	var property := "_HueShiftMask" if mobile else "_MainColorAdjustTexture"
-	var source := image(_texture_guid(m, property)) if _texture_guid(m, property) != "" else null
+	var source := _slot_sampled(m, property)
 	var detail := _detail_layer(m, (m.cell as Rect2i).size, PAD) if hue_masks.has(key) and _number(m, "_DetailMode", DETAIL_BLEND) == DETAIL_BLEND else null
 	if source == null and detail == null:
 		return null
@@ -696,7 +696,7 @@ func _decal_image(key: String, slot: int) -> int:
 	var n := "" if slot == 0 else str(slot)
 	var property := "_DecalTexture" + n
 	var source := _slot_image(m, property)
-	var mask := _slot_image(m, "_DecalMask")
+	var mask := _slot_sampled(m, "_DecalMask")
 	var size := Vector2i.ZERO
 	for pair: Array in [[source, property], [mask, "_DecalMask"]]:
 		if pair[0] != null:
@@ -1376,11 +1376,11 @@ func _masked(m: Dictionary, property: String, invert: String, global: String) ->
 
 ## One byte a texel over the padded cell, as Poiyomi masks a matcap or an emission.
 func _mask(m: Dictionary, property: String, channel: String, invert: String, global: String, blend: String) -> PackedByteArray:
-	var source := _over_cell(m, _slot_image(m, property), property).get_data()
+	var source := _over_cell(m, _slot_sampled(m, property), property).get_data()
 	var pick := clampi(int(_float(m, channel)), 0, 3)
 	var inverted := int(_float(m, invert)) != 0
 	var over_mask: Dictionary = global_mask(m, int(_float(m, global)))
-	var over := PackedByteArray() if over_mask.is_empty() else _over_cell(m, _slot_image(m, over_mask.property) if over_mask.property != "" else null, over_mask.property).get_data()
+	var over := PackedByteArray() if over_mask.is_empty() else _over_cell(m, _slot_sampled(m, over_mask.property) if over_mask.property != "" else null, over_mask.property).get_data()
 	var type := int(_float(m, blend, 2.0))
 	var out := PackedByteArray()
 	out.resize(source.size() / 4)
@@ -1657,12 +1657,14 @@ static func _layer(img: Image, resample: Image.Interpolation, widest := LAYER) -
 	return img
 
 
-## Decoded afresh: holding every looks texture would outgrow an avatar's memory budget.
+## The file's bytes, still sRGB-encoded where imported so, for a colour read that keeps or decodes its own bytes; a
+## weight is read `_slot_sampled`. Decoded afresh: holding every looks texture would outgrow an avatar's memory budget.
 func _slot_image(m: Dictionary, property: String) -> Image:
 	var guid := _texture_guid(m, property)
 	return _decoded(guid) if guid != "" else null
 
 
+## As its shader samples it (`_sampled`), for a mask or any other weight.
 func _slot_sampled(m: Dictionary, property: String) -> Image:
 	var guid := _texture_guid(m, property)
 	return _sampled(guid) if guid != "" else null
