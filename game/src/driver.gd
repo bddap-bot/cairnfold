@@ -513,7 +513,7 @@ func _house(s: Dictionary) -> void:
 		tool.end_build()
 
 
-## `size` is [along its ridge, across it], a tower's `size[0]` across.
+## `size` is [along its ridge, across it], a tower's `size[0]` across. With `capture`, `shots` captures spread over the hold.
 func _resize(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	tool.take_build(_wall_of(s))
@@ -527,6 +527,8 @@ func _resize(s: Dictionary) -> void:
 	var keys := ["rise", "height"].filter(func(k: String) -> bool: return start.has(k))
 	for k: String in keys:
 		end[k] = s.get(k, start[k])
+	var shots: int = s.get("shots", 3) if s.has("capture") else 0
+	var taken := [0]
 	await _over(s, 1.0, func(k: float) -> void:
 		var to := start.duplicate()
 		to.center = start.center.lerp(end.center, k)
@@ -535,7 +537,10 @@ func _resize(s: Dictionary) -> void:
 			to.size = start.size.lerp(end.size, k)
 		for key: String in keys:
 			to[key] = lerpf(start[key], end[key], k)
-		tool.stand_build(to))
+		tool.stand_build(to)
+		while taken[0] < shots and k >= float(taken[0] + 1) / (shots + 1):
+			taken[0] += 1
+			await main.capture("%s-%d" % [s.capture, taken[0]]))
 	if tool.held != null:
 		tool.end_build()
 
