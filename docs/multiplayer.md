@@ -141,12 +141,15 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
 - **Pose.** The head follows the tracked headset and the hands follow the
   controllers, pointing where the controller points with the palm inward; the rest is
   solved from those three, and every player solves it alike from the same streamed poses,
-  so the network carries no body. The body hangs from the head bone and turns with the
-  head once it has turned further than a neck turns. Where a file puts the eyes farther ahead of the
-  shoulders than a person's stand (`Avatar.SHOULDERS_BEHIND`), the body
+  so the network carries no body. The body hangs from where a person's neck turns the head (`Torso.NECK`, under
+  and behind the eyes), so a head looked down or up moves the eyes and leaves the body standing, wherever a file
+  puts its head bone. It faces between the hands while both are held out within an arm's reach, and otherwise
+  stays as it was, turning with the head once the head has turned further than a neck turns. Where a file puts
+  the eyes farther ahead of the shoulders than a person's stand (`Avatar.SHOULDERS_BEHIND`), the body
   stands forward under the view until its shoulders are where the wearer's are, so its arms reach the
   wearer's hands, and its drawn face stands that much ahead of the wearer's own; the spine bends forward about the
-  head as the head looks down and as it crouches, so the hips go back. The feet stand
+  shoulders as the head looks down and as it crouches, so the hips go back while the shoulders stay where the
+  wearer's are, and the neck turns to meet the head. The feet stand
   planted on the floor (`Rig.floor_under`: the ground, or anything built on it) and step
   one at a time (`Gait`): when the centre of mass, taken between the upright body's hips
   and head, leaves the soles of the planted feet seen from above, or else when a foot is
@@ -155,8 +158,9 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   too far to walk, a teleport, sets both feet down at once; with no floor in reach the legs
   hang. Each leg and each arm is the one bend of its two bones that joins its root to its
   end: a knee forward over its foot, an elbow down, out and a little back. A leg stretches
-  a few percent to keep its foot down before the foot lifts, and a hand beyond reach
-  leaves the arm straight toward it.
+  a few percent to keep its foot down; a planted foot then turns at the ankle so its toes rest on the ground
+  under them, onto tiptoe where the leg still falls short, and a hand beyond reach leaves the arm straight
+  toward it.
 - **Size.** An avatar is drawn at its own size and proportions whoever wears it, and the
   wearer is fitted to it. Directive (verbatim): "I think our fitting of x height
   players to y height avatars needs some thought, to prevent avatars from squishing or
@@ -167,10 +171,11 @@ same spring runtime, including sphere/capsule colliders, collider groups and cen
   its eyes and reach as far as its arms while the garden looms larger, and in a tall one
   the reverse. Standing, their eyes are the avatar's, so its feet meet the floor, and
   others see it at its true size from the poses they already receive. `Stature` measures
-  the wearer's own eye height as they play: the height their head is held at or below
-  nine tenths of the time, so crouching to plant or a moment on tiptoe leaves it alone,
-  and someone seated throughout stands as tall as the avatar; until two seconds are
-  measured it is the typical `Rig.EYE`. Another avatar's fit comes behind a fade, as a
+  the wearer's own eye height as they play, as their eyes would stand with the head level: the highest the eyes
+  have stood through any three seconds, so standing up counts as soon as it is held, while a jump or a moment on
+  tiptoe does not and crouching after leaves it alone. Until a minute is measured it is at least the typical
+  `Rig.EYE`, so a wearer who starts seated or kneeling is not fitted as a short one, while someone seated throughout
+  stands as tall as the avatar. Another avatar's fit comes behind a fade, as a
   teleport does: the world never grows in view. The measure settling refits the wearer
   only at their next teleport, so one who stands up after starting low never sees the
   view go black. Each fade and each change of scale is a Metrics note naming why and the

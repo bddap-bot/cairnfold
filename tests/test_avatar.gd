@@ -1056,12 +1056,16 @@ func _pose_puts_the_eyes_on_the_head(scene: PackedScene, what: String) -> void:
 		var held: Transform3D = [l, r][s]
 		check(along.normalized().dot(-held.basis.z) > 0.99, "%s: the %s hand points where its controller points" % [what, side])
 	check(a.bone("hips").origin.y < eyes.origin.y - 0.4, "%s: the body hangs below the head" % what)
-	var tilted := Transform3D(Basis.from_euler(Vector3(0.5, 1.1, 0.3)), Vector3(1, a.eye_height, 1))
+	var faced: Basis = a.bone("hips").basis * a._joints.hips.rest.basis.inverse() * a._facing.inverse()
+	var tipped := Basis.from_euler(Vector3(0.5, 1.1, 0.3))
+	var neck := Torso.NECK * a.eye_height / Rig.EYE
+	var tilted := Transform3D(tipped, Vector3(1, a.eye_height, 1) + Basis(Vector3.UP, 1.1) * neck - tipped * neck)
 	a.pose(tilted, l, r)
 	var hips: Basis = a.bone("hips").basis * a._joints.hips.rest.basis.inverse()
 	check(hips.y.is_equal_approx(Vector3.UP), "%s: the body stays upright when the head tips" % what)
 	var ahead: Vector3 = hips * a._facing.inverse() * Vector3.FORWARD
-	check(Vector2(ahead.x, ahead.z).normalized().is_equal_approx(Vector2(-sin(0.7), -cos(0.7))), "%s: and keeps facing as it was while the head turns within a neck's reach" % what)
+	var was := faced * Vector3.FORWARD
+	check(Vector2(ahead.x, ahead.z).normalized().is_equal_approx(Vector2(was.x, was.z).normalized()), "%s: and keeps facing as it was while the head turns within a neck's reach" % what)
 	a.pose(Transform3D(Basis(Vector3.UP, 0.7 + Torso.TURN + 0.3), tilted.origin), l, r)
 	hips = a.bone("hips").basis * a._joints.hips.rest.basis.inverse()
 	ahead = hips * a._facing.inverse() * Vector3.FORWARD

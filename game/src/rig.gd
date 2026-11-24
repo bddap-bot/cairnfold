@@ -203,7 +203,10 @@ func shows_hands() -> bool:
 
 ## In world space.
 func torso() -> Transform3D:
-	_torso = Torso.follow(_torso, head.transform.basis)
+	var grips: Array[Vector3] = []
+	for h in hands:
+		grips.append(global_transform.affine_inverse() * (h.body.global_transform * h.palm).origin)
+	_torso = Torso.follow(_torso, head.transform, grips, body.eye_height / EYE if body != null else 1.0)
 	return global_transform * Torso.frame(head.transform, _torso)
 
 
@@ -217,7 +220,8 @@ func far() -> float:
 
 ## The stature reads the head before a cut rescales it: the runtime's head follows the new scale only next frame.
 func _process(delta: float) -> void:
-	stature.add(head.position.y / world_scale, delta)
+	# As the eyes would stand with the head level, so looking down does not lower the measure.
+	stature.add((head.transform * (Torso.NECK * world_scale)).y / world_scale - Torso.NECK.y, delta)
 	head.far = Look.WATER_FOG.fog_depth_end if under else far()
 	_locomotion_input(delta)
 	_fade_step(delta)

@@ -70,6 +70,10 @@ const CROUCH_BEND := 1.2
 const MAX_BEND := 1.2
 ## In leg lengths: a leg straight at rest has no slack, so the shin's skin stretches to keep a foot down before it lifts.
 const STRETCH := 0.06
+## How far a planted foot turns from its rest to keep its toes on the ground: down to stand on them where the leg falls
+## short, up where the ground under them rises.
+const TOES_DOWN := deg_to_rad(60.0)
+const TOES_UP := deg_to_rad(30.0)
 ## Over eye height: a person's eyes stand this far ahead of their shoulders. An avatar whose eyes stand farther ahead
 ## carries its body forward under the wearer's eyes until its shoulders are where the wearer's are, or arms reaching out
 ## from shoulders set back would fall short of the wearer's hands.
@@ -143,6 +147,8 @@ class Leg extends Limb:
 	## Body frame, under the standing centre of mass; `ankle` is its height over the floor.
 	var place: Vector3
 	var ankle: float
+	## Body frame, from the ankle to the toes, or to the sole's front where the file has no toes.
+	var toe: Vector3
 
 ## A built-in's path, or the hash of a player's own file.
 var source := ""
@@ -180,6 +186,12 @@ var _skeleton: Skeleton3D
 var _joints := {}
 var _facing: Basis
 var _eye_to_head: Transform3D
+## Model space: where a person's neck would turn the head, which the standing body hangs from, so a head looked down
+## or up moves its eyes and leaves the body where it stood.
+var _neck: Vector3
+## Model space: between the shoulders, where a bending body turns, so the shoulders stay where they stood upright and
+## the arms reach as far bent as upright; the neck turns to meet the head.
+var _bend_at: Vector3
 var _hips: Joint
 var _tops: Array[Joint] = []
 var _head: Joint
@@ -1152,9 +1164,14 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 			var leg := Leg.new(leg_bones[0], leg_bones[1], leg_bones[2], a._facing, Vector3.FORWARD)
 			leg.place = a._facing * (leg.end.rest.origin - a._hips.rest.origin) * Vector3(1, 0, 1)
 			leg.ankle = leg.end.rest.origin.y
+			var toes: Joint = a._joints.get(side + "Toes")
+			leg.toe = a._facing * (toes.rest.origin - leg.end.rest.origin) if toes else Vector3(0, -leg.ankle, -Gait.SOLE_LEGS.y * (leg.upper_length + leg.lower_length))
 			placed.append_array(leg_bones)
 			a._legs.append(leg)
-	a._eye_to_head = Transform3D(a._facing, eye_at + a._facing.inverse() * Vector3(0, 0, behind)).affine_inverse() * a._head.rest
+	var eyes := Transform3D(a._facing, eye_at + a._facing.inverse() * Vector3(0, 0, behind))
+	a._eye_to_head = eyes.affine_inverse() * a._head.rest
+	a._neck = eyes * (Torso.NECK * a.eye_height / Rig.EYE)
+	a._bend_at = a._neck if a._arms.any(func(arm: Arm) -> bool: return arm.upper == null) else (a._arms[0].upper.rest.origin + a._arms[1].upper.rest.origin) * 0.5
 	if behind > 0.0:
 		Metrics.note("avatar: shoulders %.0f mm behind the eyes, the body stood %.0f mm forward" % [1000.0 * (behind + SHOULDERS_BEHIND * a.eye_height), 1000.0 * behind])
 	for s in 2:
@@ -1345,14 +1362,14 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 	hands[0] = l
 	hands[1] = r
 	look = toward
-	torso = Torso.follow(torso, at.basis)
+	torso = Torso.follow(torso, at, [(l * palms[0]).origin, (r * palms[1]).origin], eye_height / Rig.EYE)
 	if ground.is_valid():
 		posture.update(at, l.origin, r.origin, _floor, get_process_delta_time(), eye_height / Rig.EYE)
 	var turn := Basis(Vector3.UP, torso)
 	var head := at * _eye_to_head
 	var poles: Array[Vector3] = [turn * _arms[0].bend, turn * _arms[1].bend]
 	if posture.weights[Posture.STANDING] == 1.0:
-		_stand_up(at, head, turn)
+		_stand_up(at, at * (Torso.NECK * eye_height / Rig.EYE), turn)
 	else:
 		poles = _lie(head)
 	_place(_head, head)
@@ -1380,7 +1397,7 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D, toward := Vector3.FOR
 			_skeleton.move_child(solver, -1)
 
 
-func _stand_up(at: Transform3D, head: Transform3D, turn: Basis) -> void:
+func _stand_up(at: Transform3D, neck: Vector3, turn: Basis) -> void:
 	if _settled != -2:
 		for j in _body:
 			_skeleton.set_bone_pose(j.bone, _skeleton.get_bone_rest(j.bone))
@@ -1388,15 +1405,22 @@ func _stand_up(at: Transform3D, head: Transform3D, turn: Basis) -> void:
 	var body := turn * _facing
 	var floor_y := _feet_floor()
 	var down := asin(clampf(at.basis.z.normalized().y, -1.0, 1.0))
-	var crouch := clampf(1.0 - (at.origin.y - floor_y) / eye_height, 0.0, 1.0) if is_finite(floor_y) else 0.0
+	var crouch := clampf(1.0 - (neck.y - floor_y) / _neck.y, 0.0, 1.0) if is_finite(floor_y) else 0.0
 	var bent := Basis(turn * Vector3.RIGHT, -minf(BEND * maxf(down - LOOK, 0.0) + CROUCH_BEND * crouch, MAX_BEND))
-	var model := Transform3D(bent * body, head.origin - bent * body * _head.rest.origin)
-	_turn_tops(head.origin, body)
+	var upright := Transform3D(body, neck - body * _neck)
+	var model := Transform3D(bent * body, upright * _bend_at - bent * body * _bend_at)
+	var head := (at * _eye_to_head).origin
+	_turn_tops(head, body)
 	_place(_hips, model * _hips.rest)
 	for j in _body.slice(1):
 		j.at = _get_joint(j)
+	if _joints.has("neck"):
+		var root: Joint = _joints.neck
+		var rest := model * root.rest
+		var from := model.basis * (_head.rest.origin - root.rest.origin)
+		_place(root, Transform3D(Basis(Quaternion(from.normalized(), (head - rest.origin).normalized())) * rest.basis, rest.origin))
 	if gait:
-		_stand(model, Transform3D(body, head.origin - body * _head.rest.origin), turn)
+		_stand(model, upright, turn)
 
 
 ## Returns each arm's elbow pole.
@@ -1546,7 +1570,17 @@ func _stand(model: Transform3D, upright: Transform3D, turn: Basis) -> void:
 		var yaw := Basis(Vector3.UP, foot.yaw)
 		var ankle := foot.at + Vector3.UP * leg.ankle
 		var reached := _bend(leg, ankle, yaw * leg.bend)
-		_place(leg.end, Transform3D(yaw * _facing * leg.end.rest.basis, ankle if reached.distance_to(ankle) < STRETCH * gait.leg else reached))
+		if reached.distance_to(ankle) < STRETCH * gait.leg:
+			reached = ankle
+		var toe := yaw * leg.toe
+		var across := yaw * Vector3.RIGHT
+		var turns := (toe - across * toe.dot(across)).length()
+		var under := _floor(reached + toe)
+		var tilt := Basis.IDENTITY
+		if foot.t < 0.0 and is_finite(under) and turns > 0.01:
+			var rise := asin(clampf((under + leg.ankle + toe.y - reached.y) / turns, -1.0, 1.0)) - asin(toe.y / turns)
+			tilt = Basis(across, clampf(rise, -TOES_DOWN, TOES_UP))
+		_place(leg.end, Transform3D(tilt * yaw * _facing * leg.end.rest.basis, reached))
 
 
 ## -INF where nothing stands under it.

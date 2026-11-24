@@ -40,14 +40,25 @@ func _stature_is_the_height_stood_at() -> void:
 	var seated := Stature.new()
 	seated.add(1.18, 30.0)
 	seated.add(1.25, 1.0)
-	check(absf(seated.eye(Rig.EYE) - 1.18) < 0.006, "a seated wearer is measured seated: %.3f" % seated.eye(Rig.EYE))
+	check(seated.eye(Rig.EYE) == Rig.EYE, "a wearer seated at the start is not taken for a short one: %.3f" % seated.eye(Rig.EYE))
+	seated.add(1.18, Stature.LONG)
+	check(absf(seated.eye(Rig.EYE) - 1.18) < 0.006, "one who stays seated is measured seated: %.3f" % seated.eye(Rig.EYE))
+	var rises := Stature.new()
+	rises.add(1.0, 15.0)
+	rises.add(1.78, Stature.HOLD - 0.5)
+	check(rises.eye(Rig.EYE) == Rig.EYE, "standing up counts once it is held: %.3f" % rises.eye(Rig.EYE))
+	rises.add(1.78, 1.0)
+	check(absf(rises.eye(Rig.EYE) - 1.78) < 0.006, "and then the wearer stands at 1.78 m: %.3f" % rises.eye(Rig.EYE))
+	rises.add(1.9, Stature.HOLD - 0.5)
+	rises.add(0.9, 30.0)
+	check(absf(rises.eye(Rig.EYE) - 1.78) < 0.006, "neither a moment on tiptoe nor kneeling after moves it: %.3f" % rises.eye(Rig.EYE))
 
 
 func _wear(rig: Rig, scene: PackedScene, eye_m: float) -> Avatar:
 	rig.stature = Stature.new()
 	rig.wear(Avatar.open(scene, Color.WHITE))
 	rig.place(terrain.ground(0, 0), 0.0)
-	for i in int(Stature.SETTLE / STEP) + 2:
+	for i in int(Stature.LONG / STEP) + 2:
 		rig.head.position = Vector3(0.1, eye_m * rig.world_scale, -0.2)
 		rig._process(STEP)
 	rig.place(terrain.ground(0, 0), 0.0)

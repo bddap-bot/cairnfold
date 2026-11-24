@@ -598,10 +598,19 @@ func _carry() -> void:
 
 
 func _torso_lags_the_head() -> void:
-	check(is_equal_approx(Torso.follow(NAN, Basis(Vector3.UP, 0.4)), 0.4), "a first look sets the torso under the head")
-	check(Torso.follow(0.0, Basis(Vector3.UP, 1.0)) == 0.0, "a head turned aside leaves the torso")
-	check(is_equal_approx(Torso.follow(0.0, Basis(Vector3.UP, -1.6)), -1.6 + Torso.TURN), "a head turned past a neck's reach brings the torso round")
-	check(is_equal_approx(Torso.follow(3.0, Basis(Vector3.UP, -3.0)), 3.0), "the torso turns the short way round")
+	var down: Array[Vector3] = [Vector3(-0.2, -0.75, 0), Vector3(0.2, -0.75, 0)]
+	var eyes := func(yaw: float) -> Transform3D: return Transform3D(Basis(Vector3.UP, yaw), Vector3.ZERO)
+	check(is_equal_approx(Torso.follow(NAN, eyes.call(0.4), down, 1.0), 0.4), "a first look sets the torso under the head")
+	check(Torso.follow(0.0, eyes.call(1.0), down, 1.0) == 0.0, "a head turned aside leaves the torso")
+	check(is_equal_approx(Torso.follow(0.0, eyes.call(-1.6), down, 1.0), -1.6 + Torso.TURN), "a head turned past a neck's reach brings the torso round")
+	check(is_equal_approx(Torso.follow(3.0, eyes.call(-3.0), down, 1.0), 3.0), "the torso turns the short way round")
+	var ahead: Vector3 = eyes.call(0.9) * Torso.NECK + Basis(Vector3.UP, 0.5) * Vector3(0, -0.3, -0.5)
+	var out: Array[Vector3] = [ahead + Vector3(0, 0, 0.1), ahead - Vector3(0, 0, 0.1)]
+	check(is_equal_approx(Torso.follow(0.0, eyes.call(0.9), out, 1.0), 0.5), "hands held out turn the torso to face between them")
+	var far: Array[Vector3] = [Vector3(3, -0.5, 0), Vector3(3.4, -0.5, 0)]
+	check(Torso.follow(0.0, eyes.call(1.0), far, 1.0) == 0.0, "hands farther than an arm holds them leave it")
+	var spread: Array[Vector3] = [Vector3(-0.7, -0.2, 0.1), Vector3(0.7, -0.2, 0.06)]
+	check(Torso.follow(0.0, eyes.call(0.5), spread, 1.0) == 0.0, "arms spread wide leave it")
 
 
 func _shoulder() -> void:
