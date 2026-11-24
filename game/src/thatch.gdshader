@@ -4,6 +4,7 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/sculpture.gdshaderinc"
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/carried.gdshaderinc"
 #include "res://src/roof_shadow.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
@@ -20,10 +21,10 @@ varying vec3 bounce_at;
 varying vec3 lamp_at;
 
 void vertex() {
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	world_pos = laid_point((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
+	world_nrm = laid_dir(normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz));
 	ROOM_HERE;
-	fall = normalize((MODEL_MATRIX * vec4(TANGENT, 0.0)).xyz);
+	fall = laid_dir(normalize((MODEL_MATRIX * vec4(TANGENT, 0.0)).xyz));
 	float ground = ground_at(world_pos.xz);
 	bounce_at = volume_coord(room_read(room_row, read_over_cover(world_pos, world_nrm), world_nrm, world_pos, 0.0), ground);
 	lamp_at = lamp_over(world_pos, world_nrm, ground);

@@ -497,23 +497,30 @@ func _house(s: Dictionary) -> void:
 		return
 	tool.take_build(tool.walls[-1])
 	var start: Dictionary = tool.held_at.duplicate()
-	var shots: int = s.get("shots", 3) if s.has("capture") else 0
-	var taken := [0]
+	var shoot := _hold_shots(s)
 	await _over(s, 2.0, func(k: float) -> void:
 		var to := start.duplicate()
 		to.center = start.center.lerp(at.center, k)
 		to.yaw = lerp_angle(start.yaw, at.yaw, k)
 		to.rise = snappedf(at.rise * k, WallLayout.COURSE)
 		tool.stand_build(to)
-		while taken[0] < shots and k >= float(taken[0] + 1) / shots:
-			taken[0] += 1
-			await get_tree().create_timer(0.4).timeout
-			await main.capture("%s-%d" % [s.capture, taken[0]]))
+		await shoot.call(k))
 	if tool.held != null:
 		tool.end_build()
 
 
-## `size` is [along its ridge, across it], a tower's `size[0]` across. With `capture`, `shots` captures spread over the hold.
+## With `capture`, `shots` captures spread over a hold, the last as it ends, still held: called with the hold's progress.
+func _hold_shots(s: Dictionary) -> Callable:
+	var shots: int = s.get("shots", 3) if s.has("capture") else 0
+	var taken := [0]
+	return func(k: float) -> void:
+		while taken[0] < shots and k >= float(taken[0] + 1) / shots:
+			taken[0] += 1
+			await get_tree().create_timer(0.4).timeout
+			await main.capture("%s-%d" % [s.capture, taken[0]])
+
+
+## `size` is [along its ridge, across it], a tower's `size[0]` across. With `capture`, as `_hold_shots`.
 func _resize(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	tool.take_build(_wall_of(s))
@@ -527,8 +534,7 @@ func _resize(s: Dictionary) -> void:
 	var keys := ["rise", "height"].filter(func(k: String) -> bool: return start.has(k))
 	for k: String in keys:
 		end[k] = s.get(k, start[k])
-	var shots: int = s.get("shots", 3) if s.has("capture") else 0
-	var taken := [0]
+	var shoot := _hold_shots(s)
 	await _over(s, 1.0, func(k: float) -> void:
 		var to := start.duplicate()
 		to.center = start.center.lerp(end.center, k)
@@ -538,9 +544,7 @@ func _resize(s: Dictionary) -> void:
 		for key: String in keys:
 			to[key] = lerpf(start[key], end[key], k)
 		tool.stand_build(to)
-		while taken[0] < shots and k >= float(taken[0] + 1) / (shots + 1):
-			taken[0] += 1
-			await main.capture("%s-%d" % [s.capture, taken[0]]))
+		await shoot.call(k))
 	if tool.held != null:
 		tool.end_build()
 

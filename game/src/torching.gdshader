@@ -3,6 +3,7 @@ shader_type spatial;
 #include "res://src/sculpture.gdshaderinc"
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/carried.gdshaderinc"
 #include "res://src/detail.gdshaderinc"
 
 // Raw like the stones' instance colours, as plaster's is.
@@ -18,8 +19,8 @@ varying vec3 bounce_at;
 varying vec3 lamp_at;
 
 void vertex() {
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	world_pos = laid_point((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz);
+	world_nrm = laid_dir(normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz));
 	float ground = ground_at(world_pos.xz);
 	ROOM_HERE;
 	// The probes beside it stand among the tiles; the floor's see the room through its doors. A gable's outer backing

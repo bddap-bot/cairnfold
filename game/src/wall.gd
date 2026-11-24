@@ -295,6 +295,8 @@ func _ivy_growing() -> bool:
 func _exit_tree() -> void:
 	if is_instance_valid(masonry):
 		masonry.remove(get_instance_id())
+		if _drawn != null:
+			masonry.announce(get_instance_id(), Masonry.nothing(masonry.kinds.size()))
 	if is_instance_valid(_stand_in):
 		_stand_in.queue_free()
 
@@ -802,12 +804,12 @@ func _sync() -> void:
 	if _live or (_handoff and _drawn != null):
 		if _drawn == null:
 			_drawn = Masonry.new(kinds())
-			_drawn.carried = carried(transform)
-			_drawn.placed.connect(masonry.placed.emit)
+			_drawn.carry = transform
 			add_child(_drawn)
 		_drawn.place(get_instance_id(), drawn)
-		_drawn.announce(get_instance_id(), drawn)
 		_drawn.flush()
+		# The bounce volume reads pieces as the glade announces them, whichever draws them.
+		masonry.announce(get_instance_id(), drawn)
 	if _handoff:
 		set_process(true)
 		_show_ivy(_ivy_handoff or (_settled and _ivy_growing()))
@@ -815,15 +817,14 @@ func _sync() -> void:
 		_hand_off()
 
 
-## Moves the build as a hold carries it; the stones it draws itself keep the light of where they were laid.
+## Moves the build as a hold carries it; what it draws itself keeps the light of where it was laid.
 func carry(x: Transform3D) -> void:
 	transform = x
 	if _drawn != null:
-		_drawn.carried = carried(x)
-
-
-static func carried(x: Transform3D) -> Vector4:
-	return Vector4(x.origin.x, x.origin.y, x.origin.z, x.basis.get_euler().y)
+		_drawn.carry = x
+	for g: GeometryInstance3D in [_gables, _coat, _coat_far, _torching, _ceiling]:
+		if g != null:
+			Masonry.show_carry(g, x)
 
 
 func _hand_off() -> void:

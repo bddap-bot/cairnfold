@@ -138,13 +138,13 @@ var _owners := {}
 ## (COARSE x, z, kind) -> the far instance standing in for its FINE chunks' once wholly past the near distance.
 var _coarse := {}
 var _bakes := false
-## piece.gdshaderinc's `carried`: the carry of the build drawing these pieces in its hold.
-var carried := Vector4.ZERO:
+## How the build drawing these pieces is carried from where it was laid (carried.gdshaderinc).
+var carry := Transform3D.IDENTITY:
 	set(to):
-		carried = to
+		carry = to
 		for c: Chunk in _chunks.values():
-			_carry([c.instance, c.far, c.full])
-		_carry(_coarse.values())
+			_show_carry([c.instance, c.far, c.full])
+		_show_carry(_coarse.values())
 ## COARSE key -> [worker task id, array its `bake` result lands in].
 var _baking := {}
 var _rebake := {}
@@ -233,10 +233,14 @@ func announce(owner: int, parts: Array[Dictionary]) -> void:
 
 
 func remove(owner: int) -> void:
+	place(owner, nothing(kinds.size()))
+
+
+static func nothing(n: int) -> Array[Dictionary]:
 	var none: Array[Dictionary] = []
-	none.resize(kinds.size())
+	none.resize(n)
 	none.fill({})
-	place(owner, none)
+	return none
 
 
 static func radius(cell: float) -> float:
@@ -289,14 +293,22 @@ func _chunk(key: Vector3i) -> Chunk:
 			add_child(c.full)
 		_chunks[key] = c
 		_ranges(key)
-		_carry([c.instance, c.far, c.full])
+		if carry != Transform3D.IDENTITY:
+			_show_carry([c.instance, c.far, c.full])
 	return _chunks[key]
 
 
-func _carry(instances: Array) -> void:
+func _show_carry(instances: Array) -> void:
 	for g: GeometryInstance3D in instances:
 		if g != null and g.material_override is ShaderMaterial:
-			g.set_instance_shader_parameter(&"carried", carried)
+			Masonry.show_carry(g, carry)
+
+
+## A carry turns a build about up only.
+static func show_carry(g: GeometryInstance3D, x: Transform3D) -> void:
+	var turn := x.basis.get_euler().y
+	g.set_instance_shader_parameter(&"carried_by", x.origin)
+	g.set_instance_shader_parameter(&"carried_turn", Vector2(cos(turn), sin(turn)))
 
 
 func _coarse_far(key: Vector3i) -> MultiMeshInstance3D:
@@ -318,7 +330,8 @@ func _coarse_far(key: Vector3i) -> MultiMeshInstance3D:
 			far.add_child(baked)
 		_coarse[key] = far
 		_coarse_ranges(key)
-		_carry([far])
+		if carry != Transform3D.IDENTITY:
+			_show_carry([far])
 	return _coarse[key]
 
 

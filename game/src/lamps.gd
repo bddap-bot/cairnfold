@@ -189,7 +189,7 @@ func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedCo
 		for f in w.layout.flames:
 			flames.append(w.transform * f.origin)
 			lights.append(g)
-		if w.layout.closed and not w.layout.fence and w.massing != null:
+		if w.layout.closed and not w.layout.fence and w.massing != null and not w.layout.laid_points.is_empty():
 			shells.append([w, w.massing, w.layout.laid, w.roof.dormers.duplicate() if w.roof != null else []])
 	if shells != _shells:
 		_shells = shells
