@@ -5384,19 +5384,23 @@ one view range the eye, the screen and the photo share), redrawn on one frame in
 that frame pays the scene's draw calls and shadow pass again at a small size. A camera in each hand
 draws two such views, taking turns on that frame, so no frame draws both.
 
-A photo cannot be drawn within a Quest 2's frame budget: Godot draws a viewport whole on one frame, and on a Quest 2
-making the photo's 8x MSAA view and its `PhotoTool.PHOTO_SHADOWS` atlas took 60 to 250 ms of a frame, its draw 40 to
-80 ms of GPU time and its read 50 to 70 ms. Kept between shots, the view's buffers left the system short enough of
-memory that the engine's own code was paged back in on the main thread behind the photo's writes (a 148 ms frame).
-So a photo draws a small warm view first, at preview size, until its pipelines are ready; then the player's view fades
-to black over `PhotoTool.PHOTO_FADE` (`Rig.cover`: black is never brighter than what it covers), holds while the view
-and atlas are made, the photo drawn and read back whole and any canvas in it flattened, its two views read back
-together, and fades back one frame after the reads land: that frame copies them out of the GPU's memory, 50 to 70 ms.
-The view is let go once the camera's screen stops showing the shot. Converting, encoding and writing
-the PNGs runs on a worker thread, a MiB at a time to flash (`Main.SYNC_BYTES`). No frame drawn under the cover moves
-the quality governor (`Quality.covered`): a missed refresh there had stepped the garden down two rungs. Measured on a
-Quest 2 at 72 Hz with `demo/photo-shots.json`: no frame over 50 ms while the view showed, and the view black, from the
-end of the fade out to the fade back, for 220 to 280 ms for a photo of a canvas and 130 to 150 ms for a selfie.
+A photo cannot be drawn within a frame: Godot draws a viewport whole on one frame, and a 3200×2400 view at 8x MSAA
+takes several frames of GPU time. A missed refresh costs more than its own frame: the runtime then holds the game at
+every other refresh for about a second. So the player's view fades to black over `PhotoTool.PHOTO_FADE` (`Rig.cover`: black
+is never brighter than what it covers), and while black holds the eyes draw the black alone, over the sky (`Rig._behind_black`, `Quality.COVER_LAYER`), so
+the frame's GPU time is the photo's. A small warm view is drawn first, at preview size, until its pipelines are ready (it
+stays as the shot the camera's screen shows). The sun's atlas grows to
+`PhotoTool.PHOTO_SHADOWS` for the photo and back after it; the engine keeps each size of atlas it has made
+(`scripts/engine.patch`): making the photo's on the Steam Frame held the render thread 16 to 26 ms, a missed refresh
+under the cover that sent the runtime to every other refresh for a second after it lifted. The photo's atlas is made at
+load instead, as the photo's pipelines are compiled (`PhotoTool._ready`), and stays: 128 MiB at 8192 texels a side and
+16 bits, beside the eyes' 32 MiB. The photo is drawn in
+`PhotoTool.TILES` tiles, one a frame, each a view of its part of the frame (`PhotoTool.frame_tile`) and
+`PhotoTool.TILE_MARGIN` pixels past it, dropped, so a style's strokes meet across the seams; each tile's read is issued
+before the next is drawn, and the garden stands still meanwhile (`Engine.time_scale` 0, which holds shaders' `TIME`
+too), so grass and animals meet across the seams. The tiles are put together on a worker thread, any canvas in the
+photo is flattened, and the view fades back. Converting, encoding and writing the PNGs runs on a worker thread, a MiB at
+a time to flash (`Main.SYNC_BYTES`). No frame drawn under the cover moves the quality governor (`Quality.covered`).
 
 Where and how it was taken (`PhotoMeta`): any PNG reader sees `Software: Cairnfold <rev>`; an
 iTXt chunk keyed `cairnfold` holds JSON with the lens's position, rotation and field of view, the
@@ -5508,15 +5512,10 @@ encoder's pace, and platform video encoders, which Godot does not reach from a s
 ### A photo's memory
 
 Godot 4.6 keeps every MSAA sample of a view in memory (its own TODO in `render_scene_buffers_rd.cpp`; no transient
-attachments), so a photo at 3200x2400 and 8x MSAA takes about 8 bytes a sample: on a Quest 2, `dumpsys meminfo` read the
-game's GL memory 413 MB before a photo and 928 MB while it drew. In the stress scene, after the pricing gardens, the
-headset had 546 MB available when `camera/shutter` took its first photo: the system killed a dozen apps to free the
-rest, the game stalled 1.1 s (a 1078 ms script frame, then frames of 542 and 588 ms), and the headset's shell drew in
-its place (#110). On a meadow with 1043 MB available the same photo drew on.
-
-So a photo's MSAA (`PhotoTool.photo_msaa`) is the finest, 8x at most, whose buffers take no more than half the memory
-the system reports available (`OS.get_memory_info`), and the PNG records the MSAA it was drawn with. The Frame and the
-desktop always have the room for 8x; a Quest 2 drawing after a dense garden steps to 4x, its buffers 246 MB.
+attachments), about 8 bytes a sample. A photo drawn whole at 3200x2400 and 8x took 515 MB more on a Quest 2, and with
+546 MB available after the stress scene's pricing gardens the system killed a dozen apps to free it, the game stalled
+1.1 s and the headset's shell drew in its place (#110). A tile's view, 848x848 at 8x, takes about 46 MB beside
+the sun's `PhotoTool.PHOTO_SHADOWS` atlas, so a photo always draws at 8x.
 
 
 ## Mirror

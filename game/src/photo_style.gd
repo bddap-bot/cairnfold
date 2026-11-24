@@ -104,10 +104,17 @@ static func mask(kind: Kind, seen: int) -> int:
 	return seen | Quality.SCULPTURE_LAYER if kind == Kind.SCULPTURE else seen & ~Quality.SCULPTURE_LAYER
 
 
-## Sets `cam` to draw `seen` through `kind`. A camera keeps one pass, holding a copy of its view, and turns it to each
+## Sets `cam` to draw `seen` through `kind`, where `cam` draws `share` of the picture's height (a photo's tile less), so
+## strokes are as long whatever it draws. A camera keeps one pass, holding a copy of its view, and turns it to each
 ## style it draws.
-static func dress(cam: Camera3D, kind: Kind, seen: int) -> void:
+static func dress(cam: Camera3D, kind: Kind, seen: int, share := 1.0) -> void:
 	cam.cull_mask = mask(kind, seen)
+	_restyle(cam, kind)
+	if cam.compositor != null:
+		(cam.compositor.compositor_effects[0] as StylePass).reach = STROKES / share if kind == Kind.PAINTERLY else 0.0
+
+
+static func _restyle(cam: Camera3D, kind: Kind) -> void:
 	var was: Kind = cam.get_meta(&"style", Kind.PLAIN)
 	if was == kind:
 		return
@@ -124,7 +131,6 @@ static func dress(cam: Camera3D, kind: Kind, seen: int) -> void:
 	cam.set_meta(&"pass", c)
 	var p: StylePass = c.compositor_effects[0]
 	p.tone = tone
-	p.reach = STROKES if kind == Kind.PAINTERLY else 0.0
 	p.lift = LIFT if kind == Kind.SCULPTURE else 0.0
 	cam.compositor = c
 

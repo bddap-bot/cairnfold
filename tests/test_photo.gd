@@ -13,8 +13,9 @@ func _initialize() -> void:
 	_the_lens_turns_as_the_hand_turns_roll_included()
 	await _the_selfie_camera_looks_back_at_its_holder()
 	_player_data_lives_outside_the_app()
-	_a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows()
-	_a_photo_steps_its_msaa_down_only_where_memory_is_short()
+	_a_photo_is_drawn_finest_and_the_headset_as_the_ladder_allows()
+	_a_photo_is_drawn_in_tiles_that_make_up_its_frame()
+	await _the_eyes_draw_the_black_alone_while_it_holds()
 	_a_photo_is_of_a_canvas_filling_its_frame_face_on()
 	await _holding_the_trigger_records_until_it_is_let_go()
 	finish()
@@ -230,21 +231,69 @@ func _a_photo_is_of_a_canvas_filling_its_frame_face_on() -> void:
 	check(through > 0.0 and through < 1.0, "half behind the lens, what lies ahead of it counts: %.3f" % through)
 
 
-func _a_photo_steps_its_msaa_down_only_where_memory_is_short() -> void:
-	const MB := 1 << 20
-	check(PhotoTool.photo_msaa(1043 * MB) == Viewport.MSAA_8X and PhotoTool.photo_msaa(16384 * MB) == Viewport.MSAA_8X, "with a gigabyte free a photo draws at 8x")
-	check(PhotoTool.photo_msaa(546 * MB) == Viewport.MSAA_4X, "with 546 MB free, where 8x stalled a Quest 2, it draws at 4x")
-	check(PhotoTool.photo_msaa(0) == Viewport.MSAA_DISABLED, "with nothing free, without MSAA")
-	check(PhotoTool.settings(Viewport.MSAA_4X).msaa == 4 and PhotoTool.settings().msaa == 8, "its PNG records the MSAA it was drawn with")
+func _a_photo_is_drawn_in_tiles_that_make_up_its_frame() -> void:
+	var size := PhotoTool.PHOTO_SIZE
+	var seen := {}
+	var overlaps := 0
+	for rect in PhotoTool.tiles():
+		for y in range(rect.position.y, rect.end.y, 50):
+			for x in range(rect.position.x, rect.end.x, 50):
+				overlaps += int(seen.has(Vector2i(x, y)))
+				seen[Vector2i(x, y)] = true
+	check(overlaps == 0 and seen.size() == (size.x / 50) * (size.y / 50), "the tiles cover the photo once: %d of %d points, %d twice" % [seen.size(), (size.x / 50) * (size.y / 50), overlaps])
+	var at := Transform3D(Basis(Vector3.UP, 0.4) * Basis(Vector3.RIGHT, -0.2), Vector3(1, 1.6, 2))
+	var whole := _lens_view(size, at)
+	var tile := _lens_view(PhotoTool.tiles()[0].grow(PhotoTool.TILE_MARGIN).size, at)
+	whole.fov = PhotoTool.FOV
+	var worst := 0.0
+	for rect in PhotoTool.tiles():
+		PhotoTool.frame_tile(tile, PhotoTool.FOV, rect)
+		for share: Vector2 in [Vector2(0.1, 0.2), Vector2(0.5, 0.5), Vector2(0.9, 0.7), Vector2(-0.02, 1.02)]:
+			var px := Vector2(rect.position) + share * Vector2(rect.size)
+			var p := whole.project_position(px, 7.0)
+			var drawn := tile.unproject_position(p) + Vector2(rect.position - Vector2i.ONE * PhotoTool.TILE_MARGIN)
+			worst = maxf(worst, drawn.distance_to(px))
+	check(worst < 0.05, "each tile draws its part of the photo, margin included, where the whole lens would: %.4f px off at worst" % worst)
+	whole.get_parent().queue_free()
+	tile.get_parent().queue_free()
 
 
-func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
+func _lens_view(size: Vector2i, at: Transform3D) -> Camera3D:
+	var vp := SubViewport.new()
+	vp.size = size
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	var cam := Camera3D.new()
+	cam.near = Rig.NEAR
+	vp.add_child(cam)
+	root.add_child(vp)
+	cam.global_transform = at
+	return cam
+
+
+func _the_eyes_draw_the_black_alone_while_it_holds() -> void:
+	var rig := Rig.new(terrain)
+	root.add_child(rig)
+	var seen := rig.head.cull_mask
+	var style := Compositor.new()
+	rig.head.compositor = style
+	while not rig.cover(PhotoTool.PHOTO_FADE, "a photo"):
+		await process_frame
+	await process_frame
+	check(rig.head.cull_mask == Quality.COVER_LAYER and rig.head.compositor == null and rig._fade.layers == Quality.COVER_LAYER, "while black holds, the eyes draw the black alone and no style over it")
+	check(seen & Quality.COVER_LAYER and not Quality.VIEW_MASK & Quality.COVER_LAYER and not Quality.PHOTO_MASK & Quality.COVER_LAYER, "the black is the eyes' alone")
+	rig.uncover()
+	await process_frame
+	check(rig.head.cull_mask == seen and rig.head.compositor == style, "and see what they saw once it lifts")
+	rig.queue_free()
+
+
+func _a_photo_is_drawn_finest_and_the_headset_as_the_ladder_allows() -> void:
 	var rig := Rig.new(terrain)
 	root.add_child(rig)
 	var tool := PhotoTool.new(rig)
 	root.add_child(tool)
-	var vp := tool._photo_view(PhotoTool.PHOTO_SIZE)
-	check(vp.size == Vector2i(3200, 2400) and vp.msaa_3d == Viewport.MSAA_8X, "a photo is 3200x2400 at 8x MSAA: %s, %d" % [vp.size, vp.msaa_3d])
+	var vp := tool._photo_view(PhotoTool.PREVIEW_SIZE)
+	check(PhotoTool.PHOTO_SIZE == Vector2i(3200, 2400) and vp.msaa_3d == Viewport.MSAA_8X and PhotoTool.settings().msaa == 8, "a photo is 3200x2400 at 8x MSAA: %s, %d" % [PhotoTool.PHOTO_SIZE, vp.msaa_3d])
 	check(PhotoTool.settings().shadow_atlas == PhotoTool.PHOTO_SHADOWS, "and its sun draws into an atlas of its own size")
 	check(vp.mesh_lod_threshold == 0.0 and vp.anisotropic_filtering_level == Viewport.ANISOTROPY_16X, "a photo draws every mesh whole and filters textures 16x")
 	check(Quality.PHOTO_MASK & Quality.FULL_LAYER and not Quality.PHOTO_MASK & Quality.LADDER_LAYER and Quality.PHOTO_MASK & Quality.SELF_LAYER, "a photo sees the whole garden, not the ladder's cut of it, and the player's own avatar")

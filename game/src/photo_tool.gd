@@ -1,9 +1,9 @@
 class_name PhotoTool
 extends Node3D
 
-## Godot draws a viewport whole within one frame, and on a Quest 2 a photo's frame cannot stay under 50 ms (allocating
-## 60-250 ms, drawing 40-80 ms of GPU, reading 50-70 ms), so the view fades to black (Rig.cover) meanwhile. A photo
-## sees Quality.FULL_LAYER at any quality step; its MSAA steps down only where memory is short (photo_msaa).
+## Godot draws a viewport whole within one frame and a photo takes several frames' GPU time, so it is drawn in tiles,
+## one a frame, under black (Rig.cover), the eyes drawing nothing else: a missed refresh would hold the runtime at
+## every other refresh for a second after. A photo sees Quality.FULL_LAYER at any quality step.
 
 signal recorded(path: String)
 
@@ -12,15 +12,13 @@ const PREVIEW_SIZE := Vector2i(256, 192)
 ## camera costs nothing more.
 const PREVIEW_EVERY := 3
 const PHOTO_SIZE := Vector2i(3200, 2400)
+## Columns and rows of the photo's tiles, each drawn on a frame of its own.
+const TILES := Vector2i(4, 3)
+## Pixels each tile draws past its edges and drops, so a style's strokes (PhotoStyle.STROKES) meet across them.
+const TILE_MARGIN := 24
 const PHOTO_MSAA := Viewport.MSAA_8X
 const PHOTO_SHADOWS := 8192
 const PHOTO_FADE := 0.05
-## Colour and depth bytes per sample per pixel: Godot keeps every MSAA sample in memory, so at 8x the photo's view
-## took 515 MB more on a Quest 2 (docs/design.md, "A photo's memory").
-const SAMPLE_BYTES := 8
-## Share of the reported available memory a photo's buffers may take. Taking 515 of 546 MB stalled the game 1.1 s
-## while the system killed apps, and the headset's shell drew in its place; 515 of 1043 MB drew on.
-const PHOTO_MEMORY_SHARE := 0.5
 const VIEW_SIZE := Vector2i(1600, 1200)
 const FOV := 55.0
 const SHOT_HOLD := 1.2
@@ -54,7 +52,10 @@ var easels: Easels
 var scene := func() -> Dictionary: return {"about": {}, "world": PackedByteArray()}
 ## Hand -> its preview's SubViewport.
 var _previews := {}
+## One tile of the photo's view at a time.
 var _photo: SubViewport
+## The photo's warm view, which the camera's screen shows as the shot.
+var _shot: SubViewport
 var _view: SubViewport
 var _frame := 0
 var _turn := 0
@@ -62,7 +63,6 @@ var _turn := 0
 var _shots := {}
 var _busy := false
 var _covered_at_msec := 0
-var _photo_msaa := PHOTO_MSAA
 ## Paths chosen but not yet written, so two quick shots never share one.
 var _reserved := {}
 var _pressed_for: Array[float] = []
@@ -95,17 +95,28 @@ func _init(player: Rig) -> void:
 
 
 ## Godot draws a frame whose pipelines are still compiling without the photo sun's shadows, so a session's first photo
-## came out shadowless (docs/shadows.md): a photo's and a canvas's flat view are drawn at load to compile them.
+## came out shadowless (docs/shadows.md): a photo's and a canvas's flat view are drawn at load to compile them. That
+## draw also makes the photo's shadow atlas, which the engine keeps (docs/design.md, "Photos").
 func _ready() -> void:
 	if RenderingServer.get_rendering_device() == null:
 		return
+	_busy = true
 	var vp := _photo_view(PREVIEW_SIZE)
 	_aim(vp, rig.head.global_transform, FOV, Quality.PHOTO_MASK)
 	var flat := Canvas.flat([null, null, null], false, Vector2i(8, 8))
 	add_child(flat)
+	_shadows(PHOTO_SHADOWS)
 	await _draw_complete(vp, true)
+	_shadows()
+	_busy = false
 	vp.queue_free()
 	flat.queue_free()
+
+
+## The sun's shadow atlas at `size` texels a side, or at the eyes' own size.
+static func _shadows(size := 0) -> void:
+	var bits: bool = ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/16_bits")
+	RenderingServer.directional_shadow_atlas_set_size(size if size > 0 else ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size"), bits)
 
 
 func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
@@ -136,15 +147,26 @@ func _view_viewport() -> SubViewport:
 	return _view
 
 
-static func photo_msaa(available: int) -> Viewport.MSAA:
-	var msaa := PHOTO_MSAA
-	while msaa > Viewport.MSAA_DISABLED and PHOTO_SIZE.x * PHOTO_SIZE.y * (1 << msaa) * SAMPLE_BYTES > available * PHOTO_MEMORY_SHARE:
-		msaa = (msaa - 1) as Viewport.MSAA
-	return msaa
+## The photo's pixels each tile keeps, row by row.
+static func tiles() -> Array[Rect2i]:
+	var out: Array[Rect2i] = []
+	var size := PHOTO_SIZE / TILES
+	for y in TILES.y:
+		for x in TILES.x:
+			out.append(Rect2i(Vector2i(x, y) * size, size))
+	return out
 
 
-static func settings(msaa := PHOTO_MSAA) -> Dictionary:
-	return {"size": [PHOTO_SIZE.x, PHOTO_SIZE.y], "msaa": 1 << msaa, "shadow_atlas": PHOTO_SHADOWS, "shadow_splits": 4,
+## Sets a tile view's camera to draw `keep` of a photo taken with `fov`, and its margin around it.
+static func frame_tile(cam: Camera3D, fov: float, keep: Rect2i) -> void:
+	var drawn := keep.grow(TILE_MARGIN)
+	var texel := 2.0 * cam.near * tan(deg_to_rad(fov) * 0.5) / PHOTO_SIZE.y
+	var centre := Vector2(drawn.get_center()) - Vector2(PHOTO_SIZE) * 0.5
+	cam.set_frustum(drawn.size.y * texel, Vector2(centre.x, -centre.y) * texel, cam.near, cam.far)
+
+
+static func settings() -> Dictionary:
+	return {"size": [PHOTO_SIZE.x, PHOTO_SIZE.y], "msaa": 1 << PHOTO_MSAA, "shadow_atlas": PHOTO_SHADOWS, "shadow_splits": 4,
 		"shadow_reach_m": Look.SHADOW_REACH, "blob_detail": Quality.ladder[0].blob_detail, "reach": "whole garden",
 		"mesh_lod": "off", "anisotropy": 16}
 
@@ -168,9 +190,12 @@ func _process(delta: float) -> void:
 		_heard.append_array(_take_sound())
 		if not held.has(_clip_hand) or _clip_hand.tool != _clip_tool or _clip.full:
 			stop()
-	if _photo != null and not _busy and _shots.values().all(func(left: float) -> bool: return left == 0.0):
-		_photo.queue_free()
-		_photo = null
+	if _shot != null and not _busy and not rig.covered() and _shots.values().all(func(left: float) -> bool: return left == 0.0):
+		_shot.queue_free()
+		_shot = null
+		if _photo != null:
+			_photo.queue_free()
+			_photo = null
 	_frame = (_frame + 1) % PREVIEW_EVERY
 	var drawing: Hand = null
 	if _frame == 0 and not held.is_empty():
@@ -186,8 +211,8 @@ func _process(delta: float) -> void:
 				PhotoStyle.dress((_previews[h] as SubViewport).get_child(0), PhotoStyle.Kind.PLAIN, Quality.VIEW_MASK)
 			continue
 		var left: float = _shots.get(h, 0.0)
-		if left > 0.0 and _photo != null and h != _clip_hand:
-			_show(screen(h, h.tool), _photo.get_texture(), Color.WHITE.lerp(Color(2.5, 2.5, 2.5), clampf((left - SHOT_HOLD + 0.15) / 0.15, 0.0, 1.0)))
+		if left > 0.0 and _shot != null and h != _clip_hand:
+			_show(screen(h, h.tool), _shot.get_texture(), Color.WHITE.lerp(Color(2.5, 2.5, 2.5), clampf((left - SHOT_HOLD + 0.15) / 0.15, 0.0, 1.0)))
 			continue
 		var preview: SubViewport = _previews.get(h)
 		if preview == null:
@@ -318,11 +343,12 @@ static func lens(hand: Node3D) -> Transform3D:
 	return Transform3D(basis, t * (Hand.TOP + ToolModels.CAMERA_LENS))
 
 
-func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int, kind := PhotoStyle.Kind.PLAIN) -> void:
+## `share`: of the picture's height, what `vp` draws of it.
+func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int, kind := PhotoStyle.Kind.PLAIN, share := 1.0) -> void:
 	var cam: Camera3D = vp.get_child(0)
 	cam.global_transform = at
 	cam.fov = fov
-	PhotoStyle.dress(cam, kind, mask)
+	PhotoStyle.dress(cam, kind, mask, share)
 	if rig.body != null and rig.body.visible and mask & Quality.SELF_LAYER:
 		rig.pose_body()
 
@@ -345,8 +371,8 @@ func shoot(hand: Hand) -> String:
 	var look := style
 	var img := await render(at, FOV, Quality.PHOTO_MASK, look)
 	if img == null:
+		rig.uncover()
 		return ""
-	var msaa := _photo_msaa
 	var paintings: Array = []
 	for subject: Array in subjects:
 		var c: Canvas = subject[1]
@@ -356,11 +382,9 @@ func shoot(hand: Hand) -> String:
 				paintings.append([subject[0]] + painting)
 	var path := _reserve("png")
 	var about: Dictionary = around.about.duplicate()
-	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(msaa),
+	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(),
 		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV},
 		"style": PhotoStyle.named(look)})
-	# The frame the reads land on copies them out of GPU memory (`_read`): it ends under the cover.
-	await get_tree().process_frame
 	rig.uncover()
 	print("photo: the view was covered %d ms" % (Time.get_ticks_msec() - _covered_at_msec))
 	for h in _shots:
@@ -631,29 +655,63 @@ func render(at: Transform3D, fov: float, mask: int, kind := PhotoStyle.Kind.PLAI
 		_aim(view, at, fov, mask)
 		_busy = false
 		return seen
-	if _photo == null:
-		_photo_msaa = photo_msaa(OS.get_memory_info().available)
-	# Drawing the full view again each frame its pipelines still compile took a Quest 2 185 ms a frame.
-	var warm := _photo_view(PREVIEW_SIZE, _photo_msaa)
-	_aim(warm, at, fov, mask, kind)
-	await _draw_complete(warm, true)
-	warm.queue_free()
 	_covered_at_msec = Time.get_ticks_msec()
 	while not rig.cover(PHOTO_FADE, "a photo"):
 		await get_tree().process_frame
-	# The photo's view is made under the cover and let go once the screen stops showing it: held, its buffers left
-	# the system short enough of memory to page the engine's own code back in on the main thread (148 ms frames).
+	# Drawing the full view again each frame its pipelines still compile took a Quest 2 185 ms a frame. Drawn beside the
+	# eyes' view, the whole garden even at this size took a Steam Frame 15 ms of a frame.
+	var warm := _photo_view(PREVIEW_SIZE)
+	_aim(warm, at, fov, mask, kind)
+	await _draw_complete(warm, true)
+	if _shot != null:
+		_shot.queue_free()
+	_shot = warm
+	var keep := tiles()
 	if _photo == null:
-		_photo = _photo_view(PHOTO_SIZE, _photo_msaa)
-	var atlas: int = ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/size")
-	var bits: bool = ProjectSettings.get_setting("rendering/lights_and_shadows/directional_shadow/16_bits")
-	RenderingServer.directional_shadow_atlas_set_size(PHOTO_SHADOWS, bits)
-	_aim(_photo, at, fov, mask, kind)
-	await _draw_complete(_photo, true)
-	RenderingServer.directional_shadow_atlas_set_size(atlas, bits)
-	var img: Image = (await _read([_photo])).pop_front()
+		_photo = _photo_view(keep[0].grow(TILE_MARGIN).size)
+	_shadows(PHOTO_SHADOWS)
+	# The garden stands still while the tiles are drawn, shaders' TIME included, so its grass and animals meet across
+	# their seams; the black hides the pause.
+	var pace := Engine.time_scale
+	Engine.time_scale = 0.0
+	var landed: Array[PackedByteArray] = []
+	landed.resize(keep.size())
+	var reading := [0]
+	var cam: Camera3D = _photo.get_child(0)
+	var drawn := _photo.size
+	_aim(_photo, at, fov, mask, kind, float(drawn.y) / PHOTO_SIZE.y)
+	var whole := true
+	for k in keep.size():
+		var rect := keep[k]
+		frame_tile(cam, fov, rect)
+		await _draw_complete(_photo, true)
+		var tex := _rgba8(_photo)
+		if not tex.is_valid():
+			whole = false
+			break
+		reading[0] += 1
+		# Issued before this frame draws the next tile into the same texture.
+		rd.texture_get_data_async(tex, 0, func(data: PackedByteArray) -> void:
+			landed[k] = data
+			reading[0] -= 1)
+	# A replay paces the engine itself (Replayer) and may have moved on meanwhile.
+	if Engine.time_scale == 0.0:
+		Engine.time_scale = pace
+	_shadows()
+	while reading[0] > 0:
+		await get_tree().process_frame
+	var made: Array[Image] = [null]
+	if whole:
+		# Assembling 30 MB of photo takes the main thread longer than a frame.
+		await _on_worker(func() -> Error:
+			var img := Image.create_empty(PHOTO_SIZE.x, PHOTO_SIZE.y, false, Image.FORMAT_RGBA8)
+			made[0] = img
+			for k in keep.size():
+				var tile := Image.create_from_data(drawn.x, drawn.y, false, Image.FORMAT_RGBA8, landed[k])
+				img.blit_rect(tile, Rect2i(Vector2i.ONE * TILE_MARGIN, keep[k].size), keep[k].position)
+			return OK)
 	_busy = false
-	return img
+	return made[0]
 
 
 ## A viewport can finish a frame while its pipelines are still compiling; reading it then would save missing geometry
@@ -673,18 +731,16 @@ func _draw_complete(vp: SubViewport, finest := false) -> void:
 			return
 
 
-## Asynchronous, so the asking frame does not stall; the frame the pixels land on copies them out (`render`'s cover).
+## Asynchronous, so the asking frame does not stall.
 func _read(views: Array[SubViewport]) -> Array[Image]:
 	var rd := RenderingServer.get_rendering_device()
 	var got := {}
 	var sizes: Array[Vector2i] = []
 	for i in views.size():
-		var tex := RenderingServer.texture_get_rd_texture(views[i].get_texture().get_rid())
-		var fmt := rd.texture_get_format(tex)
-		if fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM and fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_SRGB:
-			push_error("photo: the view came back in format %d, not RGBA8" % fmt.format)
+		var tex := _rgba8(views[i])
+		if not tex.is_valid():
 			return []
-		sizes.append(Vector2i(fmt.width, fmt.height))
+		sizes.append(views[i].size)
 		rd.texture_get_data_async(tex, 0, func(data: PackedByteArray) -> void: got[i] = data)
 	while got.size() < views.size():
 		await get_tree().process_frame
@@ -692,6 +748,16 @@ func _read(views: Array[SubViewport]) -> Array[Image]:
 	for i in views.size():
 		out.append(Image.create_from_data(sizes[i].x, sizes[i].y, false, Image.FORMAT_RGBA8, got[i]))
 	return out
+
+
+## `vp`'s texture on the rendering device, or an invalid RID where it is not held as RGBA8.
+static func _rgba8(vp: SubViewport) -> RID:
+	var tex := RenderingServer.texture_get_rd_texture(vp.get_texture().get_rid())
+	var fmt := RenderingServer.get_rendering_device().texture_get_format(tex)
+	if fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM and fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_SRGB:
+		push_error("photo: the view came back in format %d, not RGBA8" % fmt.format)
+		return RID()
+	return tex
 
 
 ## The foliage's blobs are set finest after every script's turn, so the quality governor (Quality) does not undo them

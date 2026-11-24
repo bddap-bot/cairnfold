@@ -94,6 +94,9 @@ var _underfoot := Underfoot.new()
 var _floor_y := 0.0
 var _fade: MeshInstance3D
 var _fade_mat: StandardMaterial3D
+## What the eyes see and draw through once black holds (`cover`), when they draw the black alone and leave the GPU to
+## the work it hides; empty when it does not hold.
+var _behind_black := []
 
 
 var expression_store := ExpressionStore.new()
@@ -106,7 +109,7 @@ func _init(ground: Terrain) -> void:
 	head.position = Vector3(0, EYE, 0)
 	head.near = NEAR
 	head.far = far()
-	head.cull_mask = Quality.VIEW_MASK & ~Quality.SELF_LAYER | Quality.EYES_LAYER
+	head.cull_mask = Quality.VIEW_MASK & ~Quality.SELF_LAYER | Quality.EYES_LAYER | Quality.COVER_LAYER
 	add_child(head)
 	gaze = Gaze.new()
 	add_child(gaze)
@@ -130,6 +133,7 @@ func _build_markers() -> void:
 	_fade.mesh = quad
 	_fade.position = Vector3(0, 0, -0.08)
 	_fade.material_override = _fade_mat
+	_fade.layers = Quality.COVER_LAYER
 	_fade.visible = false
 	head.add_child(_fade)
 
@@ -450,3 +454,12 @@ func _fade_step(delta: float) -> void:
 	a = maxf(a, _dim)
 	_fade_mat.albedo_color = Color(0, 0, 0, a)
 	_fade.visible = a > 0.0
+	var black := _covered and _fade_t >= _fade_s
+	if black and _behind_black.is_empty():
+		_behind_black = [head.cull_mask, head.compositor]
+		head.cull_mask = _fade.layers
+		head.compositor = null
+	elif not black and not _behind_black.is_empty():
+		head.cull_mask = _behind_black[0]
+		head.compositor = _behind_black[1]
+		_behind_black = []

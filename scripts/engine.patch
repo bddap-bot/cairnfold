@@ -1403,3 +1403,65 @@
  }
  
  void SkyRD::invalidate_sky(Sky *p_sky) {
+--- a/servers/rendering/renderer_rd/storage_rd/light_storage.h
++++ b/servers/rendering/renderer_rd/storage_rd/light_storage.h
+@@ -436,6 +436,13 @@
+ 		int size = 0;
+ 		bool use_16_bits = true;
+ 		int current_light = 0;
++
++		// Atlases of other sizes, kept so that switching back allocates nothing: making one took a 16 ms frame.
++		struct Kept {
++			RID depth;
++			RID fb;
++		};
++		HashMap<uint32_t, Kept> kept;
+ 	} directional_shadow;
+ 
+ 	/* SHADOW CUBEMAPS */
+--- a/servers/rendering/renderer_rd/storage_rd/light_storage.cpp
++++ b/servers/rendering/renderer_rd/storage_rd/light_storage.cpp
+@@ -2539,6 +2539,12 @@
+ /* DIRECTIONAL SHADOW */
+ 
+ void LightStorage::update_directional_shadow_atlas() {
++	const uint32_t key = uint32_t(directional_shadow.size) * 2 + uint32_t(directional_shadow.use_16_bits);
++	if (directional_shadow.depth.is_null() && directional_shadow.kept.has(key)) {
++		directional_shadow.depth = directional_shadow.kept[key].depth;
++		directional_shadow.fb = directional_shadow.kept[key].fb;
++		directional_shadow.kept.erase(key);
++	}
+ 	if (directional_shadow.depth.is_null() && directional_shadow.size > 0) {
+ 		RD::TextureFormat tf;
+ 		tf.format = get_shadow_atlas_depth_format(directional_shadow.use_16_bits);
+@@ -2559,14 +2565,26 @@
+ 		return;
+ 	}
+ 
+-	directional_shadow.size = p_size;
+-	directional_shadow.use_16_bits = p_16_bits;
+-
+ 	if (directional_shadow.depth.is_valid()) {
+-		RD::get_singleton()->free_rid(directional_shadow.depth);
++		if (p_size > 0) {
++			const uint32_t key = uint32_t(directional_shadow.size) * 2 + uint32_t(directional_shadow.use_16_bits);
++			directional_shadow.kept[key] = { directional_shadow.depth, directional_shadow.fb };
++		} else {
++			RD::get_singleton()->free_rid(directional_shadow.depth);
++		}
+ 		directional_shadow.depth = RID();
++		directional_shadow.fb = RID();
+ 		RendererSceneRenderRD::get_singleton()->base_uniforms_changed();
+ 	}
++	if (p_size == 0) {
++		for (const KeyValue<uint32_t, DirectionalShadow::Kept> &E : directional_shadow.kept) {
++			RD::get_singleton()->free_rid(E.value.depth);
++		}
++		directional_shadow.kept.clear();
++	}
++
++	directional_shadow.size = p_size;
++	directional_shadow.use_16_bits = p_16_bits;
+ }
+ 
+ void LightStorage::set_directional_shadow_count(int p_count) {
