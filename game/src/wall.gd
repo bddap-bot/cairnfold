@@ -802,14 +802,28 @@ func _sync() -> void:
 	if _live or (_handoff and _drawn != null):
 		if _drawn == null:
 			_drawn = Masonry.new(kinds())
+			_drawn.carried = carried(transform)
+			_drawn.placed.connect(masonry.placed.emit)
 			add_child(_drawn)
 		_drawn.place(get_instance_id(), drawn)
+		_drawn.announce(get_instance_id(), drawn)
 		_drawn.flush()
 	if _handoff:
 		set_process(true)
 		_show_ivy(_ivy_handoff or (_settled and _ivy_growing()))
 	else:
 		_hand_off()
+
+
+## Moves the build as a hold carries it; the stones it draws itself keep the light of where they were laid.
+func carry(x: Transform3D) -> void:
+	transform = x
+	if _drawn != null:
+		_drawn.carried = carried(x)
+
+
+static func carried(x: Transform3D) -> Vector4:
+	return Vector4(x.origin.x, x.origin.y, x.origin.z, x.basis.get_euler().y)
 
 
 func _hand_off() -> void:

@@ -595,7 +595,7 @@ func _carry(w: Wall, laid_at: Array[Dictionary], at: Dictionary) -> void:
 func _place_laid(w: Wall, x: Transform3D) -> void:
 	if w.transform.is_equal_approx(x):
 		return
-	w.transform = x
+	w.carry(x)
 	if world.decorations != null:
 		world.decorations.place()
 

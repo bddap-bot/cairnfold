@@ -138,6 +138,13 @@ var _owners := {}
 ## (COARSE x, z, kind) -> the far instance standing in for its FINE chunks' once wholly past the near distance.
 var _coarse := {}
 var _bakes := false
+## piece.gdshaderinc's `carried`: the carry of the build drawing these pieces in its hold.
+var carried := Vector4.ZERO:
+	set(to):
+		carried = to
+		for c: Chunk in _chunks.values():
+			_carry([c.instance, c.far, c.full])
+		_carry(_coarse.values())
 ## COARSE key -> [worker task id, array its `bake` result lands in].
 var _baking := {}
 var _rebake := {}
@@ -205,7 +212,13 @@ func place(owner: int, parts: Array[Dictionary]) -> void:
 		_owners[owner] = keys.keys()
 	if not _dirty.is_empty():
 		set_process(true)
-	if not occluders or placed.get_connections().is_empty():
+	if occluders:
+		announce(owner, parts)
+
+
+## Emits `placed` for `owner`'s occluding pieces in `parts`, one `split` result per kind.
+func announce(owner: int, parts: Array[Dictionary]) -> void:
+	if placed.get_connections().is_empty():
 		return
 	var buffers: Array[PackedFloat32Array] = []
 	var strides := PackedInt32Array()
@@ -276,7 +289,14 @@ func _chunk(key: Vector3i) -> Chunk:
 			add_child(c.full)
 		_chunks[key] = c
 		_ranges(key)
+		_carry([c.instance, c.far, c.full])
 	return _chunks[key]
+
+
+func _carry(instances: Array) -> void:
+	for g: GeometryInstance3D in instances:
+		if g != null and g.material_override is ShaderMaterial:
+			g.set_instance_shader_parameter(&"carried", carried)
 
 
 func _coarse_far(key: Vector3i) -> MultiMeshInstance3D:
@@ -298,6 +318,7 @@ func _coarse_far(key: Vector3i) -> MultiMeshInstance3D:
 			far.add_child(baked)
 		_coarse[key] = far
 		_coarse_ranges(key)
+		_carry([far])
 	return _coarse[key]
 
 

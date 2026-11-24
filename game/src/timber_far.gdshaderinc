@@ -16,12 +16,12 @@ void vertex() {
 	if (piece_cut(piece, CAMERA_POSITION_WORLD)) {
 		VERTEX = vec3(0.0);
 	} else {
-		world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
-		world_nrm = normalize(mat3(piece) * NORMAL);
+		world_pos = laid_point((piece * vec4(VERTEX, 1.0)).xyz);
+		world_nrm = laid_dir(normalize(mat3(piece) * NORMAL));
 		occlusion = PIECE_CUSTOM.x;
 		ROOM_HERE;
 		float ground = ground_at(world_pos.xz);
-		given = given_read(volume_coord(room_read(room_row, read_over(world_pos, world_nrm), world_nrm, piece[3].xyz, 0.0), ground), lamp_over(world_pos, world_nrm, ground));
+		given = given_read(volume_coord(room_read(room_row, read_over(world_pos, world_nrm), world_nrm, laid_point(piece[3].xyz), 0.0), ground), lamp_over(world_pos, world_nrm, ground));
 #ifdef BAKED
 		VERTEX = world_pos;
 		NORMAL = world_nrm;

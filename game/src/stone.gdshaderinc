@@ -70,7 +70,8 @@ void vertex() {
 			}
 		}
 		local_pos = VERTEX;
-		vec3 world_pos = (piece * vec4(VERTEX, 1.0)).xyz;
+		vec3 world_pos = laid_point((piece * vec4(VERTEX, 1.0)).xyz);
+		world_nrm = laid_dir(world_nrm);
 		ROOM_HERE;
 #ifdef ROOF_TIMBER
 		occlusion = 0.85;
@@ -90,7 +91,7 @@ void vertex() {
 		// A tile lies on the roof over the room it is no part of, however low it reaches.
 		bool cover = abs(material - ELEMENT_ROOF) < 0.5;
 		vec3 q = cover ? read_over_cover(world_pos, world_nrm) : read_over(world_pos, world_nrm);
-		vec3 lowest = piece[3].xyz - vec3(0.0, 0.5 * (abs(piece[0].y) + abs(piece[1].y) + abs(piece[2].y)), 0.0);
+		vec3 lowest = laid_point(piece[3].xyz) - vec3(0.0, 0.5 * (abs(piece[0].y) + abs(piece[1].y) + abs(piece[2].y)), 0.0);
 #ifdef ROOF_TIMBER
 		float reach = 0.0;
 #else
@@ -119,7 +120,7 @@ void vertex() {
 			COLOR.a = snow_cover(up, 1.0 - room_in, 0.5) * (1.0 - glass);
 		}
 		style = stone_style;
-		tone = 0.35 + 0.3 * fract(sin(dot(piece[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
+		tone = 0.35 + 0.3 * fract(sin(dot(laid_point(piece[3].xyz).xz, vec2(12.9898, 78.233))) * 43758.5453);
 #ifdef BAKED
 		VERTEX = world_pos;
 		NORMAL = world_nrm;
@@ -129,7 +130,7 @@ void vertex() {
 
 void fragment() {
 	// Taken from the view rather than carried, a Quest 2 having no room for its varying (tests/test_varyings.gd).
-	vec3 world_pos = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec3 world_pos = laid_point((INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz);
 	if (abs(material - ELEMENT_ROOF) < 0.5) {
 		LIGHT_VERTEX += (VIEW_MATRIX * vec4(sun_toward * ROOF_PULL, 0.0)).xyz;
 	}

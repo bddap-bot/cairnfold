@@ -22,6 +22,7 @@ func _run() -> void:
 	await play([{"op": "budget", "bounded": false}, {"op": "place", "x": 0, "z": 14}, {"op": "house", "at": [0, 0], "size": [5, 5], "seed": 1, "seconds": 0.1}])
 	await laid()
 	await light_settled(0.4)
+	main.look.set_process(true)
 	await play(["wildlife", "shy", "grass", "flowers", "ivy"].map(func(n: String) -> Dictionary: return {"op": "layer", "name": n, "mode": "off"}))
 	await play([{"op": "view", "eye": [0, 2.0, 15], "at": [0, 1.8, 0], "ground": true}])
 	var wall := Rect2(0.4, 0.5, 0.2, 0.15)
@@ -30,7 +31,7 @@ func _run() -> void:
 		return start.merged({"size": start.size.lerp(Vector2(11, 5), k)}, true)
 	var stretched := await _let_go("stretched", stretch, wall, before)
 	var carry := func(start: Dictionary, k: float) -> Dictionary:
-		return start.merged({"center": start.center + Vector3(-1.5, 0, 1) * k}, true)
+		return start.merged({"center": start.center + Vector3(-1.5, 0, -1) * k}, true)
 	var carried := await _let_go("carried", carry, wall, stretched)
 	await _taken_again(carry, wall, carried)
 	finish()
