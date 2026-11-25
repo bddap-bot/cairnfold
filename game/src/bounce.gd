@@ -35,7 +35,7 @@ var _tops := PackedFloat32Array()
 var _colors := PackedColorArray()
 ## Owner id -> [instance buffers, strides], placed since the last solve began.
 var _pending := {}
-var _rooms := Lamps.Rooms.new()
+var _rooms := Bake.no_rooms
 var _sun := Vector3.UP
 var _relight := false
 var _layers: Array[Image] = []
@@ -172,7 +172,7 @@ func _work(job: Dictionary) -> Dictionary:
 		for o in _owners.values():
 			changed.merge(o)
 	if changed.is_empty():
-		return {}
+		return {"rooms": job.rooms}
 	var area := Rect2i(changed.keys()[0], Vector2i.ONE)
 	for c in changed:
 		area = area.expand(c).expand(c + Vector2i.ONE)
@@ -180,6 +180,7 @@ func _work(job: Dictionary) -> Dictionary:
 	var ground := grounds(job.heights)
 	var result := solve(_bottoms, _tops, _colors, ground, job.sun, area)
 	enclose_probes(result, ground, job.rooms, _colors, job.sun)
+	result.rooms = job.rooms
 	return result
 
 

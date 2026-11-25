@@ -30,7 +30,7 @@ var masked := true:
 		RenderingServer.global_shader_parameter_set(&"room_field", field if masked else _unmasked)
 		RenderingServer.global_shader_parameter_set(&"room_nearest", field if masked else _unmasked)
 var _unmasked := ImageTexture.create_from_image(Image.create_empty(1, 1, false, Image.FORMAT_RGBAH))
-var _rooms := Lamps.Rooms.new()
+var _rooms := Bake.no_rooms
 var to_light := Vector3.UP
 var _cells := false
 var _solved_toward := Vector3.UP
@@ -62,7 +62,7 @@ func _next() -> Callable:
 
 static func _work(job: Dictionary) -> Dictionary:
 	var packed := pack(job.rooms, job.toward, job.cells)
-	var out := {"data": Image.create_from_data(WIDTH, GROUPS, false, Image.FORMAT_RGBAF, packed.data.to_byte_array())}
+	var out := {"rooms": job.rooms, "data": Image.create_from_data(WIDTH, GROUPS, false, Image.FORMAT_RGBAF, packed.data.to_byte_array())}
 	if job.cells:
 		out.field = Image.create_from_data(SIZE, SIZE, false, Image.FORMAT_RGBAF, packed.field.to_byte_array())
 		out.field.convert(Image.FORMAT_RGBAH)

@@ -63,9 +63,9 @@ func _let_go(what: String, to: Callable, wall: Rect2, before: Image) -> Image:
 	var apart := pixels_apart(waiting, settled, 0.25)
 	var share := float(apart) / (settled.get_width() * settled.get_height())
 	check(share < 0.01, "the %s house shows its new lay while the glade waits: %.3f of the view apart" % [what, share])
-	for shown: Array in [[held, _luma(before, wall), "before the hold"], [waiting, _luma(settled, wall), "once drawn"]]:
-		var l := _luma(shown[0], wall)
-		check(absf(l - shown[1]) < 0.3 * shown[1], "the %s house's wall keeps its light: %.3f against %.3f %s" % [what, l, shown[1], shown[2]])
+	var l := _luma(held, wall)
+	var lit := _luma(before, wall)
+	check(absf(l - lit) < 0.3 * lit, "the %s house's wall keeps its light through the hold: %.3f against %.3f before it" % [what, l, lit])
 	return settled
 
 

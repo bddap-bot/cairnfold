@@ -7,6 +7,13 @@ var terrain: Terrain
 var _ground := -1
 var _task := -1
 var _out := {}
+## Before any room is known.
+static var no_rooms := Lamps.Rooms.new()
+## The rooms what this shows was solved for. Solves for other rooms are `held`, in order, until Look shows them
+## together with the other bake's for the same rooms: one showing a room the other does not yet lights the walls on
+## its edge wrong.
+var shown_rooms := no_rooms
+var held: Array[Dictionary] = []
 
 
 ## Called once a frame.
@@ -28,6 +35,15 @@ func finish() -> void:
 	while _task >= 0:
 		_collect()
 		update()
+	if not held.is_empty():
+		show_held()
+
+
+func show_held() -> void:
+	for out in held:
+		_take(out)
+	shown_rooms = held[-1].rooms
+	held = []
 
 
 func stop() -> void:
@@ -54,4 +70,12 @@ func _ground_moved() -> bool:
 
 func _collect() -> void:
 	stop()
-	_take(_out)
+	var rooms: Lamps.Rooms = _out.get("rooms", shown_rooms)
+	if rooms == shown_rooms:
+		_take(_out)
+		return
+	if not held.is_empty() and held[-1].rooms != rooms:
+		for out in held:
+			_take(out)
+		held = []
+	held.append(_out)

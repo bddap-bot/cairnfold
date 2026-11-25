@@ -275,6 +275,9 @@ func _process(delta: float) -> void:
 		snow.fall(at, weather.snow if Palette.wintry() and not under else 0.0, open)
 	bounce.update()
 	interior.update()
+	if not bounce.held.is_empty() and not interior.held.is_empty() and bounce.held[-1].rooms == interior.held[-1].rooms:
+		bounce.show_held()
+		interior.show_held()
 	_since_sky += delta
 	if _sky_time != time and _since_sky >= SKY_EVERY:
 		_paint_sky()

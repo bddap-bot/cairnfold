@@ -75,7 +75,7 @@ class Room:
 		var r := Room.new()
 		r.massing = massing
 		r.joined = layout.joined.duplicate()
-		var line := WallLayout.ground_line(layout.laid_points)
+		var line := WallLayout.ground_line(layout.points)
 		r.inside = Geometry2D.offset_polygon(line, -WallLayout.THICKNESS * 0.5)
 		r.probe_inside = Geometry2D.offset_polygon(line, Terrain.STEP * 0.5)
 		r.rect = Rect2(line[0], Vector2.ZERO)
@@ -189,7 +189,9 @@ func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedCo
 		for f in w.layout.flames:
 			flames.append(w.transform * f.origin)
 			lights.append(g)
-		if w.layout.closed and not w.layout.fence and w.massing != null and not w.layout.laid_points.is_empty():
+		# Until a reshape is laid its outline and roof are the reshape's while its stones, and the light they read, are
+		# still the lay's: a room from the one darkens the other.
+		if w.layout.closed and not w.layout.fence and w.massing != null and PackedVector3Array(w.layout.points) == PackedVector3Array(w.layout.laid_points):
 			shells.append([w, w.massing, w.layout.laid, w.roof.dormers.duplicate() if w.roof != null else []])
 	if shells != _shells:
 		_shells = shells
