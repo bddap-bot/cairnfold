@@ -12,10 +12,16 @@ highest() {
     "[.[].tagName, \"$tag\" | select(test(\"^r[0-9]+$\")) | ltrimstr(\"r\") | tonumber] | max | \"r\(.)\""
 }
 
+# A draft is a create that failed past its own cleanup (a GitHub 500); counted as the release it would wedge main unreleased.
 exists() {
-  local err
-  err=$(gh release view "$1" 2>&1 > /dev/null) && return 0
-  [ "$err" = "release not found" ] || { echo "release: gh release view $1: $err" >&2; exit 1; }
+  local draft
+  draft=$(gh release view "$1" --json isDraft --jq .isDraft 2>&1) || {
+    [ "$draft" = "release not found" ] || { echo "release: gh release view $1: $draft" >&2; exit 1; }
+    return 1
+  }
+  [ "$draft" = true ] || return 0
+  echo "release: deleting $1, a draft left by a failed create" >&2
+  gh release delete "$1" --yes
   return 1
 }
 
