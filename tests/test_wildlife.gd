@@ -348,11 +348,24 @@ func _ducks_come_only_to_ponds() -> void:
 		walker.families.pop_back()
 	check(walker.families.size() == 1 and walker.families[0].ducks.size() > 2, "a mother walks in with ducklings")
 	var slide := 0.0
-	for d: Duck in walker.families[0].ducks:
+	var family := walker.families[0].ducks
+	for i in family.size():
+		var d := family[i]
 		var m: ShaderMaterial = d.material_override
-		var body: float = d.walk_speed() / (2.0 * m.get_shader_parameter("step_rate") * d.pace)
-		slide = maxf(slide, absf(body - 2.0 * m.get_shader_parameter("swing") * d.size))
-	check(slide < 1e-6, "each walking duck's planted foot keeps its ground, sliding %.4f m a step" % slide)
+		var sweep: float = 2.0 * m.get_shader_parameter("swing") * d.size
+		var from := d.position
+		var steps := d.stride
+		if i == 0:
+			walker._go(d, d.position + Vector3(0, 0, -5), 0.05)
+		else:
+			d.position = family[i - 1].position + Vector3(0, 0, 2)
+			from = d.position
+			walker._follow(d, family[i - 1], 0.05)
+		var walked := Vector2(d.position.x - from.x, d.position.z - from.z).length()
+		var speed := walked / 0.05
+		check(i == 0 or speed > d.walk_speed() * 1.2, "a duckling far behind hurries at %.2f m/s, past its walk of %.2f" % [speed, d.walk_speed()])
+		slide = maxf(slide, absf(2.0 * sweep * fposmod(d.stride - steps, 1.0) - walked))
+	check(slide < 1e-5, "each walking duck's planted foot keeps its ground at walk and catch-up speed, sliding %.5f m" % slide)
 	var entered := [Wildlife.State.ENTER, false]
 	_run(walker, 90.0, func() -> void:
 		var now: Wildlife.State = walker.families[0].state

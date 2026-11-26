@@ -8,10 +8,9 @@ render_mode diffuse_lambert_wrap, shadows_disabled;
 // x idle, y paddle, z waddle, w fly: weights scale each motion so blends stay continuous.
 instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
 instance uniform float phase = 0.0;
-// Step rate over a grown duck's, so short legs keep their feet planted.
-instance uniform float pace = 1.0;
+// Fraction of a step cycle, advanced by ground walked so the feet keep pace at any speed.
+instance uniform float stride = 0.0;
 instance uniform float peck = 0.0;
-uniform float step_rate;
 uniform float swing;
 
 const int PART_HEAD = 1;
@@ -25,7 +24,7 @@ void vertex() {
 	int part = int(UV2.x + 0.5);
 	float t = TIME + phase;
 	float idle = mode.x, paddle = mode.y, waddle = mode.z, fly = mode.w;
-	float c = t * TAU * step_rate * pace;
+	float c = stride * TAU;
 	bool foot = part == PART_FOOT_L || part == PART_FOOT_R;
 	float side = part == PART_FOOT_L ? -1.0 : 1.0;
 

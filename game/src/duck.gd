@@ -25,6 +25,7 @@ var size := 1.0
 var pace := 1.0
 var afloat := false
 var pecking := 0.0
+var stride := 0.0
 
 
 static func prepare() -> void:
@@ -38,12 +39,12 @@ static func _kind(chick: bool) -> String:
 
 func _init(chick: bool, phase: float) -> void:
 	super(_kind(chick), build.bind(chick), SHADER, BLEND, phase, HandStop.Surface.DOWN)
-	material_override.set_shader_parameter("step_rate", STEP_RATE)
 	material_override.set_shader_parameter("swing", SWING)
 	size = CHICK_SIZE if chick else 1.0
 	pace = 1.6 if chick else 1.0
 	scale = Vector3.ONE * size
-	set_instance_shader_parameter("pace", pace)
+	stride = fposmod(phase, 1.0)
+	set_instance_shader_parameter("stride", stride)
 
 
 ## `target` 1 eating, 0 not.
@@ -54,8 +55,18 @@ func peck(target: float, delta: float) -> void:
 		set_instance_shader_parameter("peck", pecking)
 
 
+## Metres one full step of both feet carries the body: each planted foot sweeps back twice its swing.
+func step_length() -> float:
+	return 4.0 * SWING * size
+
+
 func walk_speed() -> float:
-	return 4.0 * SWING * STEP_RATE * size * pace
+	return step_length() * STEP_RATE * pace
+
+
+func walk(distance: float) -> void:
+	stride = fposmod(stride + distance / step_length(), 1.0)
+	set_instance_shader_parameter("stride", stride)
 
 
 static func build(chick: bool) -> ArrayMesh:

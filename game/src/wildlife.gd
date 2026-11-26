@@ -706,6 +706,7 @@ func _step(d: Duck, velocity: Vector3, delta: float) -> void:
 	var moving := velocity.length() > 0.01
 	if moving:
 		_face(d, velocity, delta * 4.0)
+		d.walk(velocity.length() * delta)
 	d.blend(Duck.PADDLE if d.afloat else Duck.WADDLE if moving else Duck.IDLE, delta)
 
 
