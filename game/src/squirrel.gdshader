@@ -11,6 +11,7 @@ const int PART_HEAD = 1;
 const int PART_TAIL = 2;
 const int PART_HIND = 3;
 const int PART_FORE = 4;
+const float SHOULDER = 0.045;
 uniform float swing;
 
 void vertex() {
@@ -31,8 +32,9 @@ void vertex() {
 		VERTEX.z += gait * swing * cos(c);
 		VERTEX.y += gait * 0.008 * max(sin(c), 0.0);
 	} else if (part == PART_FORE) {
-		VERTEX.z -= gait * swing * cos(c);
-		VERTEX.y += gait * 0.008 * max(-sin(c), 0.0);
+		float reach = gait * clamp(1.0 - VERTEX.y / SHOULDER, 0.0, 1.0);
+		VERTEX.z -= reach * swing * cos(c);
+		VERTEX.y += reach * 0.008 * max(-sin(c), 0.0);
 	}
 	if (part != PART_HIND) {
 		turn(VERTEX, NORMAL, vec3(0.0, 0.02, 0.05), rot(vec3(1.0, 0.0, 0.0), sit * 1.05));

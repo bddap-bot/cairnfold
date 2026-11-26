@@ -63,7 +63,7 @@ static func body() -> ArrayMesh:
 		Meshes.ellipsoid(st, Part.HEAD, Vector3(side * 0.016, 0.121, -0.055), Vector3(0.003, 0.008, 0.003), deep, 2, 4)
 		Meshes.ellipsoid(st, Part.HIND, Vector3(side * 0.027, 0.03, 0.04), Vector3(0.015, 0.025, 0.03), coat, 4, 8)
 		Meshes.ellipsoid(st, Part.HIND, Vector3(side * 0.024, 0.006, 0.02), Vector3(0.01, 0.006, 0.03), deep, 3, 6)
-		Meshes.ellipsoid(st, Part.FORE, Vector3(side * 0.017, 0.02, -0.038), Vector3(0.008, 0.021, 0.008), coat, 3, 6)
+		Meshes.ellipsoid(st, Part.FORE, Vector3(side * 0.017, 0.025, -0.038), Vector3(0.008, 0.026, 0.008), coat, 3, 6)
 	var curl := [Vector3(0, 0.05, 0.075), Vector3(0, 0.075, 0.105), Vector3(0, 0.115, 0.12), Vector3(0, 0.155, 0.115), Vector3(0, 0.185, 0.095), Vector3(0, 0.198, 0.07)]
 	for i in curl.size():
 		var r := 0.024 + 0.012 * sin(PI * (i + 0.5) / curl.size())
