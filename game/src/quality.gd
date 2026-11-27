@@ -118,10 +118,13 @@ var people := People.new()
 var _watched: Avatar
 var _watched_under := []
 var _said := ""
-## A step held for measuring; -1 while governed.
+## A step held for measuring; -1 while governed. Each pin, and each release, starts the density map afresh and on, so
+## two phases at one pinned step measure one map whatever the governed play before them did.
 var pin := -1:
 	set(n):
 		pin = clampi(n, -1, ladder.size() - 1)
+		map = Map.new()
+		_applied = -1
 var _pace: Callable
 var budget_ms := 0.0
 var frame_ms := 0.0
@@ -327,7 +330,7 @@ func frame(ms: float, delta: float) -> void:
 				print("quality: step %d to %d, the GPU at %.1f ms of %.1f, %s, at %.3f s" % [was, governor.level, frame_ms, budget_ms, governor.why, now / 1e6])
 	var n := _priming[_primed / PRIME_FRAMES] if priming() else step()
 	var at := ladder[n]
-	if _foveates and fresh and _warm > WARMUP_S and at.foveation > 0:
+	if _foveates and fresh and pin < 0 and _warm > WARMUP_S and at.foveation > 0:
 		var was_on := map.on
 		map.step(frame_ms, budget_ms, delta)
 		if map.on != was_on:

@@ -46,6 +46,7 @@ func _initialize() -> void:
 	_a_frame_that_makes_every_refresh_keeps_the_map()
 	_the_density_map_is_tried_again_once_calm()
 	_a_map_suddenly_dear_comes_off_at_once()
+	_a_pinned_step_holds_the_density_map()
 	_a_file_is_priced_by_what_its_frames_measure()
 	finish()
 
@@ -739,3 +740,35 @@ func _a_file_is_priced_by_what_its_frames_measure() -> void:
 func _try(p: Quality.People, ms: float, frames: int) -> void:
 	for i in Quality.Map.SETTLE_FRAMES + frames:
 		p.measure(ms, true)
+
+
+func _a_pinned_step_holds_the_density_map() -> void:
+	var terrain := Terrain.new()
+	var flora := Flora.new(terrain, Ground.new())
+	root.add_child(flora)
+	var foveated := -1
+	for i in Quality.ladder.size():
+		if Quality.ladder[i].foveation > 0:
+			foveated = i
+			break
+	for pinned: bool in [true, false]:
+		var q := Quality.new(func() -> float: return 72.0, null, flora)
+		root.add_child(q)
+		q.view = SubViewport.new()
+		q._foveates = true
+		var now := [0]
+		q.clock = func() -> int: return now[0]
+		if pinned:
+			q.pin = foveated
+		for i in int((Quality.WARMUP_S + 5.0) * 72):
+			now[0] += int(1e6 / 72.0)
+			if not pinned:
+				q.governor.level = foveated
+			q.frame((BUDGET * 5.0 if q.map.on else BUDGET * 0.5) + 0.001 * (i % 2), DT)
+		check(q.map.on == pinned, "a density map making the frame five times the period %s: on %s" % ["stays on under a pin" if pinned else "comes off a governed step", q.map.on])
+		if not pinned:
+			q.pin = foveated
+			check(q.map.on, "a pin taken with the map off puts it back on")
+		q.view.free()
+		q.free()
+	flora.free()

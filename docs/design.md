@@ -952,7 +952,8 @@ with runs on its step. A comparison of a change goes further: a governed phase m
 (a governed stress run read camera phases at 6.3 ms where, pinned at step 6, the same change read 12.55 to 13.54 ms
 against 13.14 to 13.73 before), so each record marks a phase `pinned` when a pin held its step every second, and
 `trend.py --pair CONTROL CANDIDATE` and `scripts/paired.py` refuse any phase not pinned at one step on both sides,
-naming it and its steps, and exit non-zero. A governed Frame tour whose governor sat at step 6 at
+naming it and its steps, and exit non-zero. A pin holds the foveation density map too: each pin starts it on and no
+trial turns it off while the pin holds, so a pinned pair cannot differ by it. A governed Frame tour whose governor sat at step 6 at
 r20/ground and 16 from r25/aerial on read faster in 45 of the 48 phases from r20/ground on against a control at steps
 7 to 10, and r20/ground's median hid a second at half rate, so each record also keeps the phase's worst second
 (`worst`: its late frames, median and p99).
@@ -1765,7 +1766,7 @@ fitted them alone (`perf/frame/costs/`), its bare meadow 7.62 ms from the air an
 and 7.91 ms, 0.62 ms an easel.
 
 The map is tried off only once the frame runs over the refresh period, not the governor's line. On a Quest 2 with the
-quality step pinned, a frame between the two made every refresh with the map on, and a trial of it off pushed the
+quality step pinned, before a pin held the map, a frame between the two made every refresh with the map on, and a trial of it off pushed the
 frame past the period. The runtime then held the game at every fourth refresh, its GPU idle most of each frame, for as
 long as the runtime's App GPU time stayed at 0.78 of the period or more: the trial was one way in, and a bare off-and-on
 of the map at that GPU time did the same with no trial at all. At 0.72 of the period and under, the game came back to
