@@ -16,6 +16,7 @@ func _initialize() -> void:
 			main.rig._process(1.0 / 72.0)
 		check(main.rig.head.global_transform.is_equal_approx(pose), "scripted view drifts from %s to %s" % [eye, main.rig.head.global_position])
 	await _a_view_holds_through_a_refit(main)
+	await _a_view_holds_through_a_later_refit(main)
 	_metrics_name_the_head_off_its_view(main)
 	main.rig.free()
 	main.metrics.free()
@@ -38,11 +39,30 @@ func _a_view_holds_through_a_refit(main) -> void:
 	await until(func() -> bool: return rig._fade_t < 0.0, "the refit lands")
 	await process_frame
 	var landed: Vector3 = rig.head.global_position
-	check(Vector2(landed.x, landed.z).distance_to(Vector2(eye.x, eye.z)) < 0.001 and absf(landed.y - eye.y) < 0.1, "a view taken during the fade holds: the head at %s" % landed)
+	check(landed.distance_to(eye) < 0.001, "a view taken during the fade holds: the head at %s" % landed)
 	rig.set_process(false)
 	rig.teleport(Vector3(3, 0, 3), 0.0)
 	check(rig.view_eye == null, "a teleport leaves no view to measure against")
 	main.view(eye, Vector3(0, 0.9, 4))
+
+
+## A headset resting on a table, tilted, takes a view before its avatar loads; the refit that follows rescales the head
+## and keeps it where the view put it.
+func _a_view_holds_through_a_later_refit(main) -> void:
+	var rig: Rig = main.rig
+	rig.view_eye = null
+	rig.wear(Avatar.open(Avatar.built_in(0), Color.WHITE))
+	rig.set_process(true)
+	await until(func() -> bool: return rig._pending == null and rig._fade_t < 0.0, "the first avatar settles")
+	rig.head.transform = Transform3D(Basis(Vector3(1, 0.3, 0.2).normalized(), 0.6), Vector3(0.3, 1.25, -0.2) * rig.world_scale)
+	var eye := Vector3(0, 1.47, -14)
+	main.view(eye, Vector3(0, 1.2, 0))
+	rig.wear(Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(avatar_file("crimsom-1.0.vrm"))), Color.WHITE))
+	await until(func() -> bool: return rig._pending != null, "a new avatar of another height fades the view")
+	await until(func() -> bool: return rig._fade_t < 0.0, "the refit lands")
+	await process_frame
+	check(rig.head.global_position.distance_to(eye) < 0.001, "a view taken before the refit holds: the head at %s" % rig.head.global_position)
+	rig.set_process(false)
 
 
 ## A second of the metrics carries the furthest the head stood that second from where the last view put it.

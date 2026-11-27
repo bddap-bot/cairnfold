@@ -409,10 +409,12 @@ func spawn() -> Vector3:
 
 ## The head moves with the scale between frames, as a runtime reports it, never within one, so a session record keeps
 ## each frame's head as given and a replay places the player from the same pose. The wearer's measured stature refits
-## them only here, so one who stands up after starting low never sees the view go black for it.
+## them only here, so one who stands up after starting low never sees the view go black for it. Under a scripted view
+## the head stays where the view put it.
 func place(ground: Vector3, lift_m: float) -> void:
 	var s := fit()
-	var h := global_transform * (head.position * s / world_scale)
+	var head_at := head.position * s / world_scale
+	var h := global_transform * head_at
 	if s != world_scale:
 		Metrics.note("view: scale %.4f -> %.4f for a wearer's eyes %.3f m up" % [world_scale, s, stature.eye(EYE)])
 		(func(by: float) -> void: head.position *= by).call_deferred(s / world_scale)
@@ -420,6 +422,8 @@ func place(ground: Vector3, lift_m: float) -> void:
 	head.near = NEAR * s
 	_floor_y = maxf(ground.y, terrain.shown_at(ground.x, ground.z))
 	global_position = Vector3(global_position.x + ground.x - h.x, maxf(ground.y + lift_m, _floor_y), global_position.z + ground.z - h.z)
+	if view_eye != null:
+		global_position += view_eye - global_transform * head_at
 	placed.emit()
 
 
