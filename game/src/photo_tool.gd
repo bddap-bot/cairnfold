@@ -621,15 +621,29 @@ func save(img: Image, path: String, about: Variant = null, world := PackedByteAr
 		return png if about == null else PhotoMeta.embed(png, about, world))
 
 
-## Encoding a photo-sized image takes longer than a frame.
+## Encoding a photo-sized image takes longer than a frame. Its bytes reach storage Main.WRITE_BYTES a frame: a 23 MB
+## burst holds a Quest 2's frame 148 ms, and a 2 to 6 MB PNG written in one call holds a Steam Frame's main thread off
+## its CPU past the refresh.
 func _store(path: String, encode: Callable) -> Error:
+	var bytes: PackedByteArray = await _on_worker(encode)
 	var file := ProjectSettings.globalize_path(path)
-	return await _on_worker(func() -> Error: return Main.write_bytes(file, encode.call()))
+	var writer: Array[Callable] = await _on_worker(func() -> Array[Callable]: return Main.bytes_writer(file))
+	if writer.is_empty():
+		return ERR_FILE_CANT_OPEN
+	var stored := true
+	for at in range(0, bytes.size(), Main.WRITE_BYTES):
+		if at > 0:
+			await get_tree().process_frame
+		stored = await _on_worker(writer[0].bind(bytes.slice(at, at + Main.WRITE_BYTES)))
+		if not stored:
+			break
+	var closed: bool = await _on_worker(writer[1])
+	return OK if closed and stored else ERR_FILE_CANT_WRITE
 
 
-## ERR_BUG if `work` fails to return.
-func _on_worker(work: Callable) -> Error:
-	var result := [ERR_BUG]
+## What `work` returns, awaited a frame at a time.
+func _on_worker(work: Callable) -> Variant:
+	var result := [null]
 	var task := WorkerThreadPool.add_task(func() -> void: result[0] = work.call())
 	while not WorkerThreadPool.is_task_completed(task):
 		await get_tree().process_frame

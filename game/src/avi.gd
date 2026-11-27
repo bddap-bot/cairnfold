@@ -14,7 +14,7 @@ var frames := 0
 var sound_bytes := 0
 var full := false
 var _file: FileAccess
-## On Android a file in shared storage is written through java.io, as Main.write_bytes writes a photo.
+## On Android a file in shared storage is written through java.io, as Main.bytes_writer writes a photo.
 var _java: JavaObject
 var _at := 0
 var _failed := false

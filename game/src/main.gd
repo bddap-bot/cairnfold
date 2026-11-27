@@ -1,7 +1,7 @@
 class_name Main
 extends Node3D
 
-const SYNC_BYTES := 1 << 20
+const WRITE_BYTES := 1 << 18
 
 var args := {}
 var xr: OpenXRInterface
@@ -506,29 +506,31 @@ static func replace_file(path: String, bytes: PackedByteArray) -> void:
 		push_error("cannot save %s: %s" % [path, error_string(err)])
 
 
-## On Android a photo goes through java.io: Godot's files reach shared storage only in Download and Documents. It
-## reaches flash SYNC_BYTES at a time: one 23 MB burst held a Quest 2's frame 148 ms.
-static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
+## [put(chunk) -> bool, close() -> bool] for `path`, or [] if it cannot be opened. On Android a photo goes through
+## java.io: Godot's files reach shared storage only in Download and Documents.
+static func bytes_writer(path: String) -> Array[Callable]:
 	if OS.has_feature("android") and path.begins_with(photos_folder()):
 		var out: JavaObject = JavaClassWrapper.wrap("java.io.FileOutputStream").FileOutputStream(path)
 		if out == null or JavaClassWrapper.get_exception() != null:
-			return ERR_FILE_CANT_OPEN
+			return []
 		var fd: JavaObject = out.getFD()
-		var failed := false
-		for at in range(0, bytes.size(), SYNC_BYTES):
-			out.write(bytes.slice(at, at + SYNC_BYTES))
+		# A call that succeeds clears the exception a failed one before it left.
+		var put := func(chunk: PackedByteArray) -> bool:
+			out.write(chunk)
+			if JavaClassWrapper.get_exception() != null:
+				return false
 			fd.sync()
-			failed = JavaClassWrapper.get_exception() != null
-			if failed:
-				break
-		out.close()
-		return ERR_FILE_CANT_WRITE if failed or JavaClassWrapper.get_exception() != null else OK
+			return JavaClassWrapper.get_exception() == null
+		var close := func() -> bool:
+			out.close()
+			return JavaClassWrapper.get_exception() == null
+		return [put, close]
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
-		return FileAccess.get_open_error()
-	var stored := file.store_buffer(bytes)
-	file.close()
-	return OK if stored else ERR_FILE_CANT_WRITE
+		return []
+	return [file.store_buffer, func() -> bool:
+		file.close()
+		return true]
 
 
 ## Data-only tests can finish before the autoloads have entered the tree.

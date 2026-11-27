@@ -5289,7 +5289,7 @@ under `photos/` in the `--capture-dir` of a scripted run. From the Linux package
 its external files directory, so an APK saves photos to `Pictures/Cairnfold` in shared storage
 (`Main.photos_folder`), which outlives an uninstall and shows in the headset's own gallery. Godot's
 own file access reaches shared storage only in Download and Documents, so a photo goes through
-java.io (`Main.write_bytes`), which scoped storage lets write the app's own pictures with no
+java.io (`Main.bytes_writer`), which scoped storage lets write the app's own pictures with no
 permission. The garden save lives in the external files directory (`Main.player_path`), where it
 can be copied off before an uninstall. The screen holds the shot for a
 moment with a soft flash, and the hand gets a short buzz on the press. Either hand can hold a
@@ -5402,8 +5402,8 @@ load instead, as the photo's pipelines are compiled (`PhotoTool._ready`), and st
 `PhotoTool.TILE_MARGIN` pixels past it, dropped, so a style's strokes meet across the seams; each tile's read is issued
 before the next is drawn, and the garden stands still meanwhile (`Engine.time_scale` 0, which holds shaders' `TIME`
 too), so grass and animals meet across the seams. The tiles are put together on a worker thread, any canvas in the
-photo is flattened, and the view fades back. Converting, encoding and writing the PNGs runs on a worker thread, a MiB at
-a time to flash (`Main.SYNC_BYTES`). No frame drawn under the cover moves the quality governor (`Quality.covered`).
+photo is flattened, and the view fades back. Converting and encoding the PNGs runs on a worker
+thread, and each is written `Main.WRITE_BYTES` a frame, one worker task a chunk (`PhotoTool._store`). No frame drawn under the cover moves the quality governor (`Quality.covered`).
 
 Where and how it was taken (`PhotoMeta`): any PNG reader sees `Software: Cairnfold <rev>`; an
 iTXt chunk keyed `cairnfold` holds JSON with the lens's position, rotation and field of view, the
