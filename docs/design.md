@@ -153,7 +153,9 @@ Over the session 637 seconds ran at half rate and 987 at 72 Hz; the quality ladd
 bottom step did not bring the finished garden under the period. Holding the refresh rate
 at a finished garden's density is open work. The first of each run of late frames is logged
 a frame later (`metrics: late frame`), with the main-thread split of the engine frame it began in
-and of the one it ended in, where its wait for the runtime and processing fall, and its time on the GPU.
+and of the one it ended in, where its wait for the runtime and processing fall, its time on the GPU, how long
+the main thread spent on a CPU and waiting for one across it, and how long tasks stalled on memory, so a frame it sat
+out blocked reads apart from one it worked through.
 
 Where the main thread's time goes on the Frame (each second's `main_ms`, see "Local play-session
 history"): `demo/headset.json` unworn with the standby pause off, its 413 seconds and 29,903 frames,
@@ -5919,7 +5921,8 @@ physics servers, the scene tree's processing (every script callback, deferred ca
 renderer's sync and draw, and the rest (input events, audio, the XR runtime's other work, the time between frames), each phase's frames
 summarised per second (p50, p95, max); `cpu_ms` summarizes the main thread's work, the physics, scripts, sync and draw of
 each frame, leaving out the wait; `gpu_frame_ms` summarizes available viewport GPU timer readings. Unsupported GPU readings are
-null. Kernel fdinfo probes run only for explicit benchmark output, so ordinary
+null. Kernel fdinfo probes and the main thread's
+scheduler and memory-stall counts behind a late frame's line run only for explicit benchmark output, so ordinary
 local logging does no per-sample filesystem reads on the frame thread. Runtime dropped/reprojected counts are unavailable through this recorder;
 `late` is an application-cadence estimate, not a runtime dropped-frame counter.
 Context includes category counts, settled masonry instance counts, tools and

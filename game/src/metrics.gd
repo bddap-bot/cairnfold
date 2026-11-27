@@ -36,6 +36,13 @@ var _step := 0
 var _pinned := true
 var _deltas: PackedFloat32Array = []
 var _was_late := false
+## The main thread's time on a CPU and waiting in the run queue for one, and the time any task stalled on memory, in ns,
+## as the kernel last counted them; a late frame's share of each says whether its thread was working, kept off the CPU
+## or held up by memory being reclaimed.
+var _sched := PackedInt64Array()
+## Read only for explicit benchmark output, and cleared once the kernel's count cannot be read, so a platform without
+## it is asked once.
+var _sched_read := false
 ## Logged a frame later: the interval spans two engine frames, and the engine reports a split only once its frame ends.
 var _late_line := ""
 ## On `clock`; -1 before any.
@@ -88,6 +95,7 @@ var _paused_s := 0.0
 
 func _init(out: String) -> void:
 	path = out
+	_sched_read = not out.is_empty()
 
 
 ## A negative `ms` means untimed.
@@ -128,6 +136,7 @@ func _process(delta: float) -> void:
 	_last_tick = now
 	if _unplayed:
 		_unplayed = false
+		_sched = _sched_ns() if _sched_read else PackedInt64Array()
 		_paused_s += elapsed
 		_late_line = ""
 		_notes.clear()
@@ -141,11 +150,19 @@ func _process(delta: float) -> void:
 	_cpu_ms.append(cpu_ms)
 	var late := is_late(elapsed * 1000.0)
 	var compiled := _compilations()
+	var sched := _sched_ns() if _sched_read else PackedInt64Array()
+	_sched_read = not sched.is_empty()
+	var ran := PackedInt64Array()
+	if sched.size() == _sched.size() and not sched.is_empty():
+		ran = sched.duplicate()
+		for i in ran.size():
+			ran[i] -= _sched[i]
+	_sched = sched
 	if not _late_line.is_empty():
 		print(_late_line % split_text(split))
 		_late_line = ""
 	if late and not _was_late:
-		_late_line = "metrics: late frame %.1f ms, the engine frame it began in %s, the one it ended in %%s, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads, at %.3f s" % [elapsed * 1000.0, split_text(split), quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y, now / 1e6]
+		_late_line = "metrics: late frame %.1f ms, the engine frame it began in %s, the one it ended in %%s, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads, %s, at %.3f s" % [elapsed * 1000.0, split_text(split), quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y, sched_text(ran), now / 1e6]
 	var gpu_ms := quality.frame_ms if quality != null and quality.fresh else -1.0
 	var tags := _tags(elapsed)
 	for tag in tags:
@@ -348,6 +365,28 @@ static func tally(into: Dictionary, tag: String, ms: float, late: bool, cpu_ms: 
 	if gpu_ms >= 0.0:
 		t.gpu_ms += gpu_ms
 		t.gpu_frames += 1
+
+
+## [on a CPU, runnable but waiting for one, and where the kernel reports it any task stalled on memory], or [] where
+## the kernel does not say.
+static func _sched_ns() -> PackedInt64Array:
+	var f := FileAccess.open("/proc/thread-self/schedstat", FileAccess.READ)
+	var parts := f.get_line().split(" ", false) if f != null else PackedStringArray()
+	if parts.size() < 2:
+		return PackedInt64Array()
+	var out := PackedInt64Array([int(parts[0]), int(parts[1])])
+	var pressure := FileAccess.open("/proc/pressure/memory", FileAccess.READ)
+	var some := pressure.get_line() if pressure != null else ""
+	if some.begins_with("some ") and "total=" in some:
+		out.append(int(some.get_slice("total=", 1)) * 1000)
+	return out
+
+
+static func sched_text(ran: PackedInt64Array) -> String:
+	if ran.is_empty():
+		return "the main thread's CPU time unknown"
+	var text := "the main thread %.1f ms on a CPU and %.1f ms waiting for one" % [ran[0] / 1e6, ran[1] / 1e6]
+	return text if ran.size() < 3 else text + ", %.1f ms of tasks stalled on memory" % (ran[2] / 1e6)
 
 
 static func memory_mb() -> Dictionary:
