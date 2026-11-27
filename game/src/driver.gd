@@ -2126,10 +2126,10 @@ func _sheet(s: Dictionary) -> void:
 func _painting(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	main.world.submit({"op": "sheet", "easel": e.id, "strokes": []})
-	for stroke: Dictionary in painting(int(s.strokes)):
-		main.world.submit({"op": "paint", "easel": e.id, "stroke": stroke})
-	for stroke: Dictionary in daubs(int(s.get("palette", 0))):
-		main.world.submit({"op": "paint", "easel": e.id, "palette": true, "stroke": stroke})
+	for laid: Dictionary in (s.strokes if s.strokes is Array else painting(int(s.strokes))):
+		main.world.submit({"op": "paint", "easel": e.id, "stroke": laid})
+	for laid: Dictionary in daubs(int(s.get("palette", 0))):
+		main.world.submit({"op": "paint", "easel": e.id, "palette": true, "stroke": laid})
 	await _frames(2)
 	var steps := Canvas.steps
 	Canvas.steps = SETUP_STEPS
@@ -2160,14 +2160,18 @@ static func painting(n: int) -> Array:
 	rng.seed = 7
 	var out := []
 	for k in n:
-		var samples := PackedInt32Array()
 		var from := Vector2(rng.randf_range(0.05, 0.6), rng.randf_range(0.05, 0.95))
 		var to := from + Vector2(rng.randf_range(0.2, 0.35), rng.randf_range(-0.05, 0.05))
-		for i in 15:
-			samples.append_array(Brushwork.pack(from.lerp(to, i / 14.0), 0.8, 0.0, 0 if i == 0 else 2))
-		var c: Color = Brushwork.PIGMENTS[1 + k % (Brushwork.PIGMENTS.size() - 1)]
-		out.append({"medium": Brushwork.Medium.WATER, "brush": Brushwork.Brush.BIG, "colour": Brushwork.absorbance(c), "strength": 0.8, "load": 1.0, "gap": 20, "samples": samples})
+		out.append(stroke(from, to, Brushwork.PIGMENTS[1 + k % (Brushwork.PIGMENTS.size() - 1)]))
 	return out
+
+
+## A watercolour stroke with the big brush from `from` to `to`, in canvas uv.
+static func stroke(from: Vector2, to: Vector2, pigment: Color) -> Dictionary:
+	var samples := PackedInt32Array()
+	for i in 15:
+		samples.append_array(Brushwork.pack(from.lerp(to, i / 14.0), 0.8, 0.0, 0 if i == 0 else 2))
+	return {"medium": Brushwork.Medium.WATER, "brush": Brushwork.Brush.BIG, "colour": Brushwork.absorbance(pigment), "strength": 0.8, "load": 1.0, "gap": 20, "samples": samples}
 
 
 static func daubs(n: int) -> Array:
