@@ -1465,3 +1465,89 @@
  }
  
  void LightStorage::set_directional_shadow_count(int p_count) {
+--- a/servers/audio/audio_server.h
++++ b/servers/audio/audio_server.h
+@@ -212,7 +212,8 @@
+ 	int mix_size = 0;
+ 
+ 	uint32_t buffer_size = 0;
+-	uint64_t mix_count = 0;
++	std::atomic<uint64_t> mix_count = 0;
++	std::atomic<uint64_t> mixes_done = 0;
+ 	uint64_t mix_frames = 0;
+ #ifdef DEBUG_ENABLED
+ 	SafeNumeric<uint64_t> prof_time;
+@@ -315,8 +316,9 @@
+ 	void _delete_stream_playback(Ref<AudioStreamPlayback> p_playback);
+ 	void _delete_stream_playback_list_node(AudioStreamPlaybackListNode *p_node);
+ 
+-	// TODO document if this is necessary.
++	// Freed once every mix begun before the latest move here has finished, so a mix never reads freed details.
+ 	SafeList<AudioStreamPlaybackBusDetails *> bus_details_graveyard_frame_old;
++	uint64_t graveyard_frame_old_mixes = 0;
+ 
+ 	Vector<Vector<AudioFrame>> temp_buffer; //temp_buffer for each level
+ 	Vector<AudioFrame> mix_buffer;
+--- a/servers/audio/audio_server.cpp
++++ b/servers/audio/audio_server.cpp
+@@ -272,7 +272,10 @@
+ 		init_channels_and_buffers();
+ 	}
+ 
+-	ERR_FAIL_COND_MSG(buses.is_empty() && todo, "AudioServer bus count is less than 1.");
++	if (buses.is_empty() && todo) {
++		mixes_done++;
++		ERR_FAIL_MSG("AudioServer bus count is less than 1.");
++	}
+ 	while (todo) {
+ 		if (to_mix == 0) {
+ 			_mix_step();
+@@ -332,6 +335,7 @@
+ 		todo -= to_copy;
+ 		to_mix -= to_copy;
+ 	}
++	mixes_done++;
+ 
+ #ifdef DEBUG_ENABLED
+ 	prof_time.add(OS::get_singleton()->get_ticks_usec() - prof_ticks);
+@@ -1522,6 +1526,7 @@
+ 	init_channels_and_buffers();
+ 
+ 	mix_count = 0;
++	mixes_done = 0;
+ 	set_bus_count(1);
+ 	set_bus_name(0, "Master");
+ 
+@@ -1612,12 +1617,15 @@
+ 	update_callback_list.maybe_cleanup();
+ 	listener_changed_callback_list.maybe_cleanup();
+ 	playback_list.maybe_cleanup();
+-	for (AudioStreamPlaybackBusDetails *bus_details : bus_details_graveyard_frame_old) {
+-		bus_details_graveyard_frame_old.erase(bus_details, [](AudioStreamPlaybackBusDetails *d) { delete d; });
++	if (mixes_done >= graveyard_frame_old_mixes) {
++		for (AudioStreamPlaybackBusDetails *bus_details : bus_details_graveyard_frame_old) {
++			bus_details_graveyard_frame_old.erase(bus_details, [](AudioStreamPlaybackBusDetails *d) { delete d; });
++		}
+ 	}
+ 	for (AudioStreamPlaybackBusDetails *bus_details : bus_details_graveyard) {
+ 		bus_details_graveyard_frame_old.insert(bus_details);
+ 		bus_details_graveyard.erase(bus_details);
++		graveyard_frame_old_mixes = mix_count;
+ 	}
+ 	bus_details_graveyard.maybe_cleanup();
+ 	bus_details_graveyard_frame_old.maybe_cleanup();
+--- a/core/templates/safe_list.h
++++ b/core/templates/safe_list.h
+@@ -191,8 +191,11 @@
+ 		} while (!graveyard_head.compare_exchange_strong(/* expected= */ expected_head, /* new= */ p_iterator.cursor));
+ 	}
+ 
++	// Counted before the head is read, so a cleanup between the two cannot free the node this iterator starts on.
+ 	Iterator begin() {
+-		return Iterator(head.load(), this);
++		Iterator it(nullptr, this);
++		it.cursor = head.load();
++		return it;
+ 	}
+ 
+ 	Iterator end() {

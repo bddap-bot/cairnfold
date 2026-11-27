@@ -6,17 +6,6 @@ const QUIT_WAIT_MSEC := 10000
 var _quitting := false
 
 
-func _ready() -> void:
-	get_tree().process_frame.connect(_sync_mixer)
-
-
-## Godot reclaims retired playback bus data two main-thread updates on, while a delayed mixer may still be copying
-## it; this barrier finishes that mix first. The signal runs while paused too.
-func _sync_mixer() -> void:
-	AudioServer.lock()
-	AudioServer.unlock()
-
-
 ## A playback frees only after the audio thread mixes its stop, so one playing at quit outlives the engine. They free
 ## in stop order, so a marker stopped last waits out freed nodes' sounds. A 3D player holds a new playback until its
 ## next physics tick, even through stop().
