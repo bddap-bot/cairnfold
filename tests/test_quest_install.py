@@ -198,7 +198,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
             'sessions only': sessions,
             'record-sessions': {'record-sessions': b'', **sessions},
             'empty': {},
-            'full': {'gardens/1.save': b'the players\x00 garden', 'gardens/1.save.bad': b'an unreadable garden', 'gardens/1-1800000000.backup': b'a garden earlier',
+            'full': {'garden.save': b'a garden from before the shelf', 'garden.save.bad': b'its unreadable twin', 'gardens/1.save': b'the players\x00 garden', 'gardens/1.save.bad': b'an unreadable garden', 'gardens/1-1800000000.backup': b'a garden earlier',
                      'avatars/Wren.vrm': b'vrm', "avatars/a folder's/Moth.vrm": b'moth', 'record-sessions': b'', **sessions},
         }
         for shape, saves in shapes.items():

@@ -9,7 +9,8 @@
 # the shell pushes beside them (bench output, launch arguments).
 set -euo pipefail
 pkg=io.github.bddapbot.cairnfold
-game_paths="gardens avatars record-sessions sessions"
+# garden.save and garden.save.bad are a garden kept from before the shelf of gardens: an uninstall would erase it.
+game_paths="garden.save garden.save.bad gardens avatars record-sessions sessions"
 
 package() {
   python3 - "$@" <<'PY'
