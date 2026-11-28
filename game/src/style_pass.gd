@@ -2,20 +2,25 @@ class_name StylePass
 extends CompositorEffect
 
 ## Draws a photo style over a camera's finished view, before tonemapping: the view through `tone`, its strokes laid
-## first where `reach` is above zero. The mobile renderer gives effects no storage images, so the view is drawn into a
-## copy and back.
+## first where `reach` is above zero: daubs of paint on a grid fixed to the picture where the camera draws one view, or
+## Kuwahara's flat patches where it draws the eyes' two, since a grid fixed to each eye's screen would float apart from
+## what both eyes see. The mobile renderer gives effects no storage images, so the view is drawn into a copy and back.
 
 ## Steps along a quadrant's side; it takes one sample more than this, whatever the reach.
 const STEPS := 3
-## The shortest stroke, so a camera's screen, a few eye pixels to its texels, still shows strokes.
+## Kuwahara's shortest reach, which binds over the eyes at the ladder's lowest render sizes.
 const STROKE_TEXELS := 8.0
+## A daub's width: on the camera's screen, about two and a half of its texels to an eye pixel, four eye pixels.
+const DAUB_TEXELS := 10.0
 
 ## `tone[i]` weighs linear rgb into output channel i.
 var tone := Basis.IDENTITY
-## Of the view's height, the strokes' length, never under STROKE_TEXELS.
+## Of the view's height, Kuwahara's reach; above zero, the view is painted.
 var reach := 0.0
 ## Above zero, the toned light `t` is lifted toward white, drawn as t(1 + lift)/(t + lift): the smaller, the stronger.
 var lift := 0.0
+## Where this view's top left corner lies in its picture, in texels: a photo's tiles lay one picture's daubs.
+var origin := Vector2.ZERO
 
 ## Its own, sized to its camera's view.
 var _copy: RID
@@ -27,7 +32,7 @@ static var _users := 0
 static var _rd: RenderingDevice
 static var _shader: RID
 static var _sampler: RID
-## Framebuffer format -> pipeline.
+## [framebuffer format, daubs] -> pipeline.
 static var _pipelines := {}
 
 
@@ -95,14 +100,16 @@ func _render_callback(_type: int, data: RenderData) -> void:
 	for row in 3:
 		var v: Vector3 = tone[row]
 		styled.append_array([v.x, v.y, v.z, 0.0])
+	var daubs := reach > 0.0 and buffers.get_view_count() == 1
 	var texels := maxf(reach * size.y, STROKE_TEXELS)
 	styled.append_array([texels / size.x, texels / size.y, float(STEPS) if reach > 0.0 else 0.0, lift])
-	var copied := PackedFloat32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0])
+	styled.append_array([DAUB_TEXELS, origin.x, origin.y, 0.0])
+	var copied := PackedFloat32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 	for view in buffers.get_view_count():
 		var colour := buffers.get_color_layer(view)
 		_keep_copy(size, _rd.texture_get_format(colour).format)
-		_draw(colour, _copy, styled.to_byte_array())
-		_draw(_copy, colour, copied.to_byte_array())
+		_draw(colour, _copy, styled.to_byte_array(), daubs)
+		_draw(_copy, colour, copied.to_byte_array(), false)
 
 
 func _keep_copy(size: Vector2i, format: int) -> void:
@@ -120,21 +127,25 @@ func _keep_copy(size: Vector2i, format: int) -> void:
 	_copy_format = format
 
 
-func _draw(from: RID, to: RID, push: PackedByteArray) -> void:
+func _draw(from: RID, to: RID, push: PackedByteArray, daubs: bool) -> void:
 	var fb := FramebufferCacheRD.get_cache_multipass([to], [], 1)
 	var format := _rd.framebuffer_get_format(fb)
-	if not _pipelines.has(format):
+	var key := [format, daubs]
+	if not _pipelines.has(key):
 		var blend := RDPipelineColorBlendState.new()
 		blend.attachments = [RDPipelineColorBlendStateAttachment.new()]
-		_pipelines[format] = _rd.render_pipeline_create(_shader, format, RenderingDevice.INVALID_FORMAT_ID, RenderingDevice.RENDER_PRIMITIVE_TRIANGLES,
-			RDPipelineRasterizationState.new(), RDPipelineMultisampleState.new(), RDPipelineDepthStencilState.new(), blend)
+		var constant := RDPipelineSpecializationConstant.new()
+		constant.constant_id = 0
+		constant.value = daubs
+		_pipelines[key] = _rd.render_pipeline_create(_shader, format, RenderingDevice.INVALID_FORMAT_ID, RenderingDevice.RENDER_PRIMITIVE_TRIANGLES,
+			RDPipelineRasterizationState.new(), RDPipelineMultisampleState.new(), RDPipelineDepthStencilState.new(), blend, 0, 0, [constant])
 	var u := RDUniform.new()
 	u.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
 	u.binding = 0
 	u.add_id(_sampler)
 	u.add_id(from)
 	var list := _rd.draw_list_begin(fb, RenderingDevice.DRAW_IGNORE_COLOR_ALL)
-	_rd.draw_list_bind_render_pipeline(list, _pipelines[format])
+	_rd.draw_list_bind_render_pipeline(list, _pipelines[key])
 	_rd.draw_list_bind_uniform_set(list, UniformSetCacheRD.get_cache(_shader, 0, [u]), 0)
 	_rd.draw_list_set_push_constant(list, push, push.size())
 	_rd.draw_list_draw(list, false, 1, 3)

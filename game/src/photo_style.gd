@@ -7,7 +7,7 @@ extends RefCounted
 enum Kind { PLAIN, PAINTERLY, SCULPTURE, MONO, SEPIA, CYANOTYPE }
 
 const LUMA := Vector3(0.2126, 0.7152, 0.0722)
-## Of the view's height: strokes about 17 px long on a photo.
+## Of the view's height, Kuwahara's reach over the eyes.
 const STROKES := 0.007
 const SATURATED := 1.3
 ## The sculpture's pass lifts its light toward white (StylePass.lift), so the stone reads white in shadow too.

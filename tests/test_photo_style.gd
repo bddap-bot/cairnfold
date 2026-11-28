@@ -32,7 +32,7 @@ func _each_style_has_its_pass() -> void:
 		check(PhotoStyle.of(PhotoStyle.named(kind)) == kind, "%s is named by its kind" % PhotoStyle.named(kind))
 	PhotoStyle.dress(cam, PhotoStyle.Kind.PAINTERLY, Quality.VIEW_MASK)
 	var strokes: StylePass = cam.compositor.compositor_effects[0]
-	check(strokes.reach > 0.0 and strokes.effect_callback_type == CompositorEffect.EFFECT_CALLBACK_TYPE_POST_TRANSPARENT, "painterly lays strokes over the finished view")
+	check(strokes.reach > 0.0 and strokes.effect_callback_type == CompositorEffect.EFFECT_CALLBACK_TYPE_POST_TRANSPARENT, "painterly lays daubs over the finished view")
 	PhotoStyle.dress(cam, PhotoStyle.Kind.SCULPTURE, Quality.VIEW_MASK)
 	check(strokes.lift > 0.0 and strokes.reach == 0.0, "the sculpture lifts its light toward white")
 	PhotoStyle.dress(cam, PhotoStyle.Kind.SEPIA, Quality.VIEW_MASK)

@@ -25,7 +25,7 @@ func _run() -> void:
 		var s: Dictionary = seen[kind]
 		print("%s: saturation %.3f, luma %.3f, edges %.4f, grey %.3f, warm %.3f, cool %.3f, red/blue %.2f" % [PhotoStyle.named(kind), s.saturation, s.luma, s.edges, s.grey, s.warm, s.cool, s.red / maxf(s.blue, 0.0001)])
 	var painted: Dictionary = seen[PhotoStyle.Kind.PAINTERLY]
-	check(painted.edges < plain.edges * 0.8 and painted.saturation > plain.saturation and absf(painted.luma - plain.luma) < plain.luma * 0.15, "painterly lays the view in strokes: %.4f of plain's edges %.4f, saturation %.3f over %.3f, as bright" % [painted.edges, plain.edges, painted.saturation, plain.saturation])
+	check(painted.saturation > plain.saturation and absf(painted.luma - plain.luma) < plain.luma * 0.15, "painterly is the view more saturated, as bright: saturation %.3f over %.3f, luma %.3f against %.3f" % [painted.saturation, plain.saturation, painted.luma, plain.luma])
 	var mono: Dictionary = seen[PhotoStyle.Kind.MONO]
 	check(mono.grey > 0.99 and absf(mono.luma - plain.luma) < 0.03 and mono.edges > plain.edges * 0.8, "mono is grey on %.1f%% of the view, its light and edges plain's (%.3f, %.3f; %.4f, %.4f)" % [mono.grey * 100.0, mono.luma, plain.luma, mono.edges, plain.edges])
 	for kind: PhotoStyle.Kind in [PhotoStyle.Kind.SEPIA, PhotoStyle.Kind.CYANOTYPE]:
@@ -39,6 +39,7 @@ func _run() -> void:
 	check(carved.grey > 0.99 and carved.luma > plain.luma * 2.0 and carved.spread > 0.03, "sculpture is white, grey on %.1f%%, luma %.3f against plain's %.3f, its shading kept (luma spread %.3f)" % [carved.grey * 100.0, carved.luma, plain.luma, carved.spread])
 	await _screens(tool, at)
 	await _photos(tool, at, plain)
+	await _daubs(tool, at)
 	await _shot_in_style(tool)
 	finish()
 
@@ -55,7 +56,6 @@ func _screens(tool: PhotoTool, at: Transform3D) -> void:
 	var carved: Dictionary = screens[PhotoStyle.Kind.SCULPTURE]
 	print("screen: plain edges %.4f saturation %.3f luma %.3f, painterly edges %.4f, sculpture saturation %.3f luma %.3f" % [plain.edges, plain.saturation, plain.luma, painted.edges, carved.saturation, carved.luma])
 	check(screens[PhotoStyle.Kind.MONO].grey > 0.99, "the camera's screen draws in its style: grey on %.1f%% of it" % (screens[PhotoStyle.Kind.MONO].grey * 100.0))
-	check(painted.edges < plain.edges * 0.7, "the screen lays painterly in strokes: edges %.4f of plain's %.4f" % [painted.edges, plain.edges])
 	check(carved.grey > 0.99 and carved.luma > plain.luma * 2.0, "the screen shows the sculpture white: grey on %.1f%%, luma %.3f against plain's %.3f" % [carved.grey * 100.0, carved.luma, plain.luma])
 
 
@@ -86,9 +86,51 @@ func _photos(tool: PhotoTool, at: Transform3D, plain: Dictionary) -> void:
 	var carved := _stats(await tool.render(at, PhotoTool.FOV, Quality.PHOTO_MASK, PhotoStyle.Kind.SCULPTURE))
 	main.rig.uncover()
 	print("photo: plain edges %.4f saturation %.3f, painterly edges %.4f, sculpture saturation %.3f" % [whole.edges, whole.saturation, painted.edges, carved.saturation])
-	check(painted.size == PhotoTool.PHOTO_SIZE and painted.edges < whole.edges * 0.8, "a painterly photo is laid in strokes at %s: edges %.4f of plain's %.4f" % [painted.size, painted.edges, whole.edges])
+	check(painted.size == PhotoTool.PHOTO_SIZE and painted.saturation > whole.saturation, "a painterly photo is drawn in its style at %s: saturation %.3f over plain's %.3f" % [painted.size, painted.saturation, whole.saturation])
 	check(carved.saturation < whole.saturation * 0.35, "a sculpture photo is white: saturation %.3f against plain's %.3f" % [carved.saturation, whole.saturation])
 	check(absf(whole.luma - plain.luma) < plain.luma * 0.2, "the photo sees what the view does")
+
+
+## Painterly lays daubs an eye can see on the screen and in a photo: on a smooth sky, where plain draws next to no edges,
+## its daubs' ridges and furrows do; and a photo's tiles lay one picture's daubs, meeting without a seam.
+func _daubs(tool: PhotoTool, at: Transform3D) -> void:
+	var up := Transform3D(Basis.looking_at(Vector3(0.3, 0.8, -1.0).normalized()), at.origin)
+	for screen in [true, false]:
+		var seen := {}
+		for kind: PhotoStyle.Kind in [PhotoStyle.Kind.PLAIN, PhotoStyle.Kind.PAINTERLY]:
+			tool.wear(kind, false)
+			seen[kind] = _stats(await tool.render_screen(up) if screen else await tool.render(up, PhotoTool.FOV, Quality.PHOTO_MASK, kind))
+			main.rig.uncover()
+		tool.wear(PhotoStyle.Kind.PLAIN, false)
+		var plain: Dictionary = seen[PhotoStyle.Kind.PLAIN]
+		var painted: Dictionary = seen[PhotoStyle.Kind.PAINTERLY]
+		var where := "the screen" if screen else "a photo"
+		print("%s's sky: plain edges %.4f, painterly %.4f" % [where, plain.edges, painted.edges])
+		check(painted.edges > plain.edges * 3.0, "%s lays painterly's sky in daubs: edges %.4f against plain's %.4f" % [where, painted.edges, plain.edges])
+	var photo := await tool.render(at, PhotoTool.FOV, Quality.PHOTO_MASK, PhotoStyle.Kind.PAINTERLY)
+	main.rig.uncover()
+	var worst := 0.0
+	for k in range(1, PhotoTool.TILES.x):
+		worst = maxf(worst, _seam(photo, k * PhotoTool.PHOTO_SIZE.x / PhotoTool.TILES.x, true))
+	for k in range(1, PhotoTool.TILES.y):
+		worst = maxf(worst, _seam(photo, k * PhotoTool.PHOTO_SIZE.y / PhotoTool.TILES.y, false))
+	print("painterly photo: worst tile seam %.2f" % worst)
+	check(worst < 1.5, "a painterly photo's tiles meet without a seam: the worst seam changes %.2f times as much as the lines beside it" % worst)
+
+
+## Across the line before `at`, a column (`columns`) or a row, the mean change against the lines a few pixels either
+## side.
+static func _seam(img: Image, at: int, columns: bool) -> float:
+	var across := func(i: int) -> float:
+		var sum := 0.0
+		var n := img.get_height() if columns else img.get_width()
+		for j in range(0, n, 2):
+			sum += _gap(img.get_pixel(i - 1, j), img.get_pixel(i, j)) if columns else _gap(img.get_pixel(j, i - 1), img.get_pixel(j, i))
+		return sum
+	var beside := 0.0
+	for d in [-12, -8, -4, 4, 8, 12]:
+		beside += across.call(at + d) / 6.0
+	return across.call(at) / maxf(beside, 1e-6)
 
 
 static func _stats(img: Image) -> Dictionary:

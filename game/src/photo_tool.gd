@@ -163,6 +163,8 @@ static func frame_tile(cam: Camera3D, fov: float, keep: Rect2i) -> void:
 	var texel := 2.0 * cam.near * tan(deg_to_rad(fov) * 0.5) / PHOTO_SIZE.y
 	var centre := Vector2(drawn.get_center()) - Vector2(PHOTO_SIZE) * 0.5
 	cam.set_frustum(drawn.size.y * texel, Vector2(centre.x, -centre.y) * texel, cam.near, cam.far)
+	if cam.compositor != null:
+		(cam.compositor.compositor_effects[0] as StylePass).origin = Vector2(drawn.position)
 
 
 static func settings() -> Dictionary:

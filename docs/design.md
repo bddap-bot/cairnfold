@@ -5431,7 +5431,7 @@ selfie included, and videos draw through the one style, and a photo records it (
 | Style | What it draws |
 | --- | --- |
 | Plain | The view as it is |
-| Painterly | The view laid in flat daubs that keep its edges (Kuwahara's filter: each pixel takes the means of its four quadrants, each `PhotoStyle.STROKES` of the view's height on a side but never under `StylePass.STROKE_TEXELS`, so the camera's screen, a few eye pixels to each of its texels, still shows them; weighted toward the evenest), its colours 1.3 times as saturated |
+| Painterly | The view laid in daubs of paint, its colours 1.3 times as saturated: on a camera's screen and its photos, one daub to each cell of a grid fixed to the picture, each taking the light at its centre, lying along the edge it sits on and shaded as a ridge lit from above left with furrows along it, a pixel showing whichever daub over it holds paint nearest the view there, so daubs stop at edges; each `StylePass.DAUB_TEXELS` wide and two to three times as long, so the screen, about two and a half of its texels to an eye pixel, shows each daub four eye pixels wide; over the eyes' two views, Kuwahara's flat patches that keep its edges (each pixel takes the means of its four quadrants, `PhotoStyle.STROKES` of the view's height on a side, weighted toward the evenest), since a grid fixed to each eye's screen would float apart from what both eyes see |
 | Sculpture | The garden carved from one white stone (`sculpture.gdshaderinc`): its shapes, light and shadows, none of its colours, then a pass taking the view's light alone and lifting it toward white (light `t` drawn as t(1 + L)/(t + L), L being `PhotoStyle.LIFT`), so neither the sky's blue in its shade nor the sky itself keeps a colour and the stone reads white in shadow too. The sun and moon, flames, fireflies and glows, falling snow, smoke, the motes under water, avatars' particles, the mirror's glass, see-through pieces drawn with Godot's own materials, and the interface and most held tools keep their shapes and light but go grey with the rest |
 | Mono, sepia, cyanotype | The view's light alone, through a grey, brown or blue tint |
 
@@ -5439,8 +5439,10 @@ A pass (`StylePass`, `photo_style.glsl`) is a `CompositorEffect` on the camera t
 transparent objects and before tonemapping, so water, smoke and fog take the style with the rest. The mobile renderer
 gives effects no storage images, so it draws the view into a copy and back, two full-screen triangles; the scene's
 colour is held as the square root of its light (`scripts/engine.patch`), which the pass squares to work on light and
-roots again. Kuwahara's quadrants are each sampled on a fixed 4×4 grid however long the strokes, so a pixel costs the
-same on a photo as on the screen. Every pass shares one shader and its pipelines, and each camera keeps one pass,
+roots again. A pixel looks through the 4×4 cells of daubs nearest it, four samples each, and Kuwahara's quadrants are
+each sampled on a fixed 4×4 grid, so either costs a pixel the same on a photo as on the screen. A photo's tiles each
+tell the pass where they lie in the picture (`StylePass.origin`), so they lay one grid of daubs. Daubs are a pipeline
+of their own (a specialization constant), so the eyes' pass carries none of their registers. Every pass shares one shader and its pipelines, and each camera keeps one pass,
 turned to whichever style it draws, so turning the dial compiles nothing; a camera drawing plain has no compositor and
 lets go of its copy of the view (`PhotoStyle.dress`), so plain costs nothing; the sculpture's pass samples the view once a pixel, as a colour filter's does. The sculpture is a camera's cull-mask bit, `Quality.SCULPTURE_LAYER`, past the 20 layers a node can stand on,
 which every shader of the garden reads (`CAMERA_VISIBLE_LAYERS`): one camera draws white while the eyes see colour.
@@ -5449,12 +5451,13 @@ while a camera draws the sculpture each opaque surface among them takes a white 
 that every other camera drops in its vertex stage, and at other times none, since they hold over a hundred surfaces,
 each a draw more.
 
-`tests/gpu_photo_styles.gd` draws one view of a garden in each and holds it against plain: painterly under 0.8 of
-plain's edge energy, more saturated, as bright (one run read 0.49 and 1.4 times); mono grey on 99% of the view or more, as bright as plain and with as many edges;
+`tests/gpu_photo_styles.gd` draws one view of a garden in each and holds it against plain: painterly more saturated,
+as bright; mono grey on 99% of the view or more, as bright as plain and with as many edges;
 sepia and cyanotype ordering their channels on as much, their red to blue within a quarter of their tones'; the
 sculpture grey on 99% of the view or more and over twice plain's light, its shading kept; the camera's screen, at its
-256×192, with painterly under 0.7 of plain's edge energy, the sculpture grey and over twice as bright, and mono grey; a
-photo's own pass at 3200×2400 in style, and a shot taken in sepia saying so in its metadata. `demo/photo.json` takes a photo in each and lays painterly and the sculpture over the
+256×192, with the sculpture grey and over twice as bright, and mono grey; painterly's daubs on a smooth sky, over three
+times plain's edges on the screen and in a photo (6.8 and 12 times in one run), and a painterly photo's tiles meeting
+without a seam; a photo's own pass at 3200×2400 in style, and a shot taken in sepia saying so in its metadata. `demo/photo.json` takes a photo in each and lays painterly and the sculpture over the
 whole view. The stress scene's `camera/*` phases run in painterly, the costliest, the only pass sampling the view
 more than once a pixel, and `camera/whole-view` lays it over the eyes too.
 
