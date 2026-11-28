@@ -1,7 +1,7 @@
 class_name SessionWheel
 extends RefCounted
 
-const LEAVES := ["avatars", "friends"]
+const LEAVES := ["avatars", "friends", "gardens"]
 const TAG_FONT := 48
 const TAG_PIXEL := 0.00012
 const PICTURE := 0.012
@@ -26,6 +26,21 @@ func choices(leaf: String) -> Array:
 		if not session.me.steam():
 			out.append("name")
 		return out
+	if leaf == "gardens":
+		var shelf := session.world.shelf
+		out.append("garden:%d" % shelf.current)
+		if shelf.dir == "":
+			return out
+		for minutes: int in shelf.offered():
+			out.append("backup:%d" % minutes)
+		for id in shelf.gardens:
+			if id != shelf.current:
+				out.append("garden:%d" % id)
+		if not shelf.full():
+			out.append("new")
+			for name: String in Shelf.STARTS:
+				out.append("start:" + name)
+		return out
 	var keys := session.nearby.keys()
 	if not session.visiting.is_empty() and not keys.has(_visited()):
 		keys.append(_visited())
@@ -37,6 +52,8 @@ func choices(leaf: String) -> Array:
 
 
 func start(leaf: String) -> int:
+	if leaf == "gardens":
+		return 0
 	var at := _worn() if leaf == "avatars" else "home" if session.visiting.is_empty() else "join:" + _visited()
 	return maxi(0, choices(leaf).find(at))
 
@@ -58,6 +75,50 @@ func activate(key: String) -> void:
 		var garden: Dictionary = session.nearby.get(key.trim_prefix("join:"), {})
 		if garden.get("joins", false):
 			session.join(garden.address, garden.port)
+	elif key == "new" or key.get_slice(":", 0) in ["backup", "garden", "start"]:
+		_shelve(key)
+
+
+## Home first, so a garden picked while visiting opens in your own. A pick while a garden is still opening is let go:
+## the shelf names the garden open only once it has.
+func _shelve(key: String) -> void:
+	var world := session.world
+	var shelf := world.shelf
+	if not world.idle():
+		return
+	var snap: Variant = _snapshot(key)
+	session.go_home()
+	if not _whole(snap, key):
+		return
+	var id := key.get_slice(":", 1).to_int()
+	if key.begins_with("backup:"):
+		world.return_to(snap)
+	elif key.begins_with("garden:"):
+		if id != shelf.current:
+			world.go_to(id, snap)
+	elif not shelf.full():
+		world.go_to(shelf.fresh(), snap)
+
+
+func _whole(snap: Variant, key: String) -> bool:
+	var whole := session.world.readable(snap)
+	if not whole:
+		push_error("shelf: %s holds no garden this game can open" % key)
+	return whole
+
+
+## Of a shelf choice, the garden it opens; the current one as it stands.
+func _snapshot(key: String) -> Variant:
+	var world := session.world
+	if key == "new":
+		return {"format": world.format(), "seq": 0, "cmds": []}
+	if key.begins_with("start:"):
+		return Shelf.start(key.get_slice(":", 1), world.terrain, world.format())
+	var id := key.get_slice(":", 1).to_int()
+	if key.begins_with("backup:"):
+		var at: int = world.shelf.offered().get(id, -1)
+		return Shelf.read(world.shelf.backup_path(world.shelf.current, at)) if at >= 0 else null
+	return world.snapshot() if id == world.shelf.current and session.visiting.is_empty() else Shelf.read(world.shelf.path(id)) if FileAccess.file_exists(world.shelf.path(id)) else {"format": world.format(), "seq": 0, "cmds": []}
 
 
 ## A wheel keeping its icons builds one again when this changes.
@@ -69,6 +130,14 @@ func signature(item: Variant) -> String:
 		return _worn() + " " + signature(_worn())
 	if key == "friends":
 		return " ".join(_behind_gate().map(func(k: String) -> String: return signature("join:" + k)))
+	var shelf := session.world.shelf
+	if key == "gardens":
+		return signature("garden:%d" % shelf.current)
+	if key.begins_with("garden:"):
+		var id := key.get_slice(":", 1).to_int()
+		return "%d %d" % [id, shelf.shown(session.world.seq) if id == shelf.current and session.visiting.is_empty() else shelf.seqs.get(id, -1)]
+	if key.begins_with("backup:"):
+		return str(shelf.offered().get(key.get_slice(":", 1).to_int(), -1))
 	if key.begins_with("avatar:"):
 		return str([session.colour, ""])
 	if key.begins_with("file:"):
@@ -91,7 +160,22 @@ func icon(item: Variant) -> Node3D:
 		return _mirror()
 	if item == "friends":
 		return _gate()
+	if item == "gardens":
+		return _diorama("garden:%d" % session.world.shelf.current)
+	if item == "new" or item.get_slice(":", 0) in ["backup", "garden", "start"]:
+		return _diorama(item)
 	return figure(item)
+
+
+## Your gardens on a stone rim, backups of this one on an old wood one, new ones on fresh pale wood.
+func _diorama(key: String) -> Node3D:
+	var rim := Color(0.58, 0.56, 0.52) if key.begins_with("garden:") else Color(0.42, 0.3, 0.2) if key.begins_with("backup:") else Color(0.86, 0.74, 0.52)
+	var began := Time.get_ticks_usec()
+	var snap: Variant = _snapshot(key)
+	var lay := Diorama.layout(snap.cmds if session.world.readable(snap) else [])
+	var built := Diorama.build(lay, rim)
+	Metrics.note("shelf: a diorama of %d parts" % lay.parts.size(), (Time.get_ticks_usec() - began) / 1000.0)
+	return built
 
 
 func _worn() -> String:

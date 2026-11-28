@@ -47,7 +47,7 @@ func _run() -> void:
 	var folder := "user://replay-visit-%d" % OS.get_process_id()
 	var host := Host.new()
 	set_multiplayer(host)
-	boot_main({"record-sessions": true, "session-directory": folder, "garden": folder.path_join("garden.save")})
+	boot_main({"record-sessions": true, "session-directory": folder, "garden": folder.path_join("gardens")})
 	await process_frame
 	var log := main.metrics.play_log
 	var world := main.world

@@ -1613,6 +1613,28 @@ func _digest(s: Dictionary) -> void:
 	print("driver: digest ", _write_capture(s.name, out))
 
 
+## Puts beside this garden on the shelf `gardens` copies of it and `starts`, each a starting build, and backs it up
+## `backups` minutes back each, in a shelf of the run's own when it keeps none.
+func _shelf(s: Dictionary) -> void:
+	var world := main.world
+	if world.shelf.dir == "":
+		var dir := str(main.args.get("capture-dir", "user://captures")).path_join("gardens")
+		DirAccess.make_dir_recursive_absolute(dir)
+		for f in DirAccess.get_files_at(dir):
+			DirAccess.remove_absolute(dir.path_join(f))
+		main.use_shelf(dir)
+	var shelf := world.shelf
+	var bytes := var_to_bytes(world.snapshot())
+	for i in s.get("gardens", 0):
+		shelf.add(bytes)
+	for name: String in s.get("starts", []):
+		shelf.add(var_to_bytes(Shelf.start(name, world.terrain, world.format())))
+	var now: int = shelf.clock.call()
+	for minutes: float in s.get("backups", []):
+		shelf.add_backup(now - int(minutes) * 60, bytes)
+	await get_tree().process_frame
+
+
 ## ENet counters exclude discovery and IP/UDP headers; frame times are Godot's main-thread time, not process CPU.
 func _network_sample(s: Dictionary) -> void:
 	var peer: ENetMultiplayerPeer = multiplayer.multiplayer_peer

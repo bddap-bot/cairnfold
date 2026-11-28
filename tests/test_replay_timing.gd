@@ -12,7 +12,7 @@ var _holds := PackedInt32Array()
 
 func _initialize() -> void:
 	var folder := "user://replay-timing-%d" % OS.get_process_id()
-	boot_main({"record-sessions": true, "session-directory": folder, "seed": 11, "garden": folder.path_join("garden.save")})
+	boot_main({"record-sessions": true, "session-directory": folder, "seed": 11, "garden": folder.path_join("gardens")})
 	Budget.frame_deadline = true
 	await process_frame
 	_spin()

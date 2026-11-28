@@ -3054,7 +3054,7 @@ Stage numbers refer to the build order at the end.
 | Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette held in the hand): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. The style tool (a wand held with a star at its tip) works the same way with a miniature of each style of what it points at (see "Styles"). On a build its stone, roof tiles, thatch, woodwork (fences, window frames, doors) or plaster (plaster walls and their gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; the meadow's wind and grass turning with the head, birds placed in the world by day, owls and crickets by night; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
-| Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format (`World.format()`: `World.FORMAT` and a digest of the meadow whose plants it numbers), or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
+| Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to its file on the gardens shelf (see "Gardens shelf") after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format (`World.format()`: `World.FORMAT` and a digest of the meadow whose plants it numbers), or one the game cannot read whole, is moved aside to the same name ending `.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden DIR`, a shelf of their own. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB. Several gardens stand side by side on a shelf, with backups of each from five minutes to two hours back (see "Gardens shelf") | 10 (done), 28 (done) |
 | Wildlife | Sheep, birds, ducks, fireflies, deer, a fox | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk and stay all night while the day's animals rest (no new arrivals, butterflies settled, conures roosting with only murmurs, ducks quiet on the bank), conures perch on a tree or wall, sheep graze beside a fence; deer and a fox come out of the trees round the meadow (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 3200×2400 photo at full quality, saved as a PNG under `user://photos` (`Pictures/Cairnfold` in shared storage on Android) that records where and how it was taken (see "Photos"); a dial on the camera picks a style, painterly, sculpture or a colour filter, for its photos and, if wanted, the whole view (see "Photo styles") | 11, 27 (done) |
 | Painting | None | A big easel set up on the ground, painted with a brush held in the hand in watercolour, oil or charcoal (see "Painting") | done |
@@ -3963,7 +3963,7 @@ and the left back, at any speed or angle, since the book finds where the hand's 
 sweep or pass turns one leaf, so the hand lifts off the pages before the next, and the stroke back from a turn never
 undoes it. A hand resting on the pages, hovering over them or passing beside the book turns none (`tests/test_book_turn.gd`). Back from the first page shuts the book. No button is pressed, so the right hand's tool never acts while it reads, and the left hand's grip still
 grabs and its stick still teleports. Picking another tool for the hand tucks the book away (it shrinks into the hand in
-a fifth of a second); the wheel's lower-right slot holds it beside the mirror and the gate, and taking it brings it back at the page it
+a fifth of a second); the wheel's lower-right slot holds it beside the mirror, the gate and the shelf, and taking it brings it back at the page it
 was left on. The book is each player's own and is never sent to others.
 
 Each page is one control a player would not guess from the tool in hand, shown as a little live picture with no words:
@@ -4243,6 +4243,37 @@ Floating turns the meadow into a diorama: drawing works from any height because
 the pointer ray hits the terrain, so you can lay out a whole castle from above and
 then teleport down to stand in its gate.
 
+## Gardens shelf
+
+A player keeps several gardens, a file each in the shelf's folder (`Main.player_path("gardens")`, `Shelf`):
+`N.save` for garden N, `current` naming the one open, and `N-T.backup` for a backup of garden N taken at Unix second
+T. The people slot's last leaf is the shelf. Its dial (`SessionWheel`, `Dial`) shows each choice as a diorama, the
+garden in miniature built from the commands that rebuild it (`Diorama`): its houses as blocks under gable or cone
+roofs, walls and fences as blocks along them, trees, bushes, boulders, ponds, paths, stone ground and painted plants,
+on a round patch of meadow in the garden's season, sized to fit whatever the garden spans (at least 14 m). Each kind
+of part is one multimesh, so a diorama is at most six draws whatever its garden holds. The rim tells them apart: stone for a
+garden, old wood for a backup of this one, pale new wood for a new garden or a starting build.
+
+The dial opens on the garden you are in; clockwise come its backups, 5, 10, 60 and 120 minutes back, then the other
+gardens, then a new blank garden and the starting builds (a cottage, a tower and a hamlet, `Shelf.start`), so letting
+go untwisted changes nothing. Picking another garden keeps this one, then fades to black while the picked one opens
+(`World.go_to`); a new garden or a starting build opens as a garden of its own, kept from the start. A garden that opens only in part has its file moved aside to `.bad` first, as at launch. Picking a
+backup returns this garden to it, the garden as last kept backed up first, so that too can be had again
+(`World.return_to`). Picked while visiting, a garden takes you home into it. Visitors in your garden go with it: the
+host sends each the garden that opened. A shelf holds `Shelf.MOST` gardens; when full it offers no new garden or starting build.
+
+A garden changed is backed up as it is kept, at most every five minutes (`Shelf.EVERY`). Each age is offered the
+youngest backup at least that old: 5 and 10 minutes from every backup, 60 and 120 only from the first backup of each
+half hour (`Shelf.SPAN`), and a backup no age is offered and none will be is deleted (`Shelf.kept`). Through four
+hours of building with an edit a minute that keeps at most eight files, and each age is offered a backup no more than
+five minutes older than it, 35 minutes for the longer two; after a long pause, five minutes back is the garden as last left
+(`tests/test_shelf.gd`). A diorama is built while the wheel is closed, one a quarter second, like the dial's other
+icons, and the one of the garden you are in only once it has stood unchanged five seconds (`Shelf.shown`); one that
+takes over 4 ms is logged (`shelf: a diorama of N parts`). `demo/shelf.json` builds a garden in four stages, a
+backup after each, shows the shelf, starts the hamlet, goes back to the first garden and returns it two hours back; the stress scene's
+`shelf/dial` holds the dial open in a village of two-storey houses with wings, with five copies of it, the three starting builds and four
+backups on the shelf, every diorama in view.
+
 ## Build order
 
 Ordered by what makes it feel like the original soonest. Progress is tracked in
@@ -4275,6 +4306,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 25. Weather and the day's turning: a hand shapes the fog, thick or thin, high or low, clinging to the ground, and in winter the snowfall; the sky let go turning runs its own day and night. (Done.)
 26. Petting sheep: a hand reaching to a sheep pets it; it leans into the hand, then follows a little way. (Done.)
 27. Photo styles: painterly, sculpture and colour-filtered photos chosen on the camera, a style able to stay on the whole view. (Done.)
+28. Gardens shelf: several gardens side by side as dioramas to pick from, a new blank garden or a starting build, and backups 5, 10, 60 and 120 minutes back to return to. (Done.)
 
 ## Water
 
@@ -5820,8 +5852,8 @@ at a perched one from in front and from the side;
 a fence and a gable, and walks the meadow through the seasons; `demo/winter.json` looks at a pond with its fish and
 lilypads, a house, a wall and trees in summer and then frozen, snowed on and bare in winter; `demo/weather.json` thickens and thins the fog, lays it clinging to the ground and then high, snows lightly and then hard in winter, and lets the sky go turning to watch the day run on; `demo/paint.json` paints two walls and two houses
 each in colours of their own; `demo/stroke.json` takes two trees, a wall stretch, a path and meadow in one held delete stroke and puts them back with one undo; `demo/ruins.json` erases stretches of walls into
-ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`
-run with the same `--garden FILE` loads it back and writes a digest equal to the first run's `redone`.
+ruins and walks the history. Run with `--garden DIR`, it keeps its garden on a shelf there, and `demo/garden.json`
+run with the same `--garden DIR` loads it back and writes a digest equal to the first run's `redone`.
 
 ## Sources
 
@@ -6350,7 +6382,7 @@ longest stroke's command size.
 
 Avatar choice and joining a garden turn on the style tool's dial (`Dial`), the one
 component every twisted choice uses. The inventory wheel's people slot holds a hand
-mirror and a gate; reaching on into either, as into a subtree, closes the wheel and
+mirror, a gate and the gardens shelf; reaching on into any of them, as into a subtree, closes the wheel and
 opens that dial over the controller while the wheel button stays held. The mirror's
 dial holds the built-in figures, the loaded VRMs and, off Steam, the visitor's name,
 starting on the one worn; the gate's holds your own cairn and the nearby gardens,

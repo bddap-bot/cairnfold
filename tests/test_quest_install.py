@@ -109,8 +109,10 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         (self.files / 'avatars').mkdir(parents=True)
         self.game_made = {self.files / 'avatars'}
         (self.files / 'bench').mkdir()
-        (self.files / 'garden.save').write_bytes(b'the players\x00 garden')
-        (self.files / 'garden.save.bad').write_bytes(b'an unreadable garden')
+        (self.files / 'gardens').mkdir()
+        self.game_made.add(self.files / 'gardens')
+        (self.files / 'gardens/1.save').write_bytes(b'the players\x00 garden')
+        (self.files / 'gardens/1.save.bad').write_bytes(b'an unreadable garden')
         (self.files / 'avatars/Wren.vrm').write_bytes(b'vrm')
         (self.files / 'bench/metrics.json').write_text('{}')
         (self.files / 'check/bench').mkdir(parents=True)
@@ -136,7 +138,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertIn('install -r', log)
         self.assertNotIn('uninstall', log)
         self.assertNotIn('pull', log)
-        self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+        self.assertEqual((self.files / 'gardens/1.save').read_bytes(), b'the players\x00 garden')
 
     def test_an_update_signed_by_another_key_uninstalls_and_restores(self):
         run = self.install(FAKE_UPDATE='Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match]')
@@ -144,7 +146,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         log = (self.quest / 'adb.log').read_text()
         self.assertIn('uninstall', log)
         self.assertIn('install -g', log)
-        self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+        self.assertEqual((self.files / 'gardens/1.save').read_bytes(), b'the players\x00 garden')
 
     def test_any_other_refused_update_fails_and_uninstalls_nothing(self):
         run = self.install(FAKE_UPDATE='Failure [INSTALL_FAILED_INSUFFICIENT_STORAGE]')
@@ -158,7 +160,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         log = (self.quest / 'adb.log').read_text()
         self.assertIn('uninstall io.github.bddapbot.nestbisect', log)
         self.assertNotIn('cairnfold', log)
-        self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+        self.assertEqual((self.files / 'gardens/1.save').read_bytes(), b'the players\x00 garden')
 
     def test_an_apk_without_the_vr_category_is_refused(self):
         run = self.install(quest=False)
@@ -182,8 +184,9 @@ class QuestInstallKeepsSaves(unittest.TestCase):
             else:
                 self.assertTrue(opened(path, 0o002), f'the game cannot write into {path}')
                 (path / 'new').write_bytes(b'')
-        (self.files / 'garden.save.new').write_bytes(b'a garden')
-        (self.files / 'garden.save.new').rename(self.files / 'garden.save')
+        (self.files / 'gardens').mkdir(exist_ok=True)
+        (self.files / 'gardens/1.save.new').write_bytes(b'a garden')
+        (self.files / 'gardens/1.save.new').rename(self.files / 'gardens/1.save')
         if (self.files / 'record-sessions').exists():
             if not (self.files / 'sessions').exists():
                 (self.files / 'sessions').mkdir()
@@ -195,7 +198,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
             'sessions only': sessions,
             'record-sessions': {'record-sessions': b'', **sessions},
             'empty': {},
-            'full': {'garden.save': b'the players\x00 garden', 'garden.save.bad': b'an unreadable garden',
+            'full': {'gardens/1.save': b'the players\x00 garden', 'gardens/1.save.bad': b'an unreadable garden', 'gardens/1-1800000000.backup': b'a garden earlier',
                      'avatars/Wren.vrm': b'vrm', "avatars/a folder's/Moth.vrm": b'moth', 'record-sessions': b'', **sessions},
         }
         for shape, saves in shapes.items():
@@ -226,11 +229,12 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         copy = self.root / 'copy'
         (copy / 'check/bench').mkdir(parents=True)
         (copy / 'check/bench/drive.sh').write_text('true')
-        (copy / 'garden.save').write_bytes(b'kept')
+        (copy / 'gardens').mkdir()
+        (copy / 'gardens/1.save').write_bytes(b'kept')
         subprocess.run(['adb', 'uninstall', 'io.github.bddapbot.cairnfold'], env=self.env, check=True)
         run = subprocess.run([str(script), '--restore', str(copy)], env=self.env, capture_output=True, text=True)
         self.assertEqual(run.returncode, 0, run.stderr)
-        self.assertEqual((self.files / 'garden.save').read_bytes(), b'kept')
+        self.assertEqual((self.files / 'gardens/1.save').read_bytes(), b'kept')
         self.assertFalse((self.files / 'check').exists())
 
     def test_a_restore_onto_saves_that_have_grown_puts_the_copy_back(self):
@@ -249,13 +253,13 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertIn('no copy of saves', run.stderr)
 
     def test_a_copy_shares_files_identical_to_an_earlier_one(self):
-        earlier = self.saves / '20000101T000000Z/garden.save'
+        earlier = self.saves / '20000101T000000Z/gardens/1.save'
         earlier.parent.mkdir(parents=True)
         earlier.write_bytes(b'the players\x00 garden')
         os.utime(earlier, (0, 0))
         self.assertEqual(self.install().returncode, 0)
-        copy = next(d for d in self.saves.iterdir() if d != earlier.parent)
-        self.assertEqual((copy / 'garden.save').stat().st_ino, earlier.stat().st_ino)
+        copy = next(d for d in self.saves.iterdir() if d != earlier.parent.parent)
+        self.assertEqual((copy / 'gardens/1.save').stat().st_ino, earlier.stat().st_ino)
 
     def test_saves_that_cannot_be_copied_stop_the_run_before_the_uninstall(self):
         for fail in 'shell', 'pull':
@@ -264,7 +268,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
                 self.assertNotEqual(run.returncode, 0)
                 self.assertIn('stopping', run.stderr)
                 self.assertNotIn('uninstall', (self.quest / 'adb.log').read_text())
-                self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+                self.assertEqual((self.files / 'gardens/1.save').read_bytes(), b'the players\x00 garden')
                 (self.quest / 'adb.log').unlink()
 
     def test_a_backup_that_cannot_read_the_device_fails(self):
@@ -288,7 +292,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
                 self.assertNotEqual(run.returncode, 0)
                 self.assertIn('--restore', run.stderr)
                 copy = next(self.saves.iterdir())
-                self.assertEqual((copy / 'garden.save').read_bytes(), b'the players\x00 garden')
+                self.assertEqual((copy / 'gardens/1.save').read_bytes(), b'the players\x00 garden')
                 self.tearDown()
                 self.setUp()
 
@@ -300,8 +304,8 @@ class QuestInstallKeepsSaves(unittest.TestCase):
     def test_the_restore_a_renamed_build_names_acts_on_that_build(self):
         package = 'io.github.bddapbot.nestbisect'
         files = self.quest / f'sdcard/Android/data/{package}/files'
-        files.mkdir(parents=True)
-        (files / 'garden.save').write_bytes(b'the bisect garden')
+        (files / 'gardens').mkdir(parents=True)
+        (files / 'gardens/1.save').write_bytes(b'the bisect garden')
         run = self.install(package=package, FAKE_FAIL='push')
         self.assertNotEqual(run.returncode, 0)
         suggested = shlex.split(run.stderr.split('restore them with: ')[1])
@@ -311,7 +315,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         log = (self.quest / 'adb.log').read_text()
         self.assertIn(package, log)
         self.assertNotIn('cairnfold', log)
-        self.assertEqual((files / 'garden.save').read_bytes(), b'the bisect garden')
+        self.assertEqual((files / 'gardens/1.save').read_bytes(), b'the bisect garden')
 
 
 if __name__ == '__main__':

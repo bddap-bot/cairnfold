@@ -9,7 +9,7 @@
 # the shell pushes beside them (bench output, launch arguments).
 set -euo pipefail
 pkg=io.github.bddapbot.cairnfold
-game_paths="garden.save garden.save.bad avatars record-sessions sessions"
+game_paths="gardens avatars record-sessions sessions"
 
 package() {
   python3 - "$@" <<'PY'

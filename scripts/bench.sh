@@ -249,7 +249,7 @@ elif [ $# -ge 4 ]; then
   # shellcheck disable=SC2016 # expanded on the headset
   "${@:4}" --seconds $((limit + 60)) -- 'cd ~/cairnfold-bench/cairnfold
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
-    status=0; timeout '"$limit"' ./cairnfold -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
+    status=0; timeout '"$limit"' ./cairnfold -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/gardens" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"; exit $status' &
   remote=$!
   if [ "$players" -gt 1 ]; then

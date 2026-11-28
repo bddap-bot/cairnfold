@@ -76,6 +76,7 @@ var _floor_marks := {}
 var _resending := {}
 var _sent := {}
 var save_path := ""
+var shelf := Shelf.open("")
 var _keep_due := false
 var _record_due := false
 var _keep_task := -1
@@ -375,8 +376,12 @@ func format() -> String:
 
 
 func restore_whole(snap: Variant) -> bool:
-	var whole: bool = snap is Dictionary and str(snap.get("format")) == format() and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
-	return whole and restore(snap) == snap.cmds.size()
+	return readable(snap) and restore(snap) == snap.cmds.size()
+
+
+## A garden this game reads, as a snapshot of this format.
+func readable(snap: Variant) -> bool:
+	return snap is Dictionary and str(snap.get("format")) == format() and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
 
 
 ## Snapshots here so the garden cannot change under the writer.
@@ -397,7 +402,10 @@ func _keep(turn: bool) -> void:
 	if not ours:
 		return
 	var path := ProjectSettings.globalize_path(save_path)
-	_keep_task = WorkerThreadPool.add_task(func() -> void: Main.replace_file(path, bytes))
+	var backup := shelf.back_up()
+	_keep_task = WorkerThreadPool.add_task(func() -> void:
+		Main.replace_file(path, bytes)
+		Shelf.write(backup, bytes))
 
 
 ## `kinds` is an ordered {Kind: reach}; each kind's hit falls short of its reach and of every earlier kind's hit. A kind
@@ -1283,14 +1291,49 @@ func _welcome(snap: Dictionary) -> void:
 	swap(snap)
 
 
-func swap(snap: Dictionary) -> void:
+## `leave`, given, runs first when the swap comes: the host keeping the garden it leaves. The host then keeps the one
+## that opened, its file moved aside first if it opened only in part, and sends it to everyone in it.
+func swap(snap: Dictionary, leave := Callable()) -> void:
 	_queue.append({"cmd": {}, "by": -1, "swap": true, "run": func() -> void:
+		if leave.is_valid():
+			leave.call()
 		var asked := _asked_msec
 		_asked_msec = -1
 		var applied := _restore(snap)
 		if asked >= 0:
-			print("world: the garden asked for again came %d ms later; %d of its %d commands applied" % [Time.get_ticks_msec() - asked, applied, snap.cmds.size()])})
+			print("world: the garden asked for again came %d ms later; %d of its %d commands applied" % [Time.get_ticks_msec() - asked, applied, snap.cmds.size()])
+		if not leave.is_valid():
+			return
+		var kept := ProjectSettings.globalize_path(save_path)
+		if applied != snap.cmds.size() and FileAccess.file_exists(kept):
+			if _keep_task >= 0:
+				WorkerThreadPool.wait_for_task_completion(_keep_task)
+				_keep_task = -1
+			push_error("world: %d of the %d commands of the garden opened applied; moving %s to .bad: %s" % [applied, snap.cmds.size(), save_path, error_string(DirAccess.rename_absolute(kept, kept + ".bad"))])
+		shelf.show(seq)
+		_keep_due = save_path != ""
+		for id in multiplayer.get_peers():
+			welcome(id)})
 	_drain()
+
+
+## The host leaves its garden for shelf garden `id`, which becomes `snap`, and takes everyone in it along.
+func go_to(id: int, snap: Dictionary) -> void:
+	swap(snap, func() -> void:
+		flush()
+		shelf.seqs[shelf.current] = seq
+		shelf.choose(id)
+		save_path = shelf.path(id))
+
+
+## The current garden goes back to a backup of it, and the garden as last kept is backed up first, so it can be had again.
+func return_to(snap: Dictionary) -> void:
+	swap(snap, func() -> void:
+		flush()
+		var kept := ProjectSettings.globalize_path(save_path)
+		if save_path != "" and FileAccess.file_exists(kept):
+			var backup := shelf.back_up(true)
+			_keep_task = WorkerThreadPool.add_task(func() -> void: Shelf.write(backup, FileAccess.get_file_as_bytes(kept))))
 
 
 ## Groups regrow in the order they were planted, so every machine's plant pools fill alike.

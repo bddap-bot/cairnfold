@@ -100,10 +100,10 @@ also holds the people: avatars to wear, and nearby gardens to join.
 - Steam Frame: unpack the `linux-arm64` package in the headset's home and add
   `cairnfold/cairnfold` as a VR non-Steam shortcut with the art in
   `cairnfold/steam/`.
-- The game keeps its garden, photos and engine logs in Godot's user
+- The game keeps its gardens, photos and engine logs in Godot's user
   directory: `~/.local/share/godot/app_userdata/Cairnfold` on Linux,
-  `%APPDATA%\Godot\app_userdata\Cairnfold` on Windows. An APK keeps the garden
-  (`garden.save`) and avatars in `/sdcard/Android/data/io.github.bddapbot.cairnfold/files`,
+  `%APPDATA%\Godot\app_userdata\Cairnfold` on Windows. An APK keeps the gardens
+  (`gardens`) and avatars in `/sdcard/Android/data/io.github.bddapbot.cairnfold/files`,
   where adb reads them, and photos in `Pictures/Cairnfold` in shared storage.
   Put VRM avatars (1.0 or 0.x) in its `avatars` folder to wear them: each is a slot on the
   inventory wheel, the newest arrival is put on, and other players see the one you wear (see [docs/multiplayer.md](docs/multiplayer.md)). On a

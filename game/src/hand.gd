@@ -8,7 +8,7 @@ const TREE := [
 	[Tool.COLOUR, Tool.STYLE],
 	[[Tool.CAMERA, Tool.SELFIE, Tool.MIRROR], Tool.SEEDS, Tool.EASEL, Tool.WEATHER],
 	[Tool.FLOWERS, [Tool.GRASS, Tool.MOSS], [Tool.TREES, Tool.BUSHES], Tool.POND],
-	["avatars", "friends", Tool.BOOK],
+	["avatars", "friends", Tool.BOOK, "gardens"],
 	Tool.DELETE,
 	[Tool.PATH, Tool.STONE, Tool.STAIRS],
 	[Tool.WALLS, Tool.FENCE, Tool.WINDOWS, Tool.ARCH],

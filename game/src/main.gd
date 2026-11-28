@@ -254,9 +254,7 @@ func _ready() -> void:
 			tags.append("coop")
 		return tags
 	add_child(metrics)
-	var garden: String = args.get("garden", player_path("garden.save") if played and not args.has("photo") else "")
-	if garden != "":
-		world.load_from(garden)
+	use_shelf(args.get("garden", player_path("gardens") if played and not args.has("photo") else ""))
 	if replayer != null and world.snapshot() != replayer.record.garden and not world.restore_whole(replayer.record.garden):
 		push_error("replay: %s began in a garden this build cannot read whole, of format %s where this build reads %s" % [args.replay, replayer.record.garden.get("format"), world.format()])
 		Main.quit(get_tree(), 1)
@@ -283,6 +281,13 @@ func _ready() -> void:
 	if args.has("quit-after"):
 		get_tree().create_timer(float(args["quit-after"])).timeout.connect(finish)
 	get_tree().auto_accept_quit = false
+
+
+## Keeps gardens in `dir`, opening the one chosen last; "" keeps none.
+func use_shelf(dir: String) -> void:
+	world.shelf = Shelf.open(dir)
+	if dir != "":
+		world.load_from(world.shelf.path(world.shelf.current))
 
 
 func record(into: PlayLog) -> void:

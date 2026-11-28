@@ -57,7 +57,7 @@ func _initialize() -> void:
 	var folder := "user://replay-%d" % OS.get_process_id()
 	var visitor := Visitor.new()
 	set_multiplayer(visitor)
-	boot_main({"record-sessions": true, "session-directory": folder, "seed": TOP_BIT_SEED, "garden": folder.path_join("garden.save")})
+	boot_main({"record-sessions": true, "session-directory": folder, "seed": TOP_BIT_SEED, "garden": folder.path_join("gardens")})
 	visitor.main = main
 	var probe := Replayed.watch(main)
 	await process_frame

@@ -5,7 +5,7 @@ const Replayed := preload("res://../tests/support/replayed.gd")
 
 func _initialize() -> void:
 	var folder := "user://replay-sky-%d" % OS.get_process_id()
-	boot_main({"record-sessions": true, "session-directory": folder, "garden": folder.path_join("garden.save")})
+	boot_main({"record-sessions": true, "session-directory": folder, "garden": folder.path_join("gardens")})
 	await process_frame
 	var log := main.metrics.play_log
 	var world := main.world
