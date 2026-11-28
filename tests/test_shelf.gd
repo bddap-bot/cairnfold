@@ -66,6 +66,9 @@ func _starting_builds_rebuild_whole() -> void:
 	world.restore({"format": world.format(), "seq": 0, "cmds": []})
 
 
+const UNIT := AABB(-Vector3.ONE * 0.5, Vector3.ONE)
+
+
 func _dioramas_show_the_builds() -> void:
 	var world := main.world
 	var lay := Diorama.layout(Shelf.start("hamlet", world.terrain, world.format()).cmds)
@@ -77,11 +80,17 @@ func _dioramas_show_the_builds() -> void:
 	var built := Diorama.build(lay, Color.GRAY)
 	var drawn: Array = built.find_children("*", "MultiMeshInstance3D", false, false)
 	check(drawn.size() == count.size() + 1, "a diorama draws its ground and one batch a kind of part: %d" % drawn.size())
-	var box := AABB()
 	for mi: MultiMeshInstance3D in drawn:
-		for i in mi.multimesh.instance_count:
-			box = box.merge(AABB(mi.multimesh.get_instance_transform(i).origin, Vector3.ZERO))
-	check(box.size.x <= Diorama.RADIUS * 2.2 and box.size.z <= Diorama.RADIUS * 2.2, "the garden fits its diorama: %s" % box)
+		var unit := mi.multimesh.mesh.get_aabb()
+		var flat := Vector2(unit.size.x, unit.size.z)
+		check(is_equal_approx(unit.position.y, -0.5) and is_equal_approx(unit.size.y, 1.0) and flat.x <= 1.0001 and flat.y <= 1.0001 and flat.x > 0.9, "a diorama's part fills the unit block its transform sizes: %s" % unit)
+	var plinth := Diorama.plinth(Color.GREEN, Color.GRAY).map(func(p: Array) -> AABB: return p[1] * UNIT)
+	check(is_zero_approx(plinth[1].end.y) and plinth[0].end.y < plinth[1].end.y and plinth[0].size.x > plinth[1].size.x, "the meadow is the diorama's top, on a wider rim below it: %s" % [plinth])
+	var outside: Array = lay.parts.filter(func(p: Array) -> bool:
+		var box: AABB = p[1] * UNIT
+		var far: Vector3 = (box.get_center() - lay.centre).abs() + box.size * 0.5
+		return Vector2(far.x, far.z).length() > lay.radius)
+	check(outside.is_empty(), "the garden fits on its diorama's meadow: %s" % [outside])
 	built.free()
 	var empty := Diorama.layout([])
 	check(empty.parts.is_empty(), "a blank garden's diorama is only meadow")

@@ -173,12 +173,17 @@ static func build(lay: Dictionary, rim: Color) -> Node3D:
 	var by_part := {}
 	for p: Array in lay.parts:
 		(by_part.get_or_add(p[0], []) as Array).append(p)
-	var base := Transform3D(Basis.from_scale(Vector3(RADIUS * 2.0, RADIUS * 0.1, RADIUS * 2.0)), Vector3.DOWN * RADIUS * 0.05)
-	var edge := Transform3D(Basis.from_scale(Vector3(RADIUS * 2.12, RADIUS * 0.22, RADIUS * 2.12)), Vector3.DOWN * RADIUS * 0.12)
-	root.add_child(_blocks(Part.DRUM, [[Part.DRUM, edge, rim], [Part.DRUM, base, lay.ground]], 1.0, Vector3.ZERO))
+	root.add_child(_blocks(Part.DRUM, plinth(lay.ground, rim), 1.0, Vector3.ZERO))
 	for part: int in by_part:
 		root.add_child(_blocks(part, by_part[part], k, centre))
 	return root
+
+
+## The meadow's disc, its top at y 0, on a wider rim just below it.
+static func plinth(ground: Color, rim: Color) -> Array:
+	var edge := Transform3D(Basis.from_scale(Vector3(RADIUS * 2.12, RADIUS * 0.22, RADIUS * 2.12)), Vector3.DOWN * RADIUS * 0.12)
+	var base := Transform3D(Basis.from_scale(Vector3(RADIUS * 2.0, RADIUS * 0.1, RADIUS * 2.0)), Vector3.DOWN * RADIUS * 0.05)
+	return [[Part.DRUM, edge, rim], [Part.DRUM, base, ground]]
 
 
 static func _blocks(part: int, list: Array, k: float, centre: Vector3) -> MultiMeshInstance3D:
@@ -211,16 +216,14 @@ static func _ready_meshes() -> void:
 	var cone := CylinderMesh.new()
 	cone.top_radius = 0.0
 	cone.bottom_radius = 0.5
+	cone.height = 1.0
 	cone.radial_segments = 8
 	cone.rings = 1
 	var ball := SphereMesh.new()
-	ball.radius = 0.5
-	ball.height = 1.0
 	ball.radial_segments = 8
 	ball.rings = 4
 	var drum := CylinderMesh.new()
-	drum.top_radius = 0.5
-	drum.bottom_radius = 0.5
+	drum.height = 1.0
 	drum.radial_segments = 16
 	drum.rings = 1
 	_meshes.assign([box, prism, cone, ball, drum])
